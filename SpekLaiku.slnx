@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/backend/" />
+  <Folder Name="/backend/src/">
+    <Project Path="backend/src/SpekLaiku.Api/SpekLaiku.Api.csproj" />
+  </Folder>
+  <Folder Name="/backend/tests/">
+    <Project Path="backend/tests/SpekLaiku.IntegrationTests/SpekLaiku.IntegrationTests.csproj" />
+    <Project Path="backend/tests/SpekLaiku.UnitTests/SpekLaiku.UnitTests.csproj" />
+  </Folder>
+</Solution>
