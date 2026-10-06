@@ -5,7 +5,14 @@
 **Status**: Draft
 **Input**: A visitor can create an account so that they can later save and manage their activity plans.
 
-## User Scenarios & Testing *(mandatory)*
+## Clarifications
+
+### Session 2026-10-06
+
+- Q: Should registration reveal whether an email already exists? → A: Yes, reveal that the email is already registered.
+- Q: Should a newly registered account be usable immediately without email confirmation? → A: No, require email confirmation before the account can be used.
+
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Register with valid details (Priority: P1)
 
@@ -80,7 +87,7 @@ As a visitor who uses a keyboard, a screen reader or a phone, I want to complete
 - The visitor edits the page or sends the request without using the form: the same checks still apply.
 - A visitor with an unsaved plan registers: keeping that plan is handled by the Save and View Plans feature, not here.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 IDs in this specification are local to this feature. The related project requirements are listed in the traceability table at the end.
 
@@ -92,10 +99,10 @@ IDs in this specification are local to this feature. The related project require
 - **FR-004**: The system MUST allow only one account per email address.
 - **FR-005**: The system MUST require a password of 8 to 128 characters.
 - **FR-006**: The system MUST require the repeated password to match the password.
-- **FR-007**: The system MUST create every new account as an active Registered User and MUST NOT allow anyone to become an Administrator through registration.
+- **FR-007**: The system MUST create every new account as a Registered User in a Pending Verification status and MUST NOT allow anyone to become an Administrator through registration.
 - **FR-008**: After successful registration the system MUST sign the user in, show a success message and open the home page.
 - **FR-009**: The system MUST NOT show a password after it is entered, MUST NOT return it in any response, MUST NOT write it to logs, and MUST keep it only in a protected form that cannot be read back.
-- **FR-010**: The system MUST show each validation problem as text next to the affected field, using these messages: "Enter a valid email address.", "This email is already registered.", "Password must be at least 8 characters.", "Passwords do not match." [NEEDS CLARIFICATION: should the system reveal that an email is already registered? It helps the visitor but shows which emails have accounts.]
+- **FR-010**: The system MUST show each validation problem as text next to the affected field, using these messages: "Enter a valid email address.", "This email is already registered.", "Password must be at least 8 characters.", "Passwords do not match." The system MUST reveal that an email is already registered when the submitted email belongs to an existing account.
 - **FR-011**: After a failed submission the system MUST keep the entered email, clear the password fields and move keyboard focus to the first invalid field.
 - **FR-012**: The system MUST check all input on the server, even if the browser also checks it.
 - **FR-013**: The system MUST prevent two accounts being created when the form is submitted more than once quickly.
@@ -103,13 +110,13 @@ IDs in this specification are local to this feature. The related project require
 - **FR-015**: If account creation fails for a technical reason, the system MUST show "Account could not be created. Try again later." and MUST NOT leave a partial account.
 - **FR-016**: The registration page MUST have a visible label for every field, link each hint and error message to its field, and be usable by keyboard and screen reader.
 - **FR-017**: The registration page MUST work on desktop and mobile screens, down to 320 px wide, without horizontal scrolling.
-- **FR-018**: The system MUST [NEEDS CLARIFICATION: require the visitor to confirm their email address before the account can be used, or allow immediate use?]
+- **FR-018**: The system MUST create a new account in a Pending Verification status, require the visitor to confirm their email address before the account can be used, and prevent access to protected application features until verification succeeds.
 
 ### Key Entities
 
-- **User Account**: a person's account in the application. Has an email address (unique), a protected password, a role (Registered User or Administrator), a status (Active or Suspended) and a registration date.
+- **User Account**: a person's account in the application. Has an email address (unique), a protected password, a role (Registered User or Administrator), a status (Pending Verification, Active or Suspended) and a registration date.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -135,17 +142,18 @@ IDs in this specification are local to this feature. The related project require
 
 ## Scope Boundaries
 
-**In scope**: the registration page, validation, creating a Registered User account, signing the new user in, the messages and the redirect after success.
+**In scope**: the registration page, validation, creating a Registered User account, email verification, signing the new user in, the messages and the redirect after success.
 
-**Out of scope**: email confirmation (unless the open question above decides otherwise), password reset, login and logout screens (feature 002), creating administrators, social sign-in, editing a profile, keeping a visitor's unsaved plan (feature 010) and deleting an account (feature 016).
+**Out of scope**: password reset, login and logout screens (feature 002), creating administrators, social sign-in, editing a profile, keeping a visitor's unsaved plan (feature 010) and deleting an account (feature 016).
 
 ## Traceability to project requirements
 
-| Project requirement | Covered by |
-| --- | --- |
-| FR-001, FR-002 (register an account) | FR-001 to FR-008, FR-013 to FR-015 |
-| FR-046 (password rule and repeated password) | FR-005, FR-006 |
-| NFR-003 (server-side validation) | FR-012 |
-| NFR-005, NFR-006 (protection of passwords) | FR-009 |
-| NFR-009, NFR-015 (labels and errors) | FR-010, FR-016 |
-| NFR-011 (desktop and mobile layout) | FR-017 |
+| Project requirement                          | Covered by                         |
+| -------------------------------------------- | ---------------------------------- |
+| FR-001, FR-002 (register an account)         | FR-001 to FR-008, FR-013 to FR-015 |
+| FR-046 (password rule and repeated password) | FR-005, FR-006                     |
+| NFR-003 (server-side validation)             | FR-012                             |
+| NFR-005, NFR-006 (protection of passwords)   | FR-009                             |
+| NFR-009, NFR-015 (labels and errors)         | FR-010, FR-016                     |
+| NFR-011 (desktop and mobile layout)          | FR-017                             |
+| NFR-013 (email verification)                 | FR-018                             |
