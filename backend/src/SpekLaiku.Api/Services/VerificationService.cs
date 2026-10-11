@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -27,9 +28,20 @@ public sealed class VerificationService(
         {
             var payload = dataProtector.Unprotect(token);
             var fields = payload.Split('\u001f', 3);
-            if (fields.Length != 3 || string.IsNullOrWhiteSpace(fields[0]))
+            if (fields.Length != 3 || string.IsNullOrWhiteSpace(fields[0]) || string.IsNullOrWhiteSpace(fields[1]))
                 return new(false, "The verification link is invalid.");
-            if (!DateTime.TryParse(fields[2], out var expiresAt) || expiresAt <= DateTime.UtcNow)
+
+            if (!DateTimeOffset.TryParseExact(
+                    fields[2],
+                    "O",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out var expiresAt))
+            {
+                return new(false, "The verification link is invalid.");
+            }
+
+            if (expiresAt <= DateTimeOffset.UtcNow)
                 return new(false, "The verification link has expired.");
 
             var user = await userManager.Users.SingleOrDefaultAsync(
