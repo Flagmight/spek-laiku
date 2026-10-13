@@ -54,6 +54,25 @@ public class VerificationServiceTests
         Assert.Equal(AccountStatus.PendingVerification, user.AccountStatus);
     }
 
+    [Fact]
+    public async Task VerifyAsync_SuspendedUser_RemainsSuspended()
+    {
+        await using var context = CreateContext();
+        var userManager = CreateUserManager(context);
+        var user = CreateUser();
+        user.AccountStatus = AccountStatus.Suspended;
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        var service = CreateService(userManager);
+        var token = await service.CreateTokenAsync(user);
+
+        var result = await service.VerifyAsync(token);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(AccountStatus.Suspended, user.AccountStatus);
+        Assert.False(user.EmailConfirmed);
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()

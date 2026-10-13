@@ -66,6 +66,44 @@ public class RegistrationServiceTests
         Assert.Empty(await userManager.Users.ToListAsync());
     }
 
+    [Fact]
+    public async Task RegisterAsync_ShortPassword_ReturnsValidationErrorWithoutCreatingAccount()
+    {
+        await using var context = CreateContext();
+        var (userManager, _) = CreateIdentityServices(context);
+        var verificationService = new VerificationService(
+            userManager,
+            CreateProtector(),
+            NullLogger<VerificationService>.Instance);
+        var service = new RegistrationService(userManager, new FakeEmailSender(), verificationService);
+
+        var result = await service.RegisterAsync(
+            new RegistrationRequest("user@example.com", "short", "short"));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Password must be at least 8 characters.", result.ErrorMessage);
+        Assert.Empty(await userManager.Users.ToListAsync());
+    }
+
+    [Fact]
+    public async Task RegisterAsync_MismatchedPassword_ReturnsValidationErrorWithoutCreatingAccount()
+    {
+        await using var context = CreateContext();
+        var (userManager, _) = CreateIdentityServices(context);
+        var verificationService = new VerificationService(
+            userManager,
+            CreateProtector(),
+            NullLogger<VerificationService>.Instance);
+        var service = new RegistrationService(userManager, new FakeEmailSender(), verificationService);
+
+        var result = await service.RegisterAsync(
+            new RegistrationRequest("user@example.com", "Password123!", "Different123!"));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Passwords do not match.", result.ErrorMessage);
+        Assert.Empty(await userManager.Users.ToListAsync());
+    }
+
     private static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
