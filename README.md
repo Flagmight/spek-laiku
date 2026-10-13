@@ -23,13 +23,42 @@ Status: in development.
 ## Prerequisites
 
 - Git
-- .NET SDK (latest stable)
+- .NET 10 SDK
 - Node.js and npm
-- Docker (for the local PostgreSQL database)
+- PostgreSQL (local or hosted; Docker is optional)
 
 ## Setup, run and test
 
-Instructions for the database, migrations, backend, frontend and tests will be added as each part of the project is built.
+Configure the backend connection string through an environment variable; do not commit local credentials:
+
+```powershell
+$env:ConnectionStrings__DefaultConnection = "Host=localhost;Port=5432;Database=speklaiku;Username=<local-user>;Password=<local-password>"
+```
+
+The selected production email provider is SendGrid. Its API key, verified sender address, and verification endpoint URL must be supplied through `SendGrid__ApiKey`, `Email__FromAddress`, and `Email__VerificationBaseUrl` environment variables when email delivery is used. Never commit credentials. Automated tests use a fake sender and do not send email.
+
+Run the backend from the repository root:
+
+```powershell
+dotnet restore .\SpekLaiku.slnx
+dotnet build .\SpekLaiku.slnx
+dotnet format .\SpekLaiku.slnx --verify-no-changes
+dotnet test .\SpekLaiku.slnx
+dotnet run --project .\backend\src\SpekLaiku.Api
+```
+
+Run the frontend from `frontend/`:
+
+```powershell
+npm ci
+npm run dev
+npm run lint
+npm run format:check
+npm test
+npm run build
+```
+
+The registration and verification endpoints and screens are implemented in later feature phases; at this stage the frontend remains a scaffold.
 
 ## Development workflow
 

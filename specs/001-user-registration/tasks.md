@@ -14,24 +14,24 @@ description: "Implementation tasks for user registration and email verification"
 
 **Purpose**: Establish the backend and frontend projects, dependencies, configuration, and shared quality tooling.
 
-- [ ] T001 Create the ASP.NET Core API project and React/TypeScript application structure described in the implementation plan.
-- [ ] T002 Configure .NET dependencies for ASP.NET Core Identity, EF Core, PostgreSQL, AutoMapper, logging, and the selected production email provider.
-- [ ] T003 Configure React dependencies, TypeScript, routing, formatting, linting, and the repository's frontend test runner.
-- [ ] T004 Configure environment-specific application settings without committing secrets, real connection strings, tokens, or email credentials.
-- [ ] T005 Configure backend and frontend linting, formatting, test projects, and CI-compatible commands.
-- [ ] T006 Add the database context and Identity configuration required by the application.
+- [X] T001 Create the ASP.NET Core API project and React/TypeScript application structure described in the implementation plan.
+- [X] T002 Configure .NET dependencies for ASP.NET Core Identity, EF Core, PostgreSQL, AutoMapper, logging, and SendGrid.
+- [X] T003 Configure React dependencies, TypeScript, routing, formatting, linting, and the repository's frontend test runner.
+- [X] T004 Configure environment-specific application settings without committing secrets, real connection strings, tokens, or email credentials.
+- [X] T005 Configure backend and frontend linting, formatting, test projects, and CI-compatible commands.
+- [X] T006 Add the database context and Identity configuration required by the application.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
 **Purpose**: Establish the shared account lifecycle, email delivery contract, authorization policy, and error-handling foundation required by every user story.
 
-- [ ] T007 [P] Add the `AccountStatus` enum and persist the new status on `ApplicationUser`, with the existing Identity schema migration.
-- [ ] T008 [P] Add the asynchronous `IEmailSender` contract and a deterministic test sender that does not send real email.
-- [ ] T009 [P] Add the production email-provider implementation selected in the feature plan and environment configuration.
-- [ ] T010 [P] Add centralized API validation and error handling that returns safe messages and does not expose passwords, tokens, or stack traces.
-- [ ] T011 [P] Add an authorization requirement that permits only authenticated users whose account status is `Active` and whose email is confirmed.
-- [ ] T012 [P] Add the registration and verification DTOs and AutoMapper configuration described in the API contract.
-- [ ] T013 [P] Add backend unit tests for account-status transitions, validation, authorization, and email-sender failure behavior.
+- [X] T007 [P] Add the `AccountStatus` enum and persist the new status on `ApplicationUser`; the initial Identity schema migration is created in T042 because this repository has no existing migration.
+- [X] T008 [P] Add the asynchronous `IEmailSender` contract and a deterministic test sender that does not send real email.
+- [X] T009 [P] Add the production email-provider implementation selected in the feature plan and environment configuration.
+- [X] T010 [P] Add centralized API validation and error handling that returns safe messages and does not expose passwords, tokens, or stack traces.
+- [X] T011 [P] Add an authorization requirement that permits only authenticated users whose account status is `Active` and whose email is confirmed.
+- [X] T012 [P] Add the registration and verification DTOs and AutoMapper configuration described in the API contract.
+- [X] T013 [P] Add backend unit tests for account-status transitions, validation, authorization, and email-sender failure behavior.
 
 **Checkpoint**: Foundation ready - user story implementation can begin in parallel.
 
@@ -128,7 +128,7 @@ description: "Implementation tasks for user registration and email verification"
 
 **Purpose**: Complete security, lifecycle, migration, documentation, and end-to-end validation.
 
-- [ ] T042 [P] Add the EF Core migration for the account-status field and verify it against the Identity schema.
+- [ ] T042 [P] Add the initial EF Core Identity schema migration, including the account-status field, and verify it against the configured model.
 - [ ] T043 [P] Add verification endpoint tests for valid, invalid, expired, reused, and malformed tokens.
 - [ ] T044 [P] Add authorization tests for Pending Verification, Active, and Suspended users.
 - [ ] T045 [P] Add email-delivery failure tests using the deterministic fake sender.

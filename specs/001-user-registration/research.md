@@ -34,7 +34,7 @@ Rejected because it would couple business rules to one delivery provider and mak
 
 ## Email Delivery Choice
 
-A production mail-provider implementation will be selected during implementation and documented in the feature plan. The abstraction contract must support asynchronous delivery, recipient validation, and failure reporting without exposing message content or tokens to logs.
+SendGrid is the selected production provider and its implementation will be added in Phase 2 task T009. The abstraction contract must support asynchronous delivery, recipient validation, and failure reporting without exposing message content or tokens to logs.
 
 The initial implementation must not rely on live email delivery in tests. Tests will replace the sender with a deterministic fake while exercising the registration and verification service behavior.
 

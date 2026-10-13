@@ -12,11 +12,11 @@ Create a registration flow that accepts and validates an email and password, cre
 
 **Language/Version**: C#/.NET latest stable, TypeScript/React, ASP.NET Core Identity, EF Core, PostgreSQL
 
-**Primary Dependencies**: ASP.NET Core Identity, EF Core, PostgreSQL, React/TypeScript, an asynchronous email provider selected for production
+**Primary Dependencies**: ASP.NET Core Identity, EF Core, PostgreSQL, React/TypeScript, Prettier for frontend formatting, and SendGrid for production email delivery
 
 **Storage**: PostgreSQL through ApplicationDbContext; persisted account status and Identity user records
 
-**Testing**: xUnit and integration tests for backend behavior; Jest or the repository's configured frontend test runner; deterministic fake email sender and test database
+**Testing**: xUnit and integration tests for backend behavior; Vitest for frontend tests; ESLint and Prettier for frontend quality checks; deterministic fake email sender and test database
 
 **Target Platform**: Web application targeting the repository's supported browser and server environments
 
@@ -41,7 +41,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 - PASS: Adds automated backend and frontend tests, including authorization tests for protected operations.
 - PASS: Uses deterministic tests and fake external email delivery.
 - PASS: Uses the repository's existing backend and frontend directory structure; no unnecessary abstractions or dependencies are planned.
-- PASS: Email delivery provider selection will be documented before implementation because the current repository has no production mail configuration.
+- PASS: SendGrid is the selected production email provider; credentials remain environment-specific and tests use a deterministic sender.
 
 ## Project Structure
 
