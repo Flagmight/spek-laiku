@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -50,6 +51,7 @@ public class Program
         builder.Services.AddIdentityCore<ApplicationUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
+                options.User.AllowedUserNameCharacters = string.Empty;
                 options.Password.RequiredLength = 8;
                 options.Password.RequiredUniqueChars = 1;
                 options.Password.RequireDigit = false;
@@ -57,12 +59,39 @@ public class Program
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequireUppercase = false;
             })
+            .AddSignInManager()
             .AddEntityFrameworkStores<ApplicationDbContext>();
         builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
             .AddIdentityCookies();
+        builder.Services.ConfigureApplicationCookie(options =>
+        {
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+            options.SlidingExpiration = true;
+            options.Events.OnRedirectToLogin = context =>
+            {
+                // The API contract defines 401 with no body, so status code pages must not add one.
+                var statusCodePages = context.HttpContext.Features.Get<IStatusCodePagesFeature>();
+                if (statusCodePages is not null)
+                {
+                    statusCodePages.Enabled = false;
+                }
+
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            };
+        });
         builder.Services.AddAuthorization();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
+        builder.Services.AddScoped<CurrentUserService>();
 
         var app = builder.Build();
 

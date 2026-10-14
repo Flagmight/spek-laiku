@@ -25,7 +25,8 @@ Status: in development.
 - Git
 - .NET 10 SDK
 - Node.js and npm
-- PostgreSQL (local or hosted; Docker is optional)
+- PostgreSQL (local or hosted)
+- Docker (required to run the backend integration tests, which start PostgreSQL with Testcontainers)
 
 ## Setup, run and test
 
