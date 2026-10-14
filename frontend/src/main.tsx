@@ -1,5 +1,8 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
+import { BrowserRouter } from "react-router-dom"
+import { AppRoutes } from "./components/appRoutes"
+import { CurrentUserProvider } from "./components/currentUserProvider"
 
 const rootElement = document.getElementById("root")
 
@@ -9,6 +12,10 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <div>Spėk laiku</div>
+    <BrowserRouter>
+      <CurrentUserProvider>
+        <AppRoutes />
+      </CurrentUserProvider>
+    </BrowserRouter>
   </StrictMode>,
 )
