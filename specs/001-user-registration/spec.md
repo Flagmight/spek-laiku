@@ -31,6 +31,7 @@
 
 - Q: What does the page do if the server refuses registration because the user is already signed in (for example, signed in in another tab, or a timed-out request that still set the sign-in cookie)? → A: The home page opens with no error and no banner, and the navigation shows the signed-in state (FR-014).
 - Q: What is a valid email format? → A: After spaces around it are removed: at most 254 characters, no spaces, exactly one "@", at least one character before it, and a domain after it that contains a dot that is neither its first nor its last character. Every email that passes this check must also be accepted when the account is created (FR-003).
+- Q: Are spaces at the start or end of a password removed? → A: No. The password is used exactly as entered. Spaces anywhere in it are kept and count toward the 8 characters (FR-005).
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -83,6 +84,7 @@ As a signed-in user, I do not want to see a registration form so that I do not c
 **Acceptance Scenarios**:
 
 1. **Given** a signed-in user, **When** they open the registration page, **Then** they are taken to the home page.
+2. **Given** a visitor on the registration page who became signed in after opening it (for example in another tab), **When** they submit the form, **Then** the home page opens with no error message and no account is created.
 
 ---
 
@@ -104,7 +106,7 @@ As a visitor who uses a keyboard, a screen reader or a phone, I want to complete
 ### Edge Cases
 
 - Email differs only in letter case from an existing one: treated as the same email and rejected as a duplicate.
-- Email or password has spaces at the start or end: spaces around the email are removed before checking; spaces inside a password are allowed.
+- Email or password has spaces at the start or end: spaces around the email are removed before checking. The password is never changed; spaces anywhere in it, including at the start or end, are kept and count toward the 8 characters.
 - Email is longer than 254 characters: rejected with "Error: Enter a valid email address." next to the email field.
 - Password is very long: accepted, because there is no maximum password length.
 - The submit button is pressed twice quickly: only one account is created.
@@ -124,7 +126,7 @@ IDs in this specification are local to this feature. The related project require
 - **FR-002**: The system MUST require all three fields.
 - **FR-003**: The system MUST accept only a valid email format of up to 254 characters, ignore spaces around it, and treat emails that differ only in letter case as the same email. A valid format has no spaces, exactly one "@", at least one character before it, and a domain after it that contains a dot that is neither its first nor its last character.
 - **FR-004**: The system MUST allow only one account per email address.
-- **FR-005**: The system MUST require a password of at least 8 characters and MUST NOT set a maximum password length.
+- **FR-005**: The system MUST require a password of at least 8 characters and MUST NOT set a maximum password length. Spaces count as characters, and the password is never trimmed or changed.
 - **FR-006**: The system MUST require "Confirm password" to match "Password".
 - **FR-007**: The system MUST create every new account as an Active Registered User and MUST NOT allow anyone to become an Administrator through registration.
 - **FR-008**: After successful registration the system MUST sign the user in, open the home page and show the banner "✓ Success: Account created." that stays until the user dismisses it.

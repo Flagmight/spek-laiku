@@ -73,11 +73,11 @@ description: "Implementation tasks for user registration"
 - [ ] T022 [US1] Sign the new user in after successful registration, using the cookie session from T013D that the Login feature (002) will reuse.
 - [ ] T022A [US1] After successful registration, navigate to `/` and pass "Account created." as router state, so the home page from T013H shows the banner "✓ Success: Account created." until the user dismisses it (FR-008), and refresh the current-user state from `useCurrentUser` so that the navigation hides "Register" (US1 scenario 2).
 - [ ] T022B [US1] Add the top navigation component in `frontend/src/components/` and render it in the `<nav>` area of the layout from T013H: a visitor sees Home and Register; a signed-in user (from `useCurrentUser`) sees Home only (US1 scenario 2). There is no Log in link until feature 002 adds the Log in page.
-- [ ] T023 [US1] Add `frontend/src/pages/RegisterPage.tsx` with the three fields and their visible labels "Email", "Password" and "Confirm password", the submit button, the registration call in the API client in `frontend/src/api/`, and the loading state from FR-018. The password hint and linked errors are added in T039, validation rendering in T030, and the responsive layout in T041.
+- [ ] T022C [US1] Add `frontend/src/hooks/useRegistration.ts`. It sends the registration request through the API client in `frontend/src/api/`, holds the request state (idle, pending, success, validation errors, server error, already signed in), applies the 10-second timeout from FR-018, ignores a second submit while a request is pending, and returns the per-field errors from a `400`. Retry sends the last request again. Add unit tests for each state, using fake timers for the timeout.
+- [ ] T023 [US1] Add `frontend/src/components/registrationForm.tsx` with the three fields and their visible labels "Email", "Password" and "Confirm password", the submit button and the loading text from FR-018. Add `frontend/src/pages/RegisterPage.tsx`, which connects `useRegistration` to the form and handles navigation after success (T022A) and after a `403` (T035A). The password hint and linked errors are added in T039, validation rendering in T030, and the responsive layout in T041. The password values are sent exactly as typed, without trimming. The "Password" and "Confirm password" inputs use `type="password"` and `autocomplete="new-password"`. The email input uses `type="email"` and `autocomplete="email"`. The form has `noValidate`, so the browser's own validation bubbles never replace the FR-010 messages.
 - [ ] T023B [US1] On `RegisterPage.tsx`, add the single `<h1>` "Register" and set the title "Register - Spėk laiku" with `usePageTitle`. Add a test for both (FR-021).
-- [ ] T023A [US1] Disable the submit button while a registration request is pending, so a second click sends no request.
-- [ ] T023C [US1] In `RegisterPage.tsx`, for any `5xx` response, a network error or the FR-018 timeout, show "Error: Something went wrong. Try again." (through `formatErrorMessage`) with a Retry button. Keep all entered values, and make Retry send the same request again (FR-015). Never show the server's text.
-- [ ] T023D [US1] In `RegisterPage.tsx`, on a `403` response, refresh the current-user state from `useCurrentUser` and navigate to `/` with no banner and no error message (FR-014). Add a frontend test that a `403` opens the home page and shows no "Error:" text.
+- [ ] T023A [US1] In `registrationForm.tsx`, disable the submit button while `useRegistration` reports a pending request, so a second click sends no request.
+- [ ] T023C [US1] In `registrationForm.tsx`, using the server-error state from `useRegistration`, for any `5xx` response, a network error or the FR-018 timeout, show "Error: Something went wrong. Try again." (through `formatErrorMessage`) with a Retry button. Keep all entered values, and make Retry send the same request again (FR-015). Never show the server's text.
 
 **Checkpoint**: User Story 1 is fully functional and independently testable.
 
@@ -89,14 +89,14 @@ description: "Implementation tasks for user registration"
 
 ### Tests for User Story 2
 
-- [ ] T025 [P] [US2] Add backend tests for every FR-010 message (each empty field, invalid email, email longer than 254 characters, password shorter than 8, mismatched passwords), that a very long password is accepted, and that no account is created on invalid input. Also test that a valid email with less common characters (for example `o'brien@example.com`) is accepted and creates an account, and that `a@b`, `a@b.`, `@b.lt` and `a b@c.lt` get "Enter a valid email address.".
+- [ ] T025 [P] [US2] Add backend tests for every FR-010 message (each empty field, invalid email, email longer than 254 characters, password shorter than 8, mismatched passwords), that a very long password is accepted, and that no account is created on invalid input. Also test that a valid email with less common characters (for example `o'brien@example.com`) is accepted and creates an account, and that `a@b`, `a@b.`, `@b.lt` and `a b@c.lt` get "Enter a valid email address.". Also test that a password with spaces at the start and end (for example `"  abcdef"`, 8 characters) is accepted, and that the stored account accepts exactly that password and rejects the trimmed version (`UserManager.CheckPasswordAsync`).
 - [ ] T026 [P] [US2] Add API integration tests that invalid input returns `400` problem details with `errors` keyed by `email`, `password` and `passwordConfirmation`: each invalid field gets its FR-010 message, several invalid fields are all returned in one response, empty and missing fields get the "empty" messages, and a body that is not valid JSON returns `errors.request`.
 - [ ] T027 [P] [US2] Add frontend tests for messages, retained email, cleared passwords, focus movement, and accessible error associations. Also test that every shown message starts with "Error:", that with errors in two or more fields the error summary lists every message and each link moves focus to its field, and that with one error no summary is shown.
 
 ### Implementation for User Story 2
 
 - [ ] T029 [US2] In the registration controller, map the service's per-field errors to the `400` problem-details response, technical failures to `500` and the already-signed-in case to `403`, exactly as in the contract.
-- [ ] T030 [US2] Add validation error rendering in `RegisterPage.tsx`: read `errors.email`, `errors.password` and `errors.passwordConfirmation` from a `400` response and show each message next to its field through `formatErrorMessage` (FR-019). After a validation failure, keep the email, clear the password fields and move focus to the first invalid field (FR-011), and announce the errors to screen readers. Server errors are handled in T023C.
+- [ ] T030 [US2] Add validation error rendering in `registrationForm.tsx`, using the validation errors from `useRegistration`: read `errors.email`, `errors.password` and `errors.passwordConfirmation` from a `400` response and show each message next to its field through `formatErrorMessage` (FR-019). After a validation failure, keep the email, clear the password fields and move focus to the first invalid field (FR-011), and announce the errors to screen readers. Server errors are handled in T023C.
 - [ ] T030A [US2] Add `frontend/src/components/errorSummary.tsx` at the top of the registration form. Show it when more than one field fails validation. It lists every field message (through `formatErrorMessage`), each as a link that moves keyboard focus to its field, and is announced to screen readers (`role="alert"`). Focus still moves to the first invalid field (FR-020, FR-011).
 
 Server-side validation with the exact messages is part of T018. Accessible labels and layout are part of T039 and T041.
@@ -118,6 +118,7 @@ Server-side validation with the exact messages is part of T018. Accessible label
 
 - [ ] T034 [P] [US3] Add the guard on the `/register` route that redirects a signed-in user to `/`, using `useCurrentUser` from T013E.
 - [ ] T035 [US3] Add the registration endpoint guard so a request from a signed-in user returns `403` with "You are already signed in." and creates no account, as in the contract.
+- [ ] T035A [US3] When the registration request returns `403`, refresh the current-user state from `useCurrentUser` and navigate to `/` with no banner and no error message (FR-014, US3 scenario 2). Add a frontend test that a `403` opens the home page and shows no "Error:" text.
 
 **Checkpoint**: User Story 3 is independently testable.
 
@@ -136,7 +137,7 @@ Server-side validation with the exact messages is part of T018. Accessible label
 ### Implementation for User Story 4
 
 - [ ] T039 [P] [US4] Use semantic form controls (each label tied to its input from T023), add the hint "At least 8 characters." under "Password", and hints and errors linked to their fields with `aria-describedby`.
-- [ ] T040 [US4] Make the keyboard focus order Email, Password, Confirm password, submit button, and make pressing Enter in any field submit the form.
+- [ ] T040 [US4] In `registrationForm.tsx`, make the keyboard focus order Email, Password, Confirm password, submit button, and make pressing Enter in any field submit the form.
 - [ ] T041 [US4] Apply responsive styling that keeps all controls usable at 320 px without horizontal scrolling, with touch targets of at least 44 × 44 px and input text of at least 16 px.
 
 **Checkpoint**: User Story 4 is independently testable.
@@ -148,7 +149,7 @@ Server-side validation with the exact messages is part of T018. Accessible label
 - [ ] T042 [P] Add the initial EF Core Identity schema migration, including the account-status field, and verify it against the configured model. Then switch the T013F test fixture to apply migrations instead of creating the schema from the model.
 - [ ] T046 [P] Add navigation tests for T022B: a visitor sees Home and Register, a signed-in user sees Home only, and there is no Log in link.
 - [ ] T047 [P] Update the feature documentation, the quickstart and `README.md` (running the API with the https profile and the frontend through the dev proxy), and confirm that a fresh clone passes the tests by following the README.
-- [ ] T048 [P] Add security review checks confirming passwords are never logged or returned.
+- [ ] T048 [P] Add a backend integration test that registers with a known password and checks that (1) neither the `201` response body nor any `400` or `500` response body contains the password, (2) log output captured with a test logger provider for the whole request contains no password, and (3) the stored `PasswordHash` is not the password. Add a frontend test that both password inputs have `type="password"` (FR-009, SC-004).
 - [ ] T049 Run backend restore, build, formatting, unit tests, and integration tests.
 - [ ] T050 Run frontend lint, tests, and production build.
 - [ ] T051 Run the quickstart validation and confirm all acceptance scenarios.
@@ -159,7 +160,7 @@ Server-side validation with the exact messages is part of T018. Accessible label
 ### Phase Dependencies
 
 - Phase 1: Setup has no dependencies.
-- Phase 2: Foundational depends on Phase 1 and blocks all user stories. T013A to T013C must be done before T018, T019 and T042. T013D and T013E must be done before T022, T032 and T034. T013F must be done before T015A. T013G must be done before T013E, T013H, T023 and T034. T013H must be done before T022A, T022B, T023 and T034. T042 may run any time after T013B. T049 to T052 run last, in order. T013I must be done after T013H, and T013J after T013I. T013K must be done before T023C and T030. T013L must be done before T018 and T025. T023D must be done after T023 and T013E. T023B must be done after T023 and T013I. T030A must be done after T030.
+- Phase 2: Foundational depends on Phase 1 and blocks all user stories. T013A to T013C must be done before T018, T019 and T042. T013D and T013E must be done before T022, T032 and T034. T013F must be done before T015A. T013G must be done before T013E, T013H, T023 and T034. T013H must be done before T022A, T022B, T023 and T034. T042 may run any time after T013B. T049 to T052 run last, in order. T013I must be done after T013H, and T013J after T013I. T013K must be done before T023C and T030. T013L must be done before T018 and T025. T035A must be done after T023 and T013E. T022C must be done before T023, T023A, T023C, T030 and T035A. T023B must be done after T023 and T013I. T030A must be done after T030.
 - Phase 3: User Story 1 depends on Phase 2 and is the MVP.
 - Phase 4: User Story 2 depends on Phase 2 and may run after or in parallel with User Story 1.
 - Phase 5: User Story 3 depends on Phase 2 and may run in parallel with other stories.

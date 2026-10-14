@@ -91,8 +91,8 @@ backend/
 frontend/
 └── src/
     ├── api/                   # Registration API client
-    ├── components/            # Registration form parts, the error summary, the shared layout with the skip link, the top navigation and the success banner
-    ├── hooks/                 # Registration state hooks, useCurrentUser and usePageTitle
+    ├── components/            # registrationForm.tsx, the error summary, the shared layout with the skip link, the top navigation and the success banner
+    ├── hooks/                 # useRegistration, useCurrentUser and usePageTitle
     ├── pages/                 # HomePage.tsx (placeholder) and RegisterPage.tsx
     ├── helpers/               # Validation helpers and formatErrorMessage
     └── tests/                 # UI tests
