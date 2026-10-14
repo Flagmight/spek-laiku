@@ -66,7 +66,7 @@ Rules:
   - `email`: "Enter your email address." (empty), "Enter a valid email address." (invalid format or longer than 254 characters).
   - `password`: "Enter a password." (empty), "Password must be at least 8 characters." No maximum length is enforced.
   - `passwordConfirmation`: "Confirm your password." (empty), "Passwords do not match."
-- The duplicate check runs only when all three fields are otherwise valid. A duplicate returns `errors.email` = `["This email is already registered."]`. This includes the case where two requests for the same email arrive at the same time and the database unique index rejects the second one.
+- The duplicate check runs only when all three fields are otherwise valid. A duplicate returns `errors.email` = `["This email is already registered."]`. This includes the case where two requests for the same email arrive at the same time and either Identity's uniqueness check or the database unique index rejects the second one.
 - Empty strings and missing fields both count as empty and get the messages above, not a generic model-binding error. A body that is not valid JSON returns `400` with `errors.request` = `["The request is invalid."]`.
 
 ### Technical failure
@@ -103,7 +103,7 @@ Content-Type: application/problem+json
 }
 ```
 
-No account is created.
+No account is created. The frontend navigates to `/` and shows no error message (spec FR-014).
 
 ## Current User
 
@@ -129,6 +129,6 @@ Any signed-in user gets `200`, including a Suspended user, whose `accountStatus`
 
 Not signed in: `401 Unauthorized` with no body. The frontend uses this endpoint to decide whether the visitor is signed in (spec FR-014 and US1 scenario 2). Feature 002 reuses it.
 
-## Authorization Contract
+## Authorization
 
-Protected endpoints must reject an unauthenticated user or a user whose `AccountStatus` is not `Active`. The authorization policy must not rely on frontend visibility.
+`POST /api/registration` refuses signed-in users (`403`). `GET /api/auth/me` requires a signed-in user (`401` otherwise). No endpoint in this feature checks account status; that is added by the first feature that needs it. Authorization is enforced on the backend and never relies on frontend visibility.

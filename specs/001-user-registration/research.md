@@ -36,7 +36,7 @@ Rejected. CORS with credentials needs more configuration and widens the attack s
 
 ## Validation Strategy
 
-- Backend unit tests will cover validation, duplicate handling, account creation as `Active`, and authorization denial.
+- Backend unit tests will cover validation, duplicate handling, account creation as `Active`, and the already-signed-in refusal.
 - Backend integration tests will use an isolated test database.
 - Frontend tests will cover registration success, validation errors and server errors.
 - The full backend build and tests plus frontend lint, tests, and build are required before completion.

@@ -24,10 +24,10 @@ Run the registration tests and verify that they cover:
 2. Duplicate email handling is case-insensitive.
 3. Invalid input produces field-level errors.
 4. A password shorter than 8 characters is rejected, and a long password (for example 200 characters) is accepted.
-5. The active-account policy rejects unauthenticated and suspended users (unit tests of the policy handler).
-6. Account-creation failures do not leave partial accounts.
-7. Two simultaneous registrations with the same email create exactly one account (Testcontainers PostgreSQL).
-8. `GET /api/auth/me` returns 200 for a signed-in user and 401 otherwise.
+5. Account-creation failures do not leave partial accounts.
+6. Two simultaneous registrations with the same email create exactly one account (Testcontainers PostgreSQL).
+7. `GET /api/auth/me` returns 200 for a signed-in user and 401 otherwise.
+8. A registration request from a signed-in user returns 403 and creates no account.
 
 ## Frontend Validation
 

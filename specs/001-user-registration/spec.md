@@ -27,6 +27,11 @@
 - Q: What page structure does every page need? → A: One main heading, a browser tab title in the form "<Page> - Spėk laiku" and a "Skip to main content" link as the first focusable item, on both the Register page and the Home page (project NFR-014, `docs/ux-design.md` section 9.3, FR-021).
 - Q: Which text is shown for a technical failure? → A: The UX server error text "Error: Something went wrong. Try again." with a Retry button (`docs/ux-design.md` section 6). It replaces "Account could not be created. Try again later." (FR-015).
 
+### Session 2026-10-14
+
+- Q: What does the page do if the server refuses registration because the user is already signed in (for example, signed in in another tab, or a timed-out request that still set the sign-in cookie)? → A: The home page opens with no error and no banner, and the navigation shows the signed-in state (FR-014).
+- Q: What is a valid email format? → A: After spaces around it are removed: at most 254 characters, no spaces, exactly one "@", at least one character before it, and a domain after it that contains a dot that is neither its first nor its last character. Every email that passes this check must also be accepted when the account is created (FR-003).
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Register with valid details (Priority: P1)
@@ -106,7 +111,7 @@ As a visitor who uses a keyboard, a screen reader or a phone, I want to complete
 - The service fails while creating the account: "Error: Something went wrong. Try again." is shown with a Retry button, and no partial account remains.
 - The visitor edits the page or sends the request without using the form: the same checks still apply.
 - A signed-in user sends a registration request directly, without the page: the request is refused and no account is created.
-- The 10-second timeout from FR-018 is reached but the server still creates the account afterwards: the visitor sees the FR-015 message; if they select Retry or submit again with the same email they see "Error: This email is already registered." and can log in through the Login feature (002). This is a known limitation of this version.
+- The 10-second timeout from FR-018 is reached but the server still creates the account afterwards: the visitor sees the FR-015 message. If the late response signed them in, Retry or a new submission opens the home page (FR-014). Otherwise it shows "Error: This email is already registered." and they can log in through the Login feature (002). This is a known limitation of this version.
 - A visitor with an unsaved plan registers: keeping that plan is handled by the Save and View Plans feature, not here.
 
 ## Requirements _(mandatory)_
@@ -117,7 +122,7 @@ IDs in this specification are local to this feature. The related project require
 
 - **FR-001**: The system MUST allow a visitor to create an account by entering an email address, a password and the password again, in fields labelled "Email", "Password" and "Confirm password".
 - **FR-002**: The system MUST require all three fields.
-- **FR-003**: The system MUST accept only a valid email format of up to 254 characters, ignore spaces around it, and treat emails that differ only in letter case as the same email.
+- **FR-003**: The system MUST accept only a valid email format of up to 254 characters, ignore spaces around it, and treat emails that differ only in letter case as the same email. A valid format has no spaces, exactly one "@", at least one character before it, and a domain after it that contains a dot that is neither its first nor its last character.
 - **FR-004**: The system MUST allow only one account per email address.
 - **FR-005**: The system MUST require a password of at least 8 characters and MUST NOT set a maximum password length.
 - **FR-006**: The system MUST require "Confirm password" to match "Password".
@@ -128,7 +133,7 @@ IDs in this specification are local to this feature. The related project require
 - **FR-011**: After a submission fails validation the system MUST keep the entered email, clear the password fields and move keyboard focus to the first invalid field.
 - **FR-012**: The system MUST check all input on the server, even if the browser also checks it.
 - **FR-013**: The system MUST prevent two accounts being created when the form is submitted more than once quickly.
-- **FR-014**: The system MUST send a signed-in user who opens the registration page to the home page.
+- **FR-014**: The system MUST send a signed-in user who opens the registration page to the home page. If a registration request is refused because the user is already signed in, the system MUST open the home page without an error message and without creating an account.
 - **FR-015**: If account creation fails for a technical reason, the server does not answer within 10 seconds (FR-018), or the network fails, the system MUST show "Error: Something went wrong. Try again." with a Retry button, MUST keep the entered values so that Retry sends the same details again, MUST NOT show technical details, and MUST NOT leave a partial account.
 - **FR-016**: The registration page MUST have a visible label for every field, show the hint "At least 8 characters." under the "Password" field, link each hint and error message to its field, and be usable by keyboard and screen reader.
 - **FR-017**: The registration page MUST work on desktop and mobile screens, down to 320 px wide, without horizontal scrolling.
