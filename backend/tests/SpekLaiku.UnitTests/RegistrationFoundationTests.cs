@@ -12,7 +12,7 @@ namespace SpekLaiku.UnitTests;
 public class RegistrationFoundationTests
 {
     [Fact]
-    public void ApplicationUserModel_StoresPendingStatusAndEnforcesNormalizedEmailUniqueness()
+    public void ApplicationUserModel_DefaultsToActiveStatusAndEnforcesNormalizedEmailUniqueness()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -23,7 +23,7 @@ public class RegistrationFoundationTests
         var emailIndex = entityType.GetIndexes()
             .Single(index => index.Properties.Single().Name == nameof(ApplicationUser.NormalizedEmail));
 
-        Assert.Equal(AccountStatus.PendingVerification, status.GetDefaultValue());
+        Assert.Equal(AccountStatus.Active, status.GetDefaultValue());
         Assert.True(emailIndex.IsUnique);
         Assert.Equal(254, entityType.FindProperty(nameof(ApplicationUser.Email))!.GetMaxLength());
     }
@@ -42,8 +42,8 @@ public class RegistrationFoundationTests
         var failure = mapper.Map<RegistrationResponse>(
             new RegistrationResult(false, "This email is already registered."));
 
-        Assert.Equal("PendingVerification", success.AccountStatus);
-        Assert.Equal("Account created. Verify your email to continue.", success.Message);
+        Assert.Equal("Active", success.AccountStatus);
+        Assert.Equal("Account created.", success.Message);
         Assert.Null(failure.AccountStatus);
         Assert.Equal("This email is already registered.", failure.Message);
     }

@@ -14,7 +14,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         builder.Entity<ApplicationUser>()
             .Property(user => user.AccountStatus)
             .HasConversion<int>()
-            .HasDefaultValue(AccountStatus.PendingVerification);
+            .HasDefaultValue(AccountStatus.Active);
         builder.Entity<ApplicationUser>()
             .Property(user => user.Role)
             .HasMaxLength(50);

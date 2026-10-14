@@ -35,8 +35,6 @@ Configure the backend connection string through an environment variable; do not 
 $env:ConnectionStrings__DefaultConnection = "Host=localhost;Port=5432;Database=speklaiku;Username=<local-user>;Password=<local-password>"
 ```
 
-The selected production email provider is SendGrid. Its API key, verified sender address, and verification endpoint URL must be supplied through `SendGrid__ApiKey`, `Email__FromAddress`, and `Email__VerificationBaseUrl` environment variables when email delivery is used. Never commit credentials. Automated tests use a fake sender and do not send email.
-
 Run the backend from the repository root:
 
 ```powershell
@@ -57,8 +55,6 @@ npm run format:check
 npm test
 npm run build
 ```
-
-The registration and verification endpoints and screens are implemented in later feature phases; at this stage the frontend remains a scaffold.
 
 ## Development workflow
 

@@ -1,18 +1,11 @@
-using AutoMapper;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SendGrid;
-using SpekLaiku.Api.Authorization;
-using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.Data;
 using SpekLaiku.Api.Entities;
 using SpekLaiku.Api.Errors;
 using SpekLaiku.Api.Mapping;
 using SpekLaiku.Api.Services;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.DataProtection;
 
 namespace SpekLaiku.Api;
 
@@ -64,34 +57,12 @@ public class Program
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequireUppercase = false;
             })
-            .AddEntityFrameworkStores<ApplicationDbContext>()
-            .AddDefaultTokenProviders();
-        builder.Services.AddDataProtection();
-        builder.Services.AddSingleton(provider =>
-            provider.GetRequiredService<IDataProtectionProvider>()
-                .CreateProtector("SpekLaiku.Verification"));
-        builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
-        builder.Services.AddScoped<RegistrationService>();
-        builder.Services.AddScoped<VerificationService>();
-        builder.Services.Configure<SendGridOptions>(
-            builder.Configuration.GetSection(SendGridOptions.SectionName));
-        builder.Services.Configure<EmailOptions>(
-            builder.Configuration.GetSection(EmailOptions.SectionName));
-        builder.Services.AddSingleton<ISendGridClient>(provider =>
-        {
-            var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<SendGridOptions>>().Value;
-            return new SendGridClient(options.ApiKey);
-        });
-        builder.Services.AddScoped<IEmailSender, SendGridEmailSender>();
+            .AddEntityFrameworkStores<ApplicationDbContext>();
         builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
             .AddIdentityCookies();
-        builder.Services.AddAuthorization(options =>
-            options.AddPolicy("ActiveAccount", policy =>
-            {
-                policy.RequireAuthenticatedUser();
-                policy.AddRequirements(new ActiveAccountRequirement());
-            }));
-        builder.Services.AddScoped<IAuthorizationHandler, ActiveAccountAuthorizationHandler>();
+        builder.Services.AddAuthorization();
+        builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
+        builder.Services.AddScoped<RegistrationService>();
 
         var app = builder.Build();
 

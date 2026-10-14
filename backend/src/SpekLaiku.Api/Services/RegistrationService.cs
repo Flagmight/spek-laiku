@@ -1,15 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using SpekLaiku.Api.Data;
 using SpekLaiku.Api.DTOs.Requests;
 using SpekLaiku.Api.Entities;
 
 namespace SpekLaiku.Api.Services;
 
-public sealed class RegistrationService(
-    UserManager<ApplicationUser> userManager,
-    IEmailSender emailSender,
-    VerificationService verificationService)
+public sealed class RegistrationService(UserManager<ApplicationUser> userManager)
 {
     public async Task<RegistrationResult> RegisterAsync(RegistrationRequest request, CancellationToken cancellationToken = default)
     {
@@ -31,27 +27,14 @@ public sealed class RegistrationService(
             NormalizedEmail = normalizedEmail,
             NormalizedUserName = normalizedEmail,
             Role = "Registered User",
-            AccountStatus = AccountStatus.PendingVerification,
-            EmailConfirmed = false,
+            AccountStatus = AccountStatus.Active,
             RegistrationDate = DateTime.UtcNow
         };
 
         var createResult = await userManager.CreateAsync(user, request.Password);
-        if (!createResult.Succeeded) return new(false, "Account could not be created. Try again later.");
-
-        try
-        {
-            var token = await verificationService.CreateTokenAsync(user, cancellationToken);
-            await emailSender.SendEmailConfirmationAsync(user, token, cancellationToken);
-            user.VerificationSentAt = DateTime.UtcNow;
-            await userManager.UpdateAsync(user);
-            return new(true);
-        }
-        catch
-        {
-            await userManager.DeleteAsync(user);
-            return new(false, "Account could not be created. Try again later.");
-        }
+        return createResult.Succeeded
+            ? new(true)
+            : new(false, "Account could not be created. Try again later.");
     }
 
     private static bool IsValidEmail(string email)
