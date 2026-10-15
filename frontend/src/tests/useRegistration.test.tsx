@@ -210,6 +210,25 @@ describe("useRegistration", () => {
     expect(bodies[1]).toBe(bodies[0])
   })
 
+  it("resolves submit with the final status, or undefined when ignored", async () => {
+    stubFetch(() =>
+      jsonResponse(400, { errors: { password: ["Enter a password."] } }),
+    )
+    const { result } = renderHook(useRegistration)
+
+    let first: Promise<unknown> = Promise.resolve()
+    let second: Promise<unknown> = Promise.resolve()
+    act(() => {
+      first = result.current.submit(request)
+      second = result.current.submit(request)
+    })
+
+    await act(async () => {
+      expect(await first).toBe("invalid")
+      expect(await second).toBeUndefined()
+    })
+  })
+
   it("retry does nothing before the first submit", async () => {
     const fetchMock = stubFetch(() => jsonResponse(201))
     const { result } = renderHook(useRegistration)

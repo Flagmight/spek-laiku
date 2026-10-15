@@ -40,33 +40,42 @@ export function useRegistration() {
 
   useEffect(() => () => controller.current?.abort(), [])
 
-  const submit = useCallback(async (request: RegistrationRequest) => {
-    if (pending.current) {
-      return
-    }
+  // Resolves with the final status, or undefined when the submit was ignored.
+  const submit = useCallback(
+    async (
+      request: RegistrationRequest,
+    ): Promise<RegistrationStatus | undefined> => {
+      if (pending.current) {
+        return undefined
+      }
 
-    pending.current = true
-    lastRequest.current = request
-    setState({ status: "pending", errors: {} })
-    const abort = new AbortController()
-    controller.current = abort
-    const timeout = setTimeout(() => abort.abort(), registrationTimeoutMs)
-    try {
-      setState(toState(await register(request, abort.signal)))
-    } catch {
-      // A 5xx, a network error or the timeout (FR-015). Technical details are never shown.
-      setState({ status: "serverError", errors: {} })
-    } finally {
-      clearTimeout(timeout)
-      pending.current = false
-    }
-  }, [])
+      pending.current = true
+      lastRequest.current = request
+      setState({ status: "pending", errors: {} })
+      const abort = new AbortController()
+      controller.current = abort
+      const timeout = setTimeout(() => abort.abort(), registrationTimeoutMs)
+      let result: RegistrationState
+      try {
+        result = toState(await register(request, abort.signal))
+      } catch {
+        // A 5xx, a network error or the timeout (FR-015). Technical details are never shown.
+        result = { status: "serverError", errors: {} }
+      } finally {
+        clearTimeout(timeout)
+        pending.current = false
+      }
 
-  const retry = useCallback(async () => {
-    if (lastRequest.current) {
-      await submit(lastRequest.current)
-    }
-  }, [submit])
+      setState(result)
+      return result.status
+    },
+    [],
+  )
+
+  const retry = useCallback(
+    async () => (lastRequest.current ? submit(lastRequest.current) : undefined),
+    [submit],
+  )
 
   return { ...state, submit, retry }
 }

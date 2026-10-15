@@ -10,7 +10,7 @@ export function RegisterPage() {
   usePageTitle("Register")
   const navigate = useNavigate()
   const { refresh } = useCurrentUser()
-  const { status, submit, retry } = useRegistration()
+  const { status, errors, submit, retry } = useRegistration()
 
   useEffect(() => {
     if (status === "success") {
@@ -26,8 +26,9 @@ export function RegisterPage() {
       <h1>Register</h1>
       <RegistrationForm
         status={status}
-        onSubmit={(request) => void submit(request)}
-        onRetry={() => void retry()}
+        errors={errors}
+        onSubmit={submit}
+        onRetry={retry}
       />
     </>
   )
