@@ -8,6 +8,7 @@ TestResults/
 # Frontend
 node_modules/
 dist/
+build/
 coverage/
 
 # Secrets and local settings
@@ -16,3 +17,12 @@ coverage/
 appsettings.Development.json
 appsettings.Local.json
 *.log
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
+*.tsbuildinfo

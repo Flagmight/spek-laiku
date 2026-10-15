@@ -1,28 +1,30 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using SpekLaiku.Api.Data;
+using Npgsql;
 using SpekLaiku.Api.DTOs.Requests;
 using SpekLaiku.Api.Entities;
 
 namespace SpekLaiku.Api.Services;
 
-public sealed class RegistrationService(
-    UserManager<ApplicationUser> userManager,
-    IEmailSender emailSender,
-    VerificationService verificationService)
+public sealed class RegistrationService(UserManager<ApplicationUser> userManager)
 {
     public async Task<RegistrationResult> RegisterAsync(RegistrationRequest request, CancellationToken cancellationToken = default)
     {
-        var email = request.Email.Trim();
-        if (!IsValidEmail(email)) return new(false, "Enter a valid email address.");
-        if (email.Length > 254) return new(false, "Enter a valid email address.");
-        if (request.Password.Length is < 8 or > 128) return new(false, "Password must be at least 8 characters.");
-        if (!string.Equals(request.Password, request.PasswordConfirmation, StringComparison.Ordinal))
-            return new(false, "Passwords do not match.");
+        var errors = RegistrationValidator.Validate(request);
+        if (errors.Count > 0)
+        {
+            return RegistrationResult.Invalid(errors);
+        }
+
+        // The validator guarantees all three fields are present.
+        var email = request.Email!.Trim();
+        var password = request.Password!;
 
         var normalizedEmail = email.ToUpperInvariant();
         if (await userManager.Users.AnyAsync(user => user.NormalizedEmail == normalizedEmail, cancellationToken))
-            return new(false, "This email is already registered.");
+        {
+            return DuplicateEmail();
+        }
 
         var user = new ApplicationUser
         {
@@ -31,30 +33,49 @@ public sealed class RegistrationService(
             NormalizedEmail = normalizedEmail,
             NormalizedUserName = normalizedEmail,
             Role = "Registered User",
-            AccountStatus = AccountStatus.PendingVerification,
-            EmailConfirmed = false,
+            AccountStatus = AccountStatus.Active,
             RegistrationDate = DateTime.UtcNow
         };
 
-        var createResult = await userManager.CreateAsync(user, request.Password);
-        if (!createResult.Succeeded) return new(false, "Account could not be created. Try again later.");
-
+        IdentityResult createResult;
         try
         {
-            var token = await verificationService.CreateTokenAsync(user, cancellationToken);
-            await emailSender.SendEmailConfirmationAsync(user, token, cancellationToken);
-            user.VerificationSentAt = DateTime.UtcNow;
-            await userManager.UpdateAsync(user);
-            return new(true);
+            createResult = await userManager.CreateAsync(user, password);
         }
-        catch
+        catch (DbUpdateException exception) when (IsDuplicateEmailViolation(exception))
         {
-            await userManager.DeleteAsync(user);
-            return new(false, "Account could not be created. Try again later.");
+            // A simultaneous registration with the same email passed the check above first.
+            return DuplicateEmail();
         }
+        catch (DbUpdateException)
+        {
+            return RegistrationResult.TechnicalFailure();
+        }
+
+        if (createResult.Succeeded)
+        {
+            return RegistrationResult.Success(user);
+        }
+
+        return createResult.Errors.Any(error => DuplicateErrorCodes.Contains(error.Code))
+            ? DuplicateEmail()
+            : RegistrationResult.TechnicalFailure();
     }
 
-    private static bool IsValidEmail(string email)
-        => email.Contains('@') && email.LastIndexOf('@') > 0 && email.LastIndexOf('@') == email.IndexOf('@')
-            && email.IndexOf('@') < email.Length - 1 && !email.Any(character => char.IsWhiteSpace(character));
+    private static RegistrationResult DuplicateEmail() =>
+        RegistrationResult.Invalid("email", "This email is already registered.");
+
+    // Both indexes hold the normalized email, because the user name is the email.
+    private static bool IsDuplicateEmailViolation(DbUpdateException exception) =>
+        exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "EmailIndex" or "UserNameIndex"
+        };
+
+    private static readonly string[] DuplicateErrorCodes =
+    [
+        nameof(IdentityErrorDescriber.DuplicateEmail),
+        nameof(IdentityErrorDescriber.DuplicateUserName)
+    ];
 }
