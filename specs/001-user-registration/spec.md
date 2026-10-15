@@ -33,6 +33,10 @@
 - Q: What is a valid email format? → A: After spaces around it are removed: at most 254 characters, no spaces, exactly one "@", at least one character before it, and a domain after it that contains a dot that is neither its first nor its last character. Every email that passes this check must also be accepted when the account is created (FR-003).
 - Q: Are spaces at the start or end of a password removed? → A: No. The password is used exactly as entered. Spaces anywhere in it are kept and count toward the 8 characters (FR-005).
 
+### Session 2026-10-15
+
+- Q: What is the submit button called? → A: "Create account". It says what the button does (`docs/ux-design.md` section 9, "Meaningful button names") and is not confused with the "Register" heading and navigation link (FR-001).
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Register with valid details (Priority: P1)
@@ -122,7 +126,7 @@ IDs in this specification are local to this feature. The related project require
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST allow a visitor to create an account by entering an email address, a password and the password again, in fields labelled "Email", "Password" and "Confirm password".
+- **FR-001**: The system MUST allow a visitor to create an account by entering an email address, a password and the password again, in fields labelled "Email", "Password" and "Confirm password", and submitting with a button labelled "Create account".
 - **FR-002**: The system MUST require all three fields.
 - **FR-003**: The system MUST accept only a valid email format of up to 254 characters, ignore spaces around it, and treat emails that differ only in letter case as the same email. A valid format has no spaces, exactly one "@", at least one character before it, and a domain after it that contains a dot that is neither its first nor its last character.
 - **FR-004**: The system MUST allow only one account per email address.
