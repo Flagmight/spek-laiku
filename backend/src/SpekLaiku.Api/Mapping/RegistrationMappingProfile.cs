@@ -15,7 +15,7 @@ public sealed class RegistrationMappingProfile : Profile
                 nameof(RegistrationResponse.Message),
                 options => options.MapFrom(source => source.Succeeded
                     ? "Account created."
-                    : source.ErrorMessage ?? "Account could not be created. Try again later."))
+                    : source.Errors.Values.FirstOrDefault() ?? "Something went wrong. Try again."))
             .ForCtorParam(
                 nameof(RegistrationResponse.AccountStatus),
                 options => options.MapFrom(source => source.Succeeded

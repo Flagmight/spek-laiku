@@ -38,9 +38,9 @@ public class RegistrationFoundationTests
         var mapper = provider.GetRequiredService<IMapper>();
 
         mapper.ConfigurationProvider.AssertConfigurationIsValid();
-        var success = mapper.Map<RegistrationResponse>(new RegistrationResult(true));
+        var success = mapper.Map<RegistrationResponse>(RegistrationResult.Success());
         var failure = mapper.Map<RegistrationResponse>(
-            new RegistrationResult(false, "This email is already registered."));
+            RegistrationResult.Invalid("email", "This email is already registered."));
 
         Assert.Equal("Active", success.AccountStatus);
         Assert.Equal("Account created.", success.Message);
