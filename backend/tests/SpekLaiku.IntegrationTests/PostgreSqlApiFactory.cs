@@ -10,16 +10,41 @@ using Testcontainers.PostgreSql;
 namespace SpekLaiku.IntegrationTests;
 
 /// <summary>
-/// Runs the API against a PostgreSQL container, so unique indexes are enforced as in production.
-/// The schema is created from the current EF Core model.
+/// Runs the API against a real PostgreSQL database, so unique indexes are enforced as in production.
+/// The database is a Testcontainers container, or a throwaway database on an existing server when
+/// <see cref="LocalPostgreSqlDatabase.VariableName"/> is set. The schema is created from the current EF Core model.
 /// </summary>
 public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private readonly PostgreSqlContainer? container;
+    private readonly LocalPostgreSqlDatabase? localDatabase;
+
+    public PostgreSqlApiFactory()
+    {
+        var localServer = Environment.GetEnvironmentVariable(LocalPostgreSqlDatabase.VariableName);
+        if (string.IsNullOrWhiteSpace(localServer))
+        {
+            container = new PostgreSqlBuilder("postgres:17-alpine").Build();
+        }
+        else
+        {
+            localDatabase = new LocalPostgreSqlDatabase(localServer);
+        }
+    }
+
+    private string ConnectionString => localDatabase?.ConnectionString ?? container!.GetConnectionString();
 
     public async Task InitializeAsync()
     {
-        await container.StartAsync();
+        if (localDatabase is not null)
+        {
+            await localDatabase.CreateAsync();
+        }
+        else
+        {
+            await container!.StartAsync();
+        }
+
         using var scope = Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await context.Database.EnsureCreatedAsync();
@@ -28,7 +53,14 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     async Task IAsyncLifetime.DisposeAsync()
     {
         await base.DisposeAsync();
-        await container.DisposeAsync();
+        if (localDatabase is not null)
+        {
+            await localDatabase.DropAsync();
+        }
+        else
+        {
+            await container!.DisposeAsync();
+        }
     }
 
     public HttpClient CreateHttpsClient() => CreateClient(new WebApplicationFactoryClientOptions
@@ -61,7 +93,7 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-        builder.UseSetting("ConnectionStrings:DefaultConnection", container.GetConnectionString());
+        builder.UseSetting("ConnectionStrings:DefaultConnection", ConnectionString);
         builder.ConfigureServices(services => services.AddTransient<IStartupFilter, TestSignInStartupFilter>());
     }
 }

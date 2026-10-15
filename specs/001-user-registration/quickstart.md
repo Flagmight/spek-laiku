@@ -4,7 +4,7 @@
 
 - .NET SDK and current stable ASP.NET Core packages.
 - PostgreSQL for the application database.
-- Docker, for the Testcontainers PostgreSQL database used by the integration tests.
+- Docker, for the Testcontainers PostgreSQL database used by the integration tests. Without Docker, set `SPEKLAIKU_TEST_POSTGRES` to a connection string for an existing PostgreSQL server (see `README.md`).
 - Frontend and backend dependencies installed from their manifests.
 
 ## Backend Validation

@@ -26,7 +26,15 @@ Status: in development.
 - .NET 10 SDK
 - Node.js and npm
 - PostgreSQL (local or hosted)
-- Docker (required to run the backend integration tests, which start PostgreSQL with Testcontainers)
+- Docker (required to run the backend integration tests, which start PostgreSQL with Testcontainers), or a local PostgreSQL server for those tests as described below
+
+Without Docker, point the integration tests at an existing PostgreSQL server. Each test run creates a throwaway database with a random `speklaiku_test_` name on that server and drops it afterwards. Set the variable once for your Windows user (it takes effect in new terminals):
+
+```powershell
+[Environment]::SetEnvironmentVariable("SPEKLAIKU_TEST_POSTGRES", "Host=localhost;Port=5432;Database=postgres;Username=<local-user>;Password=<local-password>", "User")
+```
+
+The user needs permission to create databases. When the variable is not set, the tests start PostgreSQL with Testcontainers, as CI does.
 
 ## Setup, run and test
 
