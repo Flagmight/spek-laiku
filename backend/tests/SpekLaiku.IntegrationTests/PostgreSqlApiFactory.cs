@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SpekLaiku.Api;
 using SpekLaiku.Api.Data;
@@ -12,7 +13,8 @@ namespace SpekLaiku.IntegrationTests;
 /// <summary>
 /// Runs the API against a real PostgreSQL database, so unique indexes are enforced as in production.
 /// The database is a Testcontainers container, or a throwaway database on an existing server when
-/// <see cref="LocalPostgreSqlDatabase.VariableName"/> is set. The schema is created from the current EF Core model.
+/// <see cref="LocalPostgreSqlDatabase.VariableName"/> is set. The schema is created by applying the
+/// EF Core migrations, so the tests also prove the migrations work.
 /// </summary>
 public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -47,7 +49,7 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
 
         using var scope = Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await context.Database.EnsureCreatedAsync();
+        await context.Database.MigrateAsync();
     }
 
     async Task IAsyncLifetime.DisposeAsync()
