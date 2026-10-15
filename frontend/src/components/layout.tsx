@@ -2,6 +2,7 @@ import { useRef } from "react"
 import type { MouseEvent } from "react"
 import { Outlet } from "react-router-dom"
 import { SuccessBanner } from "./successBanner"
+import { TopNavigation } from "./topNavigation"
 
 export function Layout() {
   const mainRef = useRef<HTMLElement>(null)
@@ -18,7 +19,9 @@ export function Layout() {
         Skip to main content
       </a>
       <header>
-        <nav aria-label="Main" />
+        <nav aria-label="Main">
+          <TopNavigation />
+        </nav>
       </header>
       <div role="status">
         <SuccessBanner />
