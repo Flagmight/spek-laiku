@@ -96,7 +96,7 @@ description: "Implementation tasks for user registration"
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] In the registration controller, map the service's per-field errors to the `400` problem-details response, technical failures to `500` and the already-signed-in case to `403`, exactly as in the contract.
+- [X] T029 [US2] In the registration controller, map the service's per-field errors to the `400` problem-details response, technical failures to `500` and the already-signed-in case to `403`, exactly as in the contract.
 - [X] T030 [US2] Add validation error rendering in `registrationForm.tsx`, using the validation errors from `useRegistration`: read `errors.email`, `errors.password` and `errors.passwordConfirmation` from a `400` response and show each message next to its field through `formatErrorMessage` (FR-019). After a validation failure, keep the email, clear the password fields and move focus to the first invalid field (FR-011), and announce the errors to screen readers. Server errors are handled in T023C.
 - [X] T030A [US2] Add `frontend/src/components/errorSummary.tsx` at the top of the registration form. Show it when more than one field fails validation. It lists every field message (through `formatErrorMessage`), each as a link that moves keyboard focus to its field, and is announced to screen readers (`role="alert"`). Focus still moves to the first invalid field (FR-020, FR-011).
 
@@ -112,14 +112,14 @@ Server-side validation with the exact messages is part of T018. Accessible label
 
 ### Tests for User Story 3
 
-- [ ] T032 [P] [US3] Add frontend route tests proving authenticated users are redirected away from registration.
-- [ ] T033 [P] [US3] Add an API integration test proving that a registration request from a signed-in user returns `403` problem details with `detail` "You are already signed in." and creates no account.
+- [X] T032 [P] [US3] Add frontend route tests proving authenticated users are redirected away from registration.
+- [X] T033 [P] [US3] Add an API integration test proving that a registration request from a signed-in user returns `403` problem details with `detail` "You are already signed in." and creates no account.
 
 ### Implementation for User Story 3
 
-- [ ] T034 [P] [US3] Add the guard on the `/register` route that redirects a signed-in user to `/`, using `useCurrentUser` from T013E.
-- [ ] T035 [US3] Add the registration endpoint guard so a request from a signed-in user returns `403` with "You are already signed in." and creates no account, as in the contract.
-- [ ] T035A [US3] When the registration request returns `403`, refresh the current-user state from `useCurrentUser` and navigate to `/` with no banner and no error message (FR-014, US3 scenario 2). Add a frontend test that a `403` opens the home page and shows no "Error:" text.
+- [X] T034 [P] [US3] Add the guard on the `/register` route that redirects a signed-in user to `/`, using `useCurrentUser` from T013E.
+- [X] T035 [US3] Add the registration endpoint guard so a request from a signed-in user returns `403` with "You are already signed in." and creates no account, as in the contract.
+- [X] T035A [US3] When the registration request returns `403`, refresh the current-user state from `useCurrentUser` and navigate to `/` with no banner and no error message (FR-014, US3 scenario 2). Add a frontend test that a `403` opens the home page and shows no "Error:" text.
 
 **Checkpoint**: User Story 3 is independently testable.
 

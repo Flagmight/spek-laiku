@@ -18,6 +18,10 @@ export function RegisterPage() {
       void refresh()
       const state: NavigationState = { successMessage: "Account created." }
       navigate("/", { state })
+    } else if (status === "alreadySignedIn") {
+      // Signed in elsewhere since the page opened: home page, no banner, no error (FR-014).
+      void refresh()
+      navigate("/")
     }
   }, [status, refresh, navigate])
 

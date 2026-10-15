@@ -141,7 +141,7 @@ describe("RegisterPage", () => {
     const headings = await screen.findAllByRole("heading", { level: 1 })
     expect(headings).toHaveLength(1)
     expect(headings[0]).toHaveTextContent("Register")
-    expect(document.title).toBe("Register - Spėk laiku")
+    await vi.waitFor(() => expect(document.title).toBe("Register - Spėk laiku"))
   })
 
   describe("server error state", () => {
