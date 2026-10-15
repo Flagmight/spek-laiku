@@ -1,3 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
+using SpekLaiku.Api.Entities;
+
 namespace SpekLaiku.Api.Services;
 
 /// <summary>
@@ -12,13 +15,17 @@ public sealed record RegistrationResult
     {
     }
 
+    [MemberNotNullWhen(true, nameof(User))]
     public bool Succeeded { get; private init; }
 
     public bool IsTechnicalFailure { get; private init; }
 
     public IReadOnlyDictionary<string, string> Errors { get; private init; } = NoErrors;
 
-    public static RegistrationResult Success() => new() { Succeeded = true };
+    /// <summary>The created account, so the caller can sign the new user in.</summary>
+    public ApplicationUser? User { get; private init; }
+
+    public static RegistrationResult Success(ApplicationUser user) => new() { Succeeded = true, User = user };
 
     public static RegistrationResult Invalid(IReadOnlyDictionary<string, string> errors) => new() { Errors = errors };
 

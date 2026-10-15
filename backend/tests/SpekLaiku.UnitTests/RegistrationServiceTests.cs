@@ -20,6 +20,7 @@ public class RegistrationServiceTests
         await using var context = CreateContext();
         var userManager = CreateUserManager(context);
         var service = new RegistrationService(userManager);
+        var before = DateTime.UtcNow;
 
         var result = await service.RegisterAsync(new RegistrationRequest(
             "  USER@EXAMPLE.COM  ", "Password123!", "Password123!"));
@@ -27,11 +28,14 @@ public class RegistrationServiceTests
         Assert.True(result.Succeeded);
         Assert.Empty(result.Errors);
         var user = await userManager.Users.SingleAsync();
+        Assert.Equal(user.Id, result.User.Id);
         Assert.Equal("USER@EXAMPLE.COM", user.Email);
         Assert.Equal("USER@EXAMPLE.COM", user.UserName);
         Assert.Equal(AccountStatus.Active, user.AccountStatus);
         Assert.Equal("Registered User", user.Role);
         Assert.NotEqual("Administrator", user.Role);
+        Assert.Equal(DateTimeKind.Utc, user.RegistrationDate.Kind);
+        Assert.InRange(user.RegistrationDate, before, DateTime.UtcNow);
     }
 
     [Theory]

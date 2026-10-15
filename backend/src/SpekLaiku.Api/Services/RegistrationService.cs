@@ -54,7 +54,7 @@ public sealed class RegistrationService(UserManager<ApplicationUser> userManager
 
         if (createResult.Succeeded)
         {
-            return RegistrationResult.Success();
+            return RegistrationResult.Success(user);
         }
 
         return createResult.Errors.Any(error => DuplicateErrorCodes.Contains(error.Code))
