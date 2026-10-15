@@ -151,10 +151,10 @@ Server-side validation with the exact messages is part of T018. Accessible label
 - [X] T046 [P] Add navigation tests for T022B: a visitor sees Home and Register, a signed-in user sees Home only, and there is no Log in link.
 - [X] T047 [P] Update the feature documentation, the quickstart and `README.md` (running the API with the https profile and the frontend through the dev proxy), and confirm that a fresh clone passes the tests by following the README.
 - [X] T048 [P] Add a backend integration test that registers with a known password and checks that (1) neither the `201` response body nor any `400` or `500` response body contains the password, (2) log output captured with a test logger provider for the whole request contains no password, and (3) the stored `PasswordHash` is not the password. Add a frontend test that both password inputs have `type="password"` (FR-009, SC-004).
-- [ ] T049 Run backend restore, build, formatting, unit tests, and integration tests.
-- [ ] T050 Run frontend lint, tests, and production build.
+- [X] T049 Run backend restore, build, formatting, unit tests, and integration tests.
+- [X] T050 Run frontend lint, tests, and production build.
 - [ ] T051 Run the quickstart validation and confirm all acceptance scenarios.
-- [ ] T052 Review the final diff for unrelated files, debug code, secrets, and generated artifacts.
+- [X] T052 Review the final diff for unrelated files, debug code, secrets, and generated artifacts.
 
 ## Dependencies & Execution Order
 
