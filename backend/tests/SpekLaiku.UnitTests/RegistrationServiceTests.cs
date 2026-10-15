@@ -203,7 +203,7 @@ public class RegistrationServiceTests
         new("Saving the user failed.", new PostgresException(
             "Database error.", "ERROR", "ERROR", sqlState, constraintName: constraintName));
 
-    private static ApplicationDbContext CreateContext()
+    internal static ApplicationDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -211,12 +211,12 @@ public class RegistrationServiceTests
         return new ApplicationDbContext(options);
     }
 
-    private static UserManager<ApplicationUser> CreateUserManager(ApplicationDbContext context)
+    internal static UserManager<ApplicationUser> CreateUserManager(ApplicationDbContext context)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(context);
-        services.AddIdentityCore<ApplicationUser>()
+        services.AddIdentityCore<ApplicationUser>(IdentityOptionsSetup.Configure)
             .AddEntityFrameworkStores<ApplicationDbContext>();
         return services.BuildServiceProvider().GetRequiredService<UserManager<ApplicationUser>>();
     }

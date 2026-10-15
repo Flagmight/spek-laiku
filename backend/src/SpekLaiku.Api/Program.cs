@@ -20,13 +20,17 @@ public class Program
         {
             options.InvalidModelStateResponseFactory = context =>
             {
-                var errors = context.ModelState
+                var failedKeys = context.ModelState
                     .Where(entry => entry.Value?.Errors.Count > 0)
-                    .ToDictionary(entry => entry.Key, _ => new[] { "Invalid value." });
-                if (errors.Count == 0)
-                {
-                    errors.Add("request", ["The request is invalid."]);
-                }
+                    .Select(entry => entry.Key)
+                    .ToList();
+                // A body that is empty or not valid JSON is reported under "$" paths or an empty key,
+                // and is one request error, not field errors (contracts/registration-api.md).
+                var bodyUnreadable = failedKeys.Count == 0
+                    || failedKeys.Any(key => key.Length == 0 || key.StartsWith('$'));
+                var errors = bodyUnreadable
+                    ? new Dictionary<string, string[]> { ["request"] = ["The request is invalid."] }
+                    : failedKeys.ToDictionary(key => key, _ => new[] { "Invalid value." });
 
                 return new BadRequestObjectResult(new ValidationProblemDetails(errors)
                 {
@@ -48,17 +52,7 @@ public class Program
 
             options.UseNpgsql(connectionString);
         });
-        builder.Services.AddIdentityCore<ApplicationUser>(options =>
-            {
-                options.User.RequireUniqueEmail = true;
-                options.User.AllowedUserNameCharacters = string.Empty;
-                options.Password.RequiredLength = 8;
-                options.Password.RequiredUniqueChars = 1;
-                options.Password.RequireDigit = false;
-                options.Password.RequireLowercase = false;
-                options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequireUppercase = false;
-            })
+        builder.Services.AddIdentityCore<ApplicationUser>(IdentityOptionsSetup.Configure)
             .AddSignInManager()
             .AddEntityFrameworkStores<ApplicationDbContext>();
         builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
