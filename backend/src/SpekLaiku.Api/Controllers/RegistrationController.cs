@@ -20,11 +20,21 @@ public sealed class RegistrationController(
     [HttpPost]
     [ProducesResponseType<RegistrationResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<RegistrationResponse>> Register(
         RegistrationRequest request,
         CancellationToken cancellationToken)
     {
+        // A signed-in user must not create a second account (FR-014), whatever the request contains.
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            return Problem(
+                title: "Already signed in.",
+                detail: "You are already signed in.",
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+
         var result = await registrationService.RegisterAsync(request, cancellationToken);
         if (result.Succeeded)
         {

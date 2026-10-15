@@ -98,6 +98,40 @@ public class RegistrationEndpointTests(PostgreSqlApiFactory factory)
         Assert.Equal(1, await CountUsersAsync(email));
     }
 
+    [Fact]
+    public async Task Register_SignedInUser_Returns403AndCreatesNoAccount()
+    {
+        var signedIn = await factory.CreateUserAsync();
+        using var client = factory.CreateHttpsClient();
+        var signIn = await client.PostAsync(
+            $"{TestSignInStartupFilter.Path}?email={Uri.EscapeDataString(signedIn.Email!)}", content: null);
+        Assert.Equal(HttpStatusCode.NoContent, signIn.StatusCode);
+        var email = NewEmail();
+
+        var response = await client.PostAsJsonAsync(Path, Request(email));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Already signed in.", problem.GetProperty("title").GetString());
+        Assert.Equal("You are already signed in.", problem.GetProperty("detail").GetString());
+        Assert.Equal(0, await CountUsersAsync(email));
+    }
+
+    [Fact]
+    public async Task Register_SignedInUserWithInvalidDetails_Returns403NotValidationErrors()
+    {
+        var signedIn = await factory.CreateUserAsync();
+        using var client = factory.CreateHttpsClient();
+        await client.PostAsync(
+            $"{TestSignInStartupFilter.Path}?email={Uri.EscapeDataString(signedIn.Email!)}", content: null);
+
+        var response = await client.PostAsJsonAsync(
+            Path, new { email = "", password = "", passwordConfirmation = "" });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static string NewEmail() => $"new-{Guid.NewGuid():N}@example.com";
 
     private static object Request(string email) =>
