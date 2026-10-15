@@ -16,6 +16,8 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // Process stylesheets in tests too, so the responsive tests can check the real CSS rules.
+    css: { include: [/\.css(\?|$)/] },
     setupFiles: ["./src/tests/setup.ts"],
   },
 })

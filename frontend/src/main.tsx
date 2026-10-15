@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client"
 import { BrowserRouter } from "react-router-dom"
 import { AppRoutes } from "./components/appRoutes"
 import { CurrentUserProvider } from "./components/currentUserProvider"
+import "./styles.css"
 
 const rootElement = document.getElementById("root")
 

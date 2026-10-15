@@ -131,15 +131,15 @@ Server-side validation with the exact messages is part of T018. Accessible label
 
 ### Tests for User Story 4
 
-- [ ] T036 [P] [US4] Add keyboard-navigation tests for every field and action.
-- [ ] T037 [P] [US4] Add accessibility tests for labels, hints, errors, focus, and screen-reader announcements. Also check, on both the Register and Home pages, that "Skip to main content" is the first focusable item and moves focus to the main content, that there is exactly one `<h1>`, and that the tab titles are "Register - Spėk laiku" and "Home - Spėk laiku".
-- [ ] T038 [P] [US4] Add responsive tests that check the CSS rules for a 320 px viewport (no horizontal scrolling, full-width fields and buttons) and touch targets of at least 44 × 44 px. The real size check is the manual quickstart step at 320 px, because jsdom does not measure layout.
+- [X] T036 [P] [US4] Add keyboard-navigation tests for every field and action.
+- [X] T037 [P] [US4] Add accessibility tests for labels, hints, errors, focus, and screen-reader announcements. Also check, on both the Register and Home pages, that "Skip to main content" is the first focusable item and moves focus to the main content, that there is exactly one `<h1>`, and that the tab titles are "Register - Spėk laiku" and "Home - Spėk laiku".
+- [X] T038 [P] [US4] Add responsive tests that check the CSS rules for a 320 px viewport (no horizontal scrolling, full-width fields and buttons) and touch targets of at least 44 × 44 px. The real size check is the manual quickstart step at 320 px, because jsdom does not measure layout.
 
 ### Implementation for User Story 4
 
-- [ ] T039 [P] [US4] Use semantic form controls (each label tied to its input from T023), add the hint "At least 8 characters." under "Password", and hints and errors linked to their fields with `aria-describedby`.
-- [ ] T040 [US4] In `registrationForm.tsx`, make the keyboard focus order Email, Password, Confirm password, submit button, and make pressing Enter in any field submit the form.
-- [ ] T041 [US4] Apply responsive styling that keeps all controls usable at 320 px without horizontal scrolling, with touch targets of at least 44 × 44 px and input text of at least 16 px.
+- [X] T039 [P] [US4] Use semantic form controls (each label tied to its input from T023), add the hint "At least 8 characters." under "Password", and hints and errors linked to their fields with `aria-describedby`.
+- [X] T040 [US4] In `registrationForm.tsx`, make the keyboard focus order Email, Password, Confirm password, submit button, and make pressing Enter in any field submit the form.
+- [X] T041 [US4] Apply responsive styling that keeps all controls usable at 320 px without horizontal scrolling, with touch targets of at least 44 × 44 px and input text of at least 16 px.
 
 **Checkpoint**: User Story 4 is independently testable.
 
