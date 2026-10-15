@@ -25,9 +25,11 @@ Run the registration tests and verify that they cover:
 3. Invalid input produces field-level errors.
 4. A password shorter than 8 characters is rejected, and a long password (for example 200 characters) is accepted.
 5. Account-creation failures do not leave partial accounts.
-6. Two simultaneous registrations with the same email create exactly one account (Testcontainers PostgreSQL).
+6. Two simultaneous registrations with the same email create exactly one account (real PostgreSQL: Testcontainers, or the server in `SPEKLAIKU_TEST_POSTGRES`).
 7. `GET /api/auth/me` returns 200 for a signed-in user and 401 otherwise.
 8. A registration request from a signed-in user returns 403 and creates no account.
+9. The password never appears in a response body or a log entry at any level, and only its hash is stored.
+10. The test database is created by applying the EF Core migrations, so the migrations are checked as well.
 
 ## Frontend Validation
 
@@ -44,7 +46,7 @@ Verify the registration page, validation messages, keyboard flow, screen-reader 
 
 ## Running Locally
 
-Start the API with the https profile (`dotnet run --project backend/src/SpekLaiku.Api --launch-profile https`) and the frontend with `npm run dev` in `frontend/`. Open the Vite address; API calls go through the `/api` proxy.
+Follow "Run the application" in `README.md`: set the connection string, apply the migrations (`dotnet ef database update --project backend/src/SpekLaiku.Api`), trust the development certificate, start the API with the https profile (`dotnet run --project backend/src/SpekLaiku.Api --launch-profile https`) and the frontend with `npm run dev` in `frontend/`. Open the Vite address; API calls go through the `/api` proxy.
 
 ## End-to-End Validation
 
