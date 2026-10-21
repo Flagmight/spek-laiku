@@ -1,0 +1,222 @@
+/*
+  Mobile first: the base rules are the phone layout, down to 320 px wide (FR-017).
+  Every button and link is at least 44 × 44 px, and input text is at least 16 px
+  (spec US4 scenario 3, docs/ux-design.md section 8).
+*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #1f2933;
+  background: #ffffff;
+  /* Long emails and messages wrap instead of widening the page. */
+  overflow-wrap: anywhere;
+}
+
+a {
+  color: #1d4ed8;
+}
+
+:focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+/* Off screen until focused, then shown at the top left. */
+.skip-link {
+  position: absolute;
+  top: -200px;
+  left: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  background: #ffffff;
+}
+
+.skip-link:focus {
+  top: 8px;
+}
+
+header {
+  border-bottom: 1px solid #d9dee3;
+}
+
+nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0 16px;
+  list-style: none;
+}
+
+nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+}
+
+nav a[aria-current="page"] {
+  font-weight: 700;
+}
+
+main {
+  display: block;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* main is only focused by the skip link; the move is visible from the scroll position. */
+main:focus {
+  outline: none;
+}
+
+.success-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  max-width: 40rem;
+  margin: 16px auto 0;
+  padding: 8px 16px;
+  border: 2px solid #1a7f37;
+  background: #eef9f0;
+}
+
+.success-banner p {
+  margin: 0;
+}
+
+.form-field {
+  margin-bottom: 16px;
+}
+
+label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+input {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  /* Explicit as well as in the * rule, so padding never pushes a field past the screen edge. */
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #52606d;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 16px;
+}
+
+input[aria-invalid="true"] {
+  border: 2px solid #b42318;
+}
+
+.field-hint,
+.field-error {
+  margin: 4px 0 0;
+}
+
+.field-hint {
+  color: #52606d;
+}
+
+.field-error,
+.server-error p {
+  color: #b42318;
+  font-weight: 600;
+}
+
+button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 16px;
+  border: 1px solid #1d4ed8;
+  border-radius: 4px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:disabled {
+  border-color: #9aa5b1;
+  background: #9aa5b1;
+  cursor: not-allowed;
+}
+
+/* Buttons that are not the main action. */
+.success-banner button,
+.server-error button {
+  background: #ffffff;
+  color: #1d4ed8;
+}
+
+/* Full width on phones (docs/ux-design.md section 8). */
+form button {
+  width: 100%;
+}
+
+.loading-status {
+  margin: 8px 0 0;
+}
+
+.server-error {
+  margin-top: 16px;
+}
+
+.error-summary {
+  margin-bottom: 16px;
+  padding: 8px 16px;
+  border: 2px solid #b42318;
+}
+
+.error-summary ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.error-summary a {
+  display: inline-block;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 10px 0;
+  color: #b42318;
+  font-weight: 600;
+}
+
+/* Wider screens: buttons are sized to their text. */
+@media (min-width: 40em) {
+  form button {
+    width: auto;
+  }
+}
