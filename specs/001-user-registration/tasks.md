@@ -153,7 +153,7 @@ Server-side validation with the exact messages is part of T018. Accessible label
 - [X] T048 [P] Add a backend integration test that registers with a known password and checks that (1) neither the `201` response body nor any `400` or `500` response body contains the password, (2) log output captured with a test logger provider for the whole request contains no password, and (3) the stored `PasswordHash` is not the password. Add a frontend test that both password inputs have `type="password"` (FR-009, SC-004).
 - [X] T049 Run backend restore, build, formatting, unit tests, and integration tests.
 - [X] T050 Run frontend lint, tests, and production build.
-- [ ] T051 Run the quickstart validation and confirm all acceptance scenarios.
+- [x] T051 Run the quickstart validation and confirm all acceptance scenarios.
 - [X] T052 Review the final diff for unrelated files, debug code, secrets, and generated artifacts.
 
 ## Dependencies & Execution Order
