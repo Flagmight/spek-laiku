@@ -44,6 +44,7 @@ SDK version 10.0.401. Preview versions are not used.
 |----|----|----|
 | Backend | ASP.NET Core Web API on .NET 10 (C#) | Required by the project rules, and the latest stable version. |
 | Frontend | React with TypeScript, built with Vite | React is the project's chosen frontend. TypeScript catches mismatches between the frontend and the API's request and response types. |
+| Frontend state | Zustand | Project requirement. Small stores hold the signed-in user, which every page and the navigation read, and the state of each form submission, without React context providers. |
 | Frontend routing | React Router | The planning workflow has many pages, and the navigation rules need real routes and redirects. |
 | Frontend styling | Plain CSS (CSS modules) | The wireframes are simple, so a UI library is not needed. |
 | Database | PostgreSQL | The data (users, plans, activities, scheduled activities) is relational. It is free and runs the same on a developer machine, in Docker and in GitHub Actions. |
@@ -152,6 +153,7 @@ and specs/ contains feature specifications.
 <p>│ │ ├── pages/</p>
 <p>│ │ ├── components/</p>
 <p>│ │ ├── hooks/</p>
+<p>│ │ ├── stores/</p>
 <p>│ │ ├── helpers/</p>
 <p>│ │ ├── api/</p>
 <p>│ │ ├── types/</p>
@@ -190,6 +192,7 @@ and specs/ contains feature specifications.
 | frontend/src/pages/ | One component per screen (Plan Setup, Schedule Overview, My Plans and so on). |
 | frontend/src/components/ | Reusable interface parts (form fields, tables, banners, navigation). |
 | frontend/src/hooks/ | Reusable React hooks, for example loading data. |
+| frontend/src/stores/ | Zustand stores (`useCurrentUserStore`, `useRegistrationStore`). A store calls the API layer, never fetch directly. |
 | frontend/src/helpers/ | Small framework-independent helper functions. |
 | frontend/src/api/ | The single API client. Pages never call fetch directly. |
 | frontend/src/types/ | TypeScript types that mirror the API's DTOs. |

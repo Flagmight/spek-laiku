@@ -2,8 +2,9 @@ import { act, renderHook } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   registrationTimeoutMs,
-  useRegistration,
-} from "../hooks/useRegistration"
+  useRegistrationStore,
+} from "../stores/useRegistrationStore"
+import type { RegistrationState } from "../stores/useRegistrationStore"
 import { jsonResponse, stubFetch } from "./renderApp"
 
 const request = {
@@ -26,20 +27,17 @@ function stubHangingFetch() {
   return fetchMock
 }
 
-async function submit(
-  result: { current: ReturnType<typeof useRegistration> },
-  body = request,
-) {
+async function submit(result: { current: RegistrationState }, body = request) {
   await act(() => result.current.submit(body))
 }
 
-describe("useRegistration", () => {
+describe("useRegistrationStore", () => {
   afterEach(() => {
     vi.useRealTimers()
   })
 
   it("starts idle with no errors", () => {
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     expect(result.current.status).toBe("idle")
     expect(result.current.errors).toEqual({})
@@ -49,7 +47,7 @@ describe("useRegistration", () => {
     const fetchMock = stubFetch(() =>
       jsonResponse(201, { success: true, message: "Account created." }),
     )
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await submit(result)
 
@@ -69,7 +67,7 @@ describe("useRegistration", () => {
 
   it("is pending while the request is in progress", () => {
     stubHangingFetch()
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     act(() => {
       void result.current.submit(request)
@@ -80,7 +78,7 @@ describe("useRegistration", () => {
 
   it("succeeds on 201", async () => {
     stubFetch(() => jsonResponse(201, { success: true }))
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await submit(result)
 
@@ -98,7 +96,7 @@ describe("useRegistration", () => {
         },
       }),
     )
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await submit(result)
 
@@ -113,7 +111,7 @@ describe("useRegistration", () => {
     stubFetch(() =>
       jsonResponse(400, { errors: { request: ["The request is invalid."] } }),
     )
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await submit(result)
 
@@ -123,7 +121,7 @@ describe("useRegistration", () => {
 
   it("reports already signed in on 403", async () => {
     stubFetch(() => jsonResponse(403, { detail: "You are already signed in." }))
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await submit(result)
 
@@ -132,7 +130,7 @@ describe("useRegistration", () => {
 
   it.each([500, 502, 503])("reports a server error on %i", async (status) => {
     stubFetch(() => jsonResponse(status, { detail: "Database is down." }))
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await submit(result)
 
@@ -144,7 +142,7 @@ describe("useRegistration", () => {
       "fetch",
       vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
     )
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await submit(result)
 
@@ -154,7 +152,7 @@ describe("useRegistration", () => {
   it("reports a server error after 10 seconds without an answer, not before", async () => {
     vi.useFakeTimers()
     const fetchMock = stubHangingFetch()
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     act(() => {
       void result.current.submit(request)
@@ -171,7 +169,7 @@ describe("useRegistration", () => {
 
   it("ignores a second submit while a request is pending", async () => {
     const fetchMock = stubHangingFetch()
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     act(() => {
       void result.current.submit(request)
@@ -184,7 +182,7 @@ describe("useRegistration", () => {
 
   it("allows a new submit after the request has finished", async () => {
     const fetchMock = stubFetch(() => jsonResponse(500))
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await submit(result)
     await submit(result)
@@ -195,7 +193,7 @@ describe("useRegistration", () => {
   it("retry sends the last request again", async () => {
     let response = () => jsonResponse(500)
     const fetchMock = stubFetch(() => response())
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
     await submit(result)
     expect(result.current.status).toBe("serverError")
 
@@ -214,7 +212,7 @@ describe("useRegistration", () => {
     stubFetch(() =>
       jsonResponse(400, { errors: { password: ["Enter a password."] } }),
     )
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     let first: Promise<unknown> = Promise.resolve()
     let second: Promise<unknown> = Promise.resolve()
@@ -231,11 +229,42 @@ describe("useRegistration", () => {
 
   it("retry does nothing before the first submit", async () => {
     const fetchMock = stubFetch(() => jsonResponse(201))
-    const { result } = renderHook(useRegistration)
+    const { result } = renderHook(() => useRegistrationStore())
 
     await act(() => result.current.retry())
 
     expect(fetchMock).not.toHaveBeenCalled()
+    expect(result.current.status).toBe("idle")
+  })
+
+  it("reset aborts a pending request, drops its result and starts idle", async () => {
+    const fetchMock = stubHangingFetch()
+    const { result } = renderHook(() => useRegistrationStore())
+    let pending: Promise<unknown> = Promise.resolve()
+    act(() => {
+      pending = result.current.submit(request)
+    })
+
+    act(() => result.current.reset())
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(init.signal?.aborted).toBe(true)
+    await act(async () => {
+      expect(await pending).toBeUndefined()
+    })
+    expect(result.current.status).toBe("idle")
+    expect(result.current.errors).toEqual({})
+  })
+
+  it("reset forgets the last request, so retry does nothing", async () => {
+    const fetchMock = stubFetch(() => jsonResponse(500))
+    const { result } = renderHook(() => useRegistrationStore())
+    await submit(result)
+
+    act(() => result.current.reset())
+    await act(() => result.current.retry())
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(result.current.status).toBe("idle")
   })
 })

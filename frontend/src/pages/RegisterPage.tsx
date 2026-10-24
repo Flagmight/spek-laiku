@@ -1,16 +1,23 @@
 import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { RegistrationForm } from "../components/registrationForm"
-import { useCurrentUser } from "../hooks/useCurrentUser"
 import { usePageTitle } from "../hooks/usePageTitle"
-import { useRegistration } from "../hooks/useRegistration"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import { useRegistrationStore } from "../stores/useRegistrationStore"
 import type { NavigationState } from "../types/navigationState"
 
 export function RegisterPage() {
   usePageTitle("Register")
   const navigate = useNavigate()
-  const { refresh } = useCurrentUser()
-  const { status, errors, submit, retry } = useRegistration()
+  const refresh = useCurrentUserStore((state) => state.refresh)
+  const status = useRegistrationStore((state) => state.status)
+  const errors = useRegistrationStore((state) => state.errors)
+  const submit = useRegistrationStore((state) => state.submit)
+  const retry = useRegistrationStore((state) => state.retry)
+  const reset = useRegistrationStore((state) => state.reset)
+
+  // The store outlives the page, so leaving it aborts a pending request and the next visit starts idle.
+  useEffect(() => reset, [reset])
 
   useEffect(() => {
     if (status === "success") {

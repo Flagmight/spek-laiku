@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import type { FormEvent } from "react"
 import { formatErrorMessage } from "../helpers/formatErrorMessage"
-import type { RegistrationStatus } from "../hooks/useRegistration"
+import type { RegistrationStatus } from "../stores/useRegistrationStore"
 import type {
   RegistrationField,
   RegistrationFieldErrors,

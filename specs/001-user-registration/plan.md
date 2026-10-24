@@ -12,9 +12,11 @@ Create a registration flow that accepts and validates an email and password and 
 
 **Language/Version**: C# on .NET 10 (ASP.NET Core Web API); TypeScript with React 19, built with Vite
 
-**Primary Dependencies**: Backend: ASP.NET Core Identity with EF Core stores, EF Core with the Npgsql PostgreSQL provider, AutoMapper. Frontend: React, React Router. Quality: .NET analyzers and `dotnet format`, ESLint, Prettier. Tests: xUnit, Microsoft.AspNetCore.Mvc.Testing, Vitest, React Testing Library, jsdom. Test-only: Testcontainers for PostgreSQL (`Testcontainers.PostgreSql`) in `SpekLaiku.IntegrationTests`.
+**Primary Dependencies**: Backend: ASP.NET Core Identity with EF Core stores, EF Core with the Npgsql PostgreSQL provider, AutoMapper. Frontend: React, React Router, Zustand. Quality: .NET analyzers and `dotnet format`, ESLint, Prettier. Tests: xUnit, Microsoft.AspNetCore.Mvc.Testing, Vitest, React Testing Library, jsdom. Test-only: Testcontainers for PostgreSQL (`Testcontainers.PostgreSql`) in `SpekLaiku.IntegrationTests`.
 
 **Authentication**: ASP.NET Core Identity cookie with `SignInManager`. The cookie is HttpOnly, Secure and SameSite=Lax, with a 30-minute sliding expiration (project NFR-016). Registration signs the new user in. The frontend reads the signed-in state from `GET /api/auth/me`, which feature 002 will reuse.
+
+**Frontend state**: Zustand (project requirement, added 2026-10-24). `frontend/src/stores/useCurrentUserStore.ts` holds the signed-in state (`loading`, `signedIn`, `signedOut`, `error`), the user and `refresh()`, and replaces the React context `CurrentUserProvider`. `main.tsx` starts the first load before rendering, and only the most recent request may update the store. `frontend/src/stores/useRegistrationStore.ts` holds the registration status, the field errors, `submit`, `retry` and `reset`, and replaces `useRegistration`. The double-submit guard (FR-013) reads the store's current status synchronously, so a second click in the same render is still ignored. `RegisterPage` calls `reset()` when it unmounts, which aborts a pending request and clears the status and errors, so the next visit starts idle. Typed form values stay in component state in `registrationForm.tsx`, because only the form reads them. Tests reset both stores after each test in `frontend/src/tests/setup.ts`.
 
 **Identity user options**: The email is used as the user name, so `options.User.AllowedUserNameCharacters` is set to an empty string. This turns off Identity's user-name character check, so every email the service accepts (spec FR-003) can be stored. `RequireUniqueEmail` stays `true`; a duplicate reported by Identity as `DuplicateEmail` or `DuplicateUserName` is treated like a duplicate found by the database index.
 
@@ -52,6 +54,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 - PASS: Uses deterministic tests; this feature calls no external services.
 - PASS: Uses the repository's existing backend and frontend directory structure; no unnecessary abstractions or dependencies are planned. The SendGrid package and email-sender code added earlier for email confirmation are no longer needed and are removed by task T013A.
 - PASS: New dependency justified (constitution VIII): `Testcontainers.PostgreSql` (test project only, latest stable release) is needed because FR-013 and SC-003 require proving that two simultaneous registrations create one account, and only a real PostgreSQL database enforces the unique email index. It needs Docker locally and in CI; GitHub-hosted Ubuntu runners provide Docker.
+- PASS: New dependency justified (constitution VIII): `zustand` (frontend, latest stable release) is a project requirement (`docs/requirements.md`, Constraints) for shared and form submission state. The signed-in state is read by the navigation, the route guard and the register page, and a store removes the context provider that every render and test had to wrap.
 - PASS: The new `GET /api/auth/me` endpoint returns a response DTO, never the entity, and has an authorization test for signed-in and signed-out requests.
 - PASS: CORS (constitution IV): no cross-origin access is enabled; the frontend reaches the API through the same origin (the Vite proxy in development).
 
@@ -92,7 +95,8 @@ frontend/
 └── src/
     ├── api/                   # Registration API client
     ├── components/            # registrationForm.tsx, the error summary, the shared layout with the skip link, the top navigation and the success banner
-    ├── hooks/                 # useRegistration, useCurrentUser and usePageTitle
+    ├── hooks/                 # usePageTitle
+    ├── stores/                # Zustand stores: useCurrentUserStore and useRegistrationStore
     ├── pages/                 # HomePage.tsx (placeholder) and RegisterPage.tsx
     ├── helpers/               # Validation helpers and formatErrorMessage
     └── tests/                 # UI tests
