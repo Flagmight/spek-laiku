@@ -734,6 +734,10 @@ interface language will be supported in the first version.
 
 - The client application MUST be developed using react.
 
+- The client application MUST use Zustand for state that is shared
+  between pages and components, and for the state of each form
+  submission (status, errors, pending request).
+
 - The project MUST be developed using Visual Studio Community.
 
 ## 12. Creating the Initial README
@@ -808,6 +812,9 @@ The backend MUST be developed using ASP.NET Core.
 **Frontend requirements:**
 
 The Frontend MUST use react.
+
+The Frontend MUST use Zustand for shared state and form submission
+state.
 
 **Project Documentation**
 

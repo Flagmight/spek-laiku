@@ -18,7 +18,7 @@ Practical instructions for AI coding agents working in this repository ("Spėk l
   - `Mapping/`: AutoMapper profiles.
   - `Entities/`, `Data/`, `Migrations/`: database model, `ApplicationDbContext` and EF Core migrations.
 - `backend/tests/SpekLaiku.UnitTests/`, `backend/tests/SpekLaiku.IntegrationTests/`: backend tests.
-- `frontend/src/`: React and TypeScript app (`pages/`, `components/`, `hooks/`, `helpers/`, `api/`, `types/`, `tests/`).
+- `frontend/src/`: React and TypeScript app (`pages/`, `components/`, `hooks/`, `stores/`, `helpers/`, `api/`, `types/`, `tests/`).
 - `specs/`: Spec Kit feature folders, for example `specs/001-user-registration/` with `spec.md`, `plan.md` and `tasks.md`.
 - `docs/`: requirements, UX design (flows and wireframes) and architecture.
 - `.specify/`: Spec Kit files and the constitution.
@@ -72,6 +72,7 @@ Before suggesting a commit or a Pull Request:
 
 - React files: pages in PascalCase (`PlanSetupPage.tsx`), components and helpers in camelCase (`planCard.tsx`, `formatDate.ts`), hooks start with `use` (`usePlans.ts`).
 - Pages never call `fetch` directly; use the API client in `frontend/src/api/`.
+- Shared state and form submission state live in Zustand stores in `frontend/src/stores/`, named `use<Name>Store.ts`. Do not add React context providers for state.
 - New business rules go in a service in `Services/`. New external API calls go in a client in `Clients/`.
 - Return DTOs from controllers, never entities. Add mappings in `Mapping/`.
 - Tests that touch Open-Meteo or Overpass use fake responses, never the live services.
