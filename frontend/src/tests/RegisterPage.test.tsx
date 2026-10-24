@@ -1,7 +1,7 @@
 import { act, fireEvent, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { registrationTimeoutMs } from "../hooks/useRegistration"
+import { registrationTimeoutMs } from "../stores/useRegistrationStore"
 import { jsonResponse, renderApp } from "./renderApp"
 
 const details = {

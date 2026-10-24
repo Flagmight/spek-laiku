@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom"
 import type { InitialEntry } from "react-router-dom"
 import { vi } from "vitest"
 import { AppRoutes } from "../components/appRoutes"
-import { CurrentUserProvider } from "../components/currentUserProvider"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 
 export function jsonResponse(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -19,12 +19,12 @@ export function stubFetch(createResponse: () => Response) {
   return fetchMock
 }
 
+// Starts the signed-in state load, as main.tsx does, then renders the routes.
 export function renderApp(initialEntry: InitialEntry = "/") {
+  void useCurrentUserStore.getState().refresh()
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <CurrentUserProvider>
-        <AppRoutes />
-      </CurrentUserProvider>
+      <AppRoutes />
     </MemoryRouter>,
   )
 }

@@ -156,6 +156,16 @@ Server-side validation with the exact messages is part of T018. Accessible label
 - [x] T051 Run the quickstart validation and confirm all acceptance scenarios.
 - [X] T052 Review the final diff for unrelated files, debug code, secrets, and generated artifacts.
 
+## Phase 8: Zustand Frontend State (Requirement Change 2026-10-24)
+
+**Purpose**: Move the signed-in state and the registration submission state into Zustand stores, as required by `docs/requirements.md` (Constraints) and described in plan.md (Frontend state). Behaviour, messages and accessibility stay exactly as before, so every existing frontend test must keep passing.
+
+- [X] T053 Add the `zustand` package (latest stable release) to `frontend/package.json`.
+- [X] T054 Add `frontend/src/stores/useCurrentUserStore.ts` with the status, the user and `refresh()`, keeping the rule that only the most recent request updates the state. Start the first load in `frontend/src/main.tsx` and `frontend/src/tests/renderApp.tsx`. Switch `topNavigation.tsx`, `signedOutOnly.tsx` and `RegisterPage.tsx` to the store, and remove `CurrentUserProvider` and `hooks/useCurrentUser.ts`.
+- [X] T055 Add `frontend/src/stores/useRegistrationStore.ts` with the status, the field errors, `submit`, `retry` and `reset`, keeping the double-submit guard (FR-013), the 10-second timeout (FR-018) and Retry with the last request (FR-015). `RegisterPage.tsx` calls `reset()` on unmount. Remove `hooks/useRegistration.ts`.
+- [X] T056 Reset both stores after each test in `frontend/src/tests/setup.ts`. Move the hook tests to `useCurrentUserStore.test.tsx` and `useRegistrationStore.test.tsx`, and add tests that only the latest current-user request updates the store and that leaving the register page aborts a pending request and starts the next visit idle.
+- [X] T057 Run frontend lint, format check, tests and production build.
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -167,6 +177,7 @@ Server-side validation with the exact messages is part of T018. Accessible label
 - Phase 5: User Story 3 depends on Phase 2 and may run in parallel with other stories.
 - Phase 6: User Story 4 depends on Phase 2 and may run in parallel with other stories.
 - Phase 7: Polish depends on all requested user stories and the foundation, except T042, which may run any time after T013B.
+- Phase 8: Zustand frontend state depends on Phase 7. T053 runs first, T054 before T055, and T057 last.
 
 ### User Story Dependencies
 
