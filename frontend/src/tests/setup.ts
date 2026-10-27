@@ -5,6 +5,7 @@ import {
   initialCurrentUserState,
   useCurrentUserStore,
 } from "../stores/useCurrentUserStore"
+import { useLoginStore } from "../stores/useLoginStore"
 import { useRegistrationStore } from "../stores/useRegistrationStore"
 
 afterEach(() => {
@@ -12,6 +13,7 @@ afterEach(() => {
   // The stores are module-level, so each test starts from the initial state.
   useCurrentUserStore.setState(initialCurrentUserState)
   useRegistrationStore.getState().reset()
+  useLoginStore.getState().reset()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })

@@ -28,6 +28,7 @@ describe("keyboard use of the Register page", () => {
     const expected = [
       screen.getByRole("link", { name: "Skip to main content" }),
       screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Log in" }),
       screen.getByRole("link", { name: "Register" }),
       screen.getByLabelText("Email"),
       screen.getByLabelText("Password"),

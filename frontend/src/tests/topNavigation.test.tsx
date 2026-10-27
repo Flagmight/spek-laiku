@@ -14,18 +14,26 @@ function navigation() {
 }
 
 describe("top navigation", () => {
-  it("shows Home and Register to a visitor", async () => {
+  it("shows Home, Log in and Register to a visitor", async () => {
     stubFetch(() => jsonResponse(401))
     renderApp("/")
 
     expect(
       await navigation().findByRole("link", { name: "Register" }),
     ).toHaveAttribute("href", "/register")
+    expect(navigation().getByRole("link", { name: "Log in" })).toHaveAttribute(
+      "href",
+      "/login",
+    )
     expect(navigation().getByRole("link", { name: "Home" })).toHaveAttribute(
       "href",
       "/",
     )
-    expect(navigation().queryByRole("link", { name: /log in/i })).toBeNull()
+    expect(
+      navigation()
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Home", "Log in", "Register"])
   })
 
   it("shows only Home to a signed-in user", async () => {
@@ -39,7 +47,7 @@ describe("top navigation", () => {
     expect(navigation().getByRole("link", { name: "Home" })).toBeInTheDocument()
   })
 
-  it("does not show Register while the signed-in state is loading", () => {
+  it("does not show Log in or Register while the signed-in state is loading", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise<Response>(() => {})),
@@ -47,6 +55,32 @@ describe("top navigation", () => {
     renderApp("/")
 
     expect(navigation().queryByRole("link", { name: "Register" })).toBeNull()
+    expect(navigation().queryByRole("link", { name: "Log in" })).toBeNull()
+  })
+
+  it("hides Log in and Register after logging in", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) =>
+        Promise.resolve(
+          path === "/api/auth/login"
+            ? jsonResponse(200, signedInUser)
+            : jsonResponse(401),
+        ),
+      ),
+    )
+    const user = userEvent.setup()
+    renderApp("/login")
+    await user.type(await screen.findByLabelText("Email"), "user@example.com")
+    await user.type(screen.getByLabelText("Password"), "Password123!")
+    expect(navigation().getByRole("link", { name: "Log in" })).toBeVisible()
+
+    await user.click(screen.getByRole("button", { name: "Log in" }))
+
+    await vi.waitFor(() =>
+      expect(navigation().getAllByRole("link")).toHaveLength(1),
+    )
+    expect(navigation().getByRole("link", { name: "Home" })).toBeInTheDocument()
   })
 
   it("marks the current page", async () => {
