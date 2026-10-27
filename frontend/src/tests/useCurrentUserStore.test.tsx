@@ -1,9 +1,10 @@
 import { act, renderHook } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import type { CurrentUser } from "../types/currentUser"
 import { jsonResponse, stubFetch } from "./renderApp"
 
-const signedInUser = {
+const signedInUser: CurrentUser = {
   email: "user@example.com",
   role: "Registered User",
   accountStatus: "Active",
@@ -85,5 +86,84 @@ describe("useCurrentUserStore", () => {
 
     expect(result.current.status).toBe("signedIn")
     expect(result.current.user).toEqual(signedInUser)
+  })
+
+  it("setSignedIn and setSignedOut set the expected state", () => {
+    const { result } = renderStore()
+
+    act(() => result.current.setSignedIn(signedInUser))
+    expect(result.current.status).toBe("signedIn")
+    expect(result.current.user).toEqual(signedInUser)
+    expect(result.current.sessionExpired).toBe(false)
+
+    act(() => result.current.setSignedOut())
+    expect(result.current.status).toBe("signedOut")
+    expect(result.current.user).toBeNull()
+    expect(result.current.sessionExpired).toBe(false)
+  })
+
+  it("markSessionEnded marks the session expired only when signed in", () => {
+    const { result } = renderStore()
+
+    act(() => result.current.setSignedOut())
+    act(() => result.current.markSessionEnded())
+    expect(result.current.status).toBe("signedOut")
+    expect(result.current.sessionExpired).toBe(false)
+
+    act(() => result.current.setSignedIn(signedInUser))
+    act(() => result.current.markSessionEnded())
+    expect(result.current.status).toBe("signedOut")
+    expect(result.current.user).toBeNull()
+    expect(result.current.sessionExpired).toBe(true)
+  })
+
+  it("refresh returning 401 after being signed in marks the session expired", async () => {
+    stubFetch(() => jsonResponse(401))
+    const { result } = renderStore()
+    act(() => result.current.setSignedIn(signedInUser))
+
+    await act(() => result.current.refresh())
+
+    expect(result.current.status).toBe("signedOut")
+    expect(result.current.sessionExpired).toBe(true)
+  })
+
+  it("refresh returning 401 when never signed in does not mark the session expired", async () => {
+    stubFetch(() => jsonResponse(401))
+    const { result } = renderStore()
+
+    await act(() => result.current.refresh())
+
+    expect(result.current.sessionExpired).toBe(false)
+  })
+
+  it("setSignedOut never marks the session expired", () => {
+    const { result } = renderStore()
+    act(() => result.current.setSignedIn(signedInUser))
+
+    act(() => result.current.setSignedOut())
+
+    expect(result.current.sessionExpired).toBe(false)
+  })
+
+  it("an action called while a refresh is pending is not overwritten by that refresh", async () => {
+    let answer: (response: Response) => void = () => {}
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>((resolve) => (answer = resolve))),
+    )
+    const { result } = renderStore()
+    let pending: Promise<void> = Promise.resolve()
+    act(() => {
+      pending = result.current.refresh()
+    })
+
+    act(() => result.current.setSignedIn(signedInUser))
+    answer(jsonResponse(401))
+    await act(() => pending)
+
+    expect(result.current.status).toBe("signedIn")
+    expect(result.current.user).toEqual(signedInUser)
+    expect(result.current.sessionExpired).toBe(false)
   })
 })

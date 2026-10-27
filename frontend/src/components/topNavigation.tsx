@@ -1,12 +1,13 @@
 import { NavLink } from "react-router-dom"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import { LogoutButton } from "./logoutButton"
 
-// A visitor sees Home and Register; a signed-in user sees Home only (US1 scenario 2).
-// There is no Log in link until the Login feature (002) adds the page.
+// A visitor sees Home, Log in and Register; a signed-in user, of any role or status, sees Home
+// and Log out (FR-016, FR-021).
 export function TopNavigation() {
   const status = useCurrentUserStore((state) => state.status)
-  // Hidden while loading, so a signed-in user never sees "Register" flash up.
-  const showRegister = status === "signedOut" || status === "error"
+  // Hidden while loading, so a signed-in user never sees "Log in" or "Register" flash up.
+  const showVisitorLinks = status === "signedOut" || status === "error"
 
   return (
     <ul>
@@ -15,9 +16,19 @@ export function TopNavigation() {
           Home
         </NavLink>
       </li>
-      {showRegister && (
+      {showVisitorLinks && (
+        <>
+          <li>
+            <NavLink to="/login">Log in</NavLink>
+          </li>
+          <li>
+            <NavLink to="/register">Register</NavLink>
+          </li>
+        </>
+      )}
+      {status === "signedIn" && (
         <li>
-          <NavLink to="/register">Register</NavLink>
+          <LogoutButton />
         </li>
       )}
     </ul>

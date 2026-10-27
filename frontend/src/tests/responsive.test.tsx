@@ -139,3 +139,88 @@ describe("layout at 320 px", () => {
     )
   })
 })
+
+// Renders the Log in page with errors in both fields, so the error summary links are shown.
+async function renderLoginPageWithErrors() {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((path: string) =>
+      Promise.resolve(
+        path === "/api/auth/login"
+          ? jsonResponse(400, {
+              errors: {
+                email: ["Enter your email address."],
+                password: ["Enter your password."],
+              },
+            })
+          : jsonResponse(401),
+      ),
+    ),
+  )
+  const user = userEvent.setup()
+  renderApp("/login")
+  await user.click(await screen.findByRole("button", { name: "Log in" }))
+  await screen.findByRole("alert", { name: "Error summary" })
+}
+
+describe("Log in page at 320 px", () => {
+  it("uses the Register page field rules: full width, at least 44 px tall, 16 px text", async () => {
+    await renderLoginPageWithErrors()
+
+    for (const label of ["Email", "Password"]) {
+      const style = getComputedStyle(screen.getByLabelText(label))
+      expect(style.width).toBe("100%")
+      expect(style.boxSizing).toBe("border-box")
+      expect(px(style.minHeight)).toBeGreaterThanOrEqual(minimumTarget)
+      expect(px(style.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
+    }
+  })
+
+  it("makes the submit button full width and a 44 × 44 px target", async () => {
+    await renderLoginPageWithErrors()
+
+    const submit = screen.getByRole("button", { name: "Log in" })
+    expect(getComputedStyle(submit).width).toBe("100%")
+    expectTouchTarget(submit)
+  })
+
+  it("makes every link and button on the page, including 'Create an account', a 44 × 44 px target", async () => {
+    await renderLoginPageWithErrors()
+
+    const targets = [
+      ...screen.getAllByRole("link"),
+      ...screen.getAllByRole("button"),
+    ]
+    expect(targets).toContain(
+      screen.getByRole("link", { name: "Create an account" }),
+    )
+    for (const target of targets) {
+      expectTouchTarget(target)
+    }
+  })
+})
+
+describe("Account Suspended page at 320 px", () => {
+  it("makes Home and Log out 44 × 44 px targets, and Log out is not stretched like a form button", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          jsonResponse(200, {
+            email: "user@example.com",
+            role: "Registered User",
+            accountStatus: "Suspended",
+          }),
+        ),
+      ),
+    )
+    renderApp("/account-suspended")
+    await screen.findByRole("heading", { level: 1, name: "Account suspended" })
+
+    const logOut = screen.getByRole("button", { name: "Log out" })
+    for (const target of [...screen.getAllByRole("link"), logOut]) {
+      expectTouchTarget(target)
+    }
+    expect(getComputedStyle(logOut).width).not.toBe("100%")
+  })
+})

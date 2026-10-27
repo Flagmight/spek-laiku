@@ -74,14 +74,15 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
 
     public async Task<ApplicationUser> CreateUserAsync(
         AccountStatus status = AccountStatus.Active,
-        string password = "Password123!")
+        string password = "Password123!",
+        string role = "Registered User")
     {
         var email = $"user-{Guid.NewGuid():N}@example.com";
         var user = new ApplicationUser
         {
             UserName = email,
             Email = email,
-            Role = "Registered User",
+            Role = role,
             AccountStatus = status,
             RegistrationDate = DateTime.UtcNow
         };

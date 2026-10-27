@@ -86,6 +86,7 @@ public class Program
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();
+        builder.Services.AddScoped<LoginService>();
 
         var app = builder.Build();
 

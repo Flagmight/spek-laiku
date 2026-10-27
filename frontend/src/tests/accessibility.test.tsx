@@ -140,8 +140,76 @@ describe("Register page accessibility", () => {
   })
 })
 
+describe("Log in page accessibility", () => {
+  it("links each field's error to the field, so it is read after the label", async () => {
+    stubFetch(() =>
+      jsonResponse(400, {
+        errors: {
+          email: ["Enter your email address."],
+          password: ["Enter your password."],
+        },
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp("/login")
+
+    await user.click(await screen.findByRole("button", { name: "Log in" }))
+
+    const email = screen.getByLabelText("Email")
+    await vi.waitFor(() =>
+      expect(descriptionsOf(email)).toEqual([
+        "Error: Enter your email address.",
+      ]),
+    )
+    expect(descriptionsOf(screen.getByLabelText("Password"))).toEqual([
+      "Error: Enter your password.",
+    ])
+    expect(screen.getByText("Email", { selector: "label" })).toBeVisible()
+    expect(screen.getByText("Password", { selector: "label" })).toBeVisible()
+  })
+
+  it("links the incorrect details message to both fields", async () => {
+    stubFetch(() => jsonResponse(401, {}))
+    const user = userEvent.setup()
+    renderApp("/login")
+    await user.type(await screen.findByLabelText("Email"), "user@example.com")
+    await user.type(screen.getByLabelText("Password"), "Password123!")
+
+    await user.click(screen.getByRole("button", { name: "Log in" }))
+
+    await screen.findByRole("alert")
+    for (const label of ["Email", "Password"]) {
+      expect(descriptionsOf(screen.getByLabelText(label))).toEqual([
+        "Error: Incorrect email or password.",
+      ])
+    }
+  })
+})
+
+describe("Account Suspended page structure", () => {
+  const suspendedUser = {
+    email: "user@example.com",
+    role: "Registered User",
+    accountStatus: "Suspended",
+  }
+
+  it("has exactly one h1 and a tab title naming the page", async () => {
+    stubFetch(() => jsonResponse(200, suspendedUser))
+    document.title = ""
+    renderApp("/account-suspended")
+
+    const headings = await screen.findAllByRole("heading", { level: 1 })
+    expect(headings).toHaveLength(1)
+    expect(headings[0]).toHaveTextContent("Account suspended")
+    await vi.waitFor(() =>
+      expect(document.title).toBe("Account suspended - Spėk laiku"),
+    )
+  })
+})
+
 describe.each([
   ["/register", "Register", "Register - Spėk laiku"],
+  ["/login", "Log in", "Log in - Spėk laiku"],
   ["/", "Spėk laiku", "Home - Spėk laiku"],
 ])("page structure of %s", (path, heading, title) => {
   it("has exactly one h1 and a tab title naming the page", async () => {

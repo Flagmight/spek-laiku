@@ -2,7 +2,7 @@
 
 Activity planning application for families and groups in Lithuania. Users create a list of possible activities (kayaking, cycling, outdoor heritage visits, picnics, indoor activities) and set acceptable weather conditions. The system uses hourly forecasts from Open-Meteo and nearby places from the OpenStreetMap Overpass API to find suitable time slots, and recalculates the plan when the forecast changes.
 
-Status: in development. Implemented so far: user registration (feature `001-user-registration`).
+Status: in development. Implemented so far: user registration (feature `001-user-registration`) and login and logout (feature `002-user-login`).
 
 ## Technology
 
@@ -96,6 +96,33 @@ On Windows with `core.autocrlf=true`, `npm run format:check` may report files th
    ```
 
    Open the address Vite prints (usually `http://localhost:5173`). The Vite dev server forwards every `/api` request to `https://localhost:7254`, so the browser sees one origin and the sign-in cookie works without CORS.
+
+## Log in and log out
+
+- **Log in page** (`/login`): email and password. An unknown email, a wrong password and a locked account all show the same message, "Error: Incorrect email or password.", so the page never reveals which accounts exist. After login a Suspended user opens the Account Suspended page; everyone else returns to the page they were sent from (`/login?returnTo=...`, only pages inside the application) or opens the home page.
+- **Lockout**: 5 wrong passwords in a row lock the account for 15 minutes. During the lock even the correct password is refused. A successful login resets the count.
+- **Session**: the sign-in cookie expires 30 minutes after the last request and is renewed when at least half of that time has passed, so a session ends 15 to 30 minutes after the user's last action. A user whose session expired is told so on the Log in page.
+- **Log out**: the "Log out" button in the navigation ends the session and opens the home page with "✓ Success: You have logged out."
+
+### Testing an Administrator or Suspended account
+
+There is no administration page yet, so change a registered account directly in the database (table `AspNetUsers`), then log in again:
+
+```sql
+-- Administrator
+UPDATE "AspNetUsers" SET "Role" = 'Administrator' WHERE "NormalizedEmail" = 'USER@EXAMPLE.COM';
+
+-- Suspended (AccountStatus is stored as a number: 0 = Active, 1 = Suspended)
+UPDATE "AspNetUsers" SET "AccountStatus" = 1 WHERE "NormalizedEmail" = 'USER@EXAMPLE.COM';
+
+-- End a lockout early
+UPDATE "AspNetUsers" SET "LockoutEnd" = NULL, "AccessFailedCount" = 0 WHERE "NormalizedEmail" = 'USER@EXAMPLE.COM';
+
+-- Restore the account afterwards
+UPDATE "AspNetUsers" SET "Role" = 'Registered User', "AccountStatus" = 0 WHERE "NormalizedEmail" = 'USER@EXAMPLE.COM';
+```
+
+The application reads the role and status from the database on each page load, but the page opened after login is chosen when logging in, so log out and log in again to check it.
 
 ## Development workflow
 

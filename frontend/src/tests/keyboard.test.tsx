@@ -28,6 +28,7 @@ describe("keyboard use of the Register page", () => {
     const expected = [
       screen.getByRole("link", { name: "Skip to main content" }),
       screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Log in" }),
       screen.getByRole("link", { name: "Register" }),
       screen.getByLabelText("Email"),
       screen.getByLabelText("Password"),
@@ -126,5 +127,97 @@ describe("keyboard use of the Register page", () => {
     await user.keyboard("{Enter}")
 
     await vi.waitFor(() => expect(registrationCalls(fetchMock)).toHaveLength(2))
+  })
+})
+
+const signedInUser = {
+  email: "user@example.com",
+  role: "Registered User",
+  accountStatus: "Active",
+}
+
+// The visitor is signed out; every login request gets the given answer.
+function stubLoginApi(answer: () => Response) {
+  const fetchMock = vi.fn((path: string) =>
+    Promise.resolve(path === "/api/auth/login" ? answer() : jsonResponse(401)),
+  )
+  vi.stubGlobal("fetch", fetchMock)
+  return fetchMock
+}
+
+describe("keyboard use of the Log in page", () => {
+  it("reaches the skip link, the navigation, the fields, submit and the Register link in that order", async () => {
+    stubLoginApi(() => jsonResponse(401))
+    const user = userEvent.setup()
+    renderApp("/login")
+    await screen.findByLabelText("Email")
+
+    const expected = [
+      screen.getByRole("link", { name: "Skip to main content" }),
+      screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Log in" }),
+      screen.getByRole("link", { name: "Register" }),
+      screen.getByLabelText("Email"),
+      screen.getByLabelText("Password"),
+      screen.getByRole("button", { name: "Log in" }),
+      screen.getByRole("link", { name: "Create an account" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+  })
+
+  it.each(["Email", "Password"])(
+    "submits the form when Enter is pressed in %s",
+    async (label) => {
+      const fetchMock = stubLoginApi(() => jsonResponse(500))
+      const user = userEvent.setup()
+      renderApp("/login")
+      await user.type(await screen.findByLabelText("Email"), "user@example.com")
+      await user.type(screen.getByLabelText("Password"), "Password123!")
+
+      await user.click(screen.getByLabelText(label))
+      await user.keyboard("{Enter}")
+
+      await vi.waitFor(() =>
+        expect(
+          fetchMock.mock.calls.filter(([path]) => path === "/api/auth/login"),
+        ).toHaveLength(1),
+      )
+    },
+  )
+})
+
+describe("keyboard use of Log out", () => {
+  it("reaches Log out after Home and logs out with Enter", async () => {
+    let signedIn = true
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((path: string) => {
+        if (path === "/api/auth/logout") {
+          signedIn = false
+          return Promise.resolve(new Response(null, { status: 204 }))
+        }
+
+        return Promise.resolve(
+          signedIn ? jsonResponse(200, signedInUser) : jsonResponse(401),
+        )
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp("/")
+    const logOut = await screen.findByRole("button", { name: "Log out" })
+
+    await user.tab() // Skip to main content
+    await user.tab()
+    expect(screen.getByRole("link", { name: "Home" })).toHaveFocus()
+    await user.tab()
+    expect(logOut).toHaveFocus()
+    await user.keyboard("{Enter}")
+
+    expect(
+      await screen.findByText("✓ Success: You have logged out."),
+    ).toBeInTheDocument()
   })
 })
