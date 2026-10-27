@@ -39,6 +39,12 @@ export function LoginPage() {
     if (status === "success" && user) {
       navigate(loginDestination(user, returnTo), { replace: true })
     }
+
+    if (status === "alreadySignedIn") {
+      // Signed in elsewhere (another tab) since the page opened: no error, just the home page (FR-013).
+      void useCurrentUserStore.getState().refresh()
+      navigate("/", { replace: true })
+    }
   }, [status, navigate, returnTo])
 
   return (

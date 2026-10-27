@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom"
+import {
+  Link,
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom"
 import { describe, expect, it, vi } from "vitest"
 import { Layout } from "../components/layout"
 import { SignedInOnly } from "../components/signedInOnly"
@@ -52,17 +58,23 @@ function renderWithProtectedRoute(initialEntry: string) {
         </Route>
       </Routes>
       <CurrentLocation />
+      <Link to="/protected">Open protected page</Link>
     </MemoryRouter>,
   )
 }
 
-// The visitor is signed out until the login request succeeds.
-function stubApi() {
-  let signedIn = false
+// The server keeps a session from a successful login until logout or endSession().
+function stubApi(signedInAtStart = false) {
+  let signedIn = signedInAtStart
   const fetchMock = vi.fn((path: string) => {
     if (path === "/api/auth/login") {
       signedIn = true
       return Promise.resolve(jsonResponse(200, activeUser))
+    }
+
+    if (path === "/api/auth/logout") {
+      signedIn = false
+      return Promise.resolve(new Response(null, { status: 204 }))
     }
 
     return Promise.resolve(
@@ -70,7 +82,12 @@ function stubApi() {
     )
   })
   vi.stubGlobal("fetch", fetchMock)
-  return fetchMock
+  return {
+    // Like a session that expired on the server while the app was open.
+    endSession: () => {
+      signedIn = false
+    },
+  }
 }
 
 async function logIn(user: ReturnType<typeof userEvent.setup>) {
@@ -116,5 +133,44 @@ describe("SignedInOnly", () => {
       await screen.findByRole("heading", { level: 1, name: "Spėk laiku" }),
     ).toBeInTheDocument()
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/$/)
+  })
+
+  it("says the session expired when a signed-in user's session has ended, then returns after login", async () => {
+    const { endSession } = stubApi(true)
+    const user = userEvent.setup()
+    renderWithProtectedRoute("/")
+    await screen.findByRole("button", { name: "Log out" })
+    endSession()
+
+    await user.click(screen.getByRole("link", { name: "Open protected page" }))
+
+    const message = await screen.findByText(
+      "Your session has expired. Log in again.",
+    )
+    expect(message).toHaveAttribute("role", "status")
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/login?returnTo=%2Fprotected",
+    )
+
+    await logIn(user)
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Protected page" }),
+    ).toBeInTheDocument()
+  })
+
+  it("says 'Log in to continue.' after a logout, not that the session expired", async () => {
+    stubApi(true)
+    const user = userEvent.setup()
+    renderWithProtectedRoute("/")
+    await user.click(await screen.findByRole("button", { name: "Log out" }))
+    await screen.findByText("✓ Success: You have logged out.")
+
+    await user.click(screen.getByRole("link", { name: "Open protected page" }))
+
+    expect(await screen.findByText("Log in to continue.")).toBeInTheDocument()
+    expect(
+      screen.queryByText("Your session has expired. Log in again."),
+    ).toBeNull()
   })
 })

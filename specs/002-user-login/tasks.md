@@ -152,14 +152,14 @@ description: "Implementation tasks for user login and logout"
 
 ### Tests for User Story 5
 
-- [ ] T045 [P] [US5] Add `backend/tests/SpekLaiku.IntegrationTests/SessionOptionsTests.cs` with tests that the resolved `CookieAuthenticationOptions` for `IdentityConstants.ApplicationScheme` have `ExpireTimeSpan` of 30 minutes and `SlidingExpiration` `true` (spec FR-019), and that `POST /api/auth/login` from a signed-in user returns `403` with title "Already signed in." and does not count a failed attempt.
-- [ ] T046 [P] [US5] Extend `frontend/src/tests/signedInOnly.test.tsx` with tests that a user who was `"signedIn"` and whose `refresh()` now returns `401` is sent to `/login?returnTo=...` with "Your session has expired. Log in again.", and after logging in returns to that page; and that after a logout the same route shows "Log in to continue." instead.
-- [ ] T047 [P] [US5] Add `frontend/src/tests/loginRouteGuard.test.tsx` with tests that a signed-in user who opens `/login` is sent to `/` without the Log in page flashing up, and that an `alreadySignedIn` outcome from submitting the form opens `/` with no error message and refreshes the current user.
+- [X] T045 [P] [US5] Add `backend/tests/SpekLaiku.IntegrationTests/SessionOptionsTests.cs` with tests that the resolved `CookieAuthenticationOptions` for `IdentityConstants.ApplicationScheme` have `ExpireTimeSpan` of 30 minutes and `SlidingExpiration` `true` (spec FR-019), and that `POST /api/auth/login` from a signed-in user returns `403` with title "Already signed in." and does not count a failed attempt.
+- [X] T046 [P] [US5] Extend `frontend/src/tests/signedInOnly.test.tsx` with tests that a user who was `"signedIn"` and whose `refresh()` now returns `401` is sent to `/login?returnTo=...` with "Your session has expired. Log in again.", and after logging in returns to that page; and that after a logout the same route shows "Log in to continue." instead.
+- [X] T047 [P] [US5] Add `frontend/src/tests/loginRouteGuard.test.tsx` with tests that a signed-in user who opens `/login` is sent to `/` without the Log in page flashing up, and that an `alreadySignedIn` outcome from submitting the form opens `/` with no error message and refreshes the current user.
 
 ### Implementation for User Story 5
 
-- [ ] T048 [US5] In `backend/src/SpekLaiku.Api/Controllers/AuthController.cs` make `Login` return `Problem(title: "Already signed in.", detail: "You are already signed in.", statusCode: 403)` before calling `LoginService` when `User.Identity?.IsAuthenticated == true` (spec FR-013), as `RegistrationController` does.
-- [ ] T049 [US5] In `frontend/src/pages/LoginPage.tsx` handle the `"alreadySignedIn"` result: call `useCurrentUserStore.getState().refresh()` and navigate to `/` with `replace: true` and no banner. Confirm `SignedOutOnly` already redirects a signed-in user who opens `/login` (no change expected).
+- [X] T048 [US5] In `backend/src/SpekLaiku.Api/Controllers/AuthController.cs` make `Login` return `Problem(title: "Already signed in.", detail: "You are already signed in.", statusCode: 403)` before calling `LoginService` when `User.Identity?.IsAuthenticated == true` (spec FR-013), as `RegistrationController` does.
+- [X] T049 [US5] In `frontend/src/pages/LoginPage.tsx` handle the `"alreadySignedIn"` result: call `useCurrentUserStore.getState().refresh()` and navigate to `/` with `replace: true` and no banner. Confirm `SignedOutOnly` already redirects a signed-in user who opens `/login` (no change expected).
 
 **Checkpoint**: Session expiry and the already-signed-in cases behave as specified.
 

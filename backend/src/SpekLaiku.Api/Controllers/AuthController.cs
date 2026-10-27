@@ -28,6 +28,15 @@ public sealed class AuthController(
         LoginRequest request,
         CancellationToken cancellationToken)
     {
+        // A signed-in user is refused before the details are checked, so no attempt is counted (FR-013).
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            return Problem(
+                title: "Already signed in.",
+                detail: "You are already signed in.",
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+
         var result = await loginService.LoginAsync(request, cancellationToken);
         if (result.Succeeded)
         {
