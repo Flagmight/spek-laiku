@@ -8,7 +8,6 @@ namespace SpekLaiku.Api.Services;
 /// </summary>
 public static class RegistrationValidator
 {
-    public const int MaxEmailLength = 254;
     public const int MinPasswordLength = 8;
 
     public static IReadOnlyDictionary<string, string> Validate(RegistrationRequest request)
@@ -20,7 +19,7 @@ public static class RegistrationValidator
         {
             errors["email"] = "Enter your email address.";
         }
-        else if (email.Length > MaxEmailLength || !IsValidEmailFormat(email))
+        else if (email.Length > EmailFormat.MaxLength || !EmailFormat.IsValid(email))
         {
             errors["email"] = "Enter a valid email address.";
         }
@@ -45,26 +44,5 @@ public static class RegistrationValidator
         }
 
         return errors;
-    }
-
-    /// <summary>
-    /// No spaces, exactly one "@", at least one character before it, and a domain after it
-    /// that contains a dot that is neither its first nor its last character.
-    /// </summary>
-    private static bool IsValidEmailFormat(string email)
-    {
-        if (email.Any(char.IsWhiteSpace))
-        {
-            return false;
-        }
-
-        var at = email.IndexOf('@');
-        if (at < 1 || at != email.LastIndexOf('@'))
-        {
-            return false;
-        }
-
-        var domain = email[(at + 1)..];
-        return domain.Length >= 3 && domain[1..^1].Contains('.');
     }
 }
