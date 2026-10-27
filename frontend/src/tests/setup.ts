@@ -6,6 +6,7 @@ import {
   useCurrentUserStore,
 } from "../stores/useCurrentUserStore"
 import { useLoginStore } from "../stores/useLoginStore"
+import { useLogoutStore } from "../stores/useLogoutStore"
 import { useRegistrationStore } from "../stores/useRegistrationStore"
 
 afterEach(() => {
@@ -14,6 +15,7 @@ afterEach(() => {
   useCurrentUserStore.setState(initialCurrentUserState)
   useRegistrationStore.getState().reset()
   useLoginStore.getState().reset()
+  useLogoutStore.getState().reset()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })

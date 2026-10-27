@@ -1,6 +1,7 @@
 import { useRef } from "react"
 import type { MouseEvent } from "react"
 import { Outlet } from "react-router-dom"
+import { LogoutError } from "./logoutError"
 import { SuccessBanner } from "./successBanner"
 import { TopNavigation } from "./topNavigation"
 
@@ -23,6 +24,7 @@ export function Layout() {
           <TopNavigation />
         </nav>
       </header>
+      <LogoutError />
       <div role="status">
         <SuccessBanner />
       </div>

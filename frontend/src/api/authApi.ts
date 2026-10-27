@@ -70,3 +70,15 @@ export async function login(
 
   throw new ApiError(response.status)
 }
+
+// Ends the session. The server answers 204 whether or not there was one (FR-017); anything
+// else throws ApiError, and network and abort errors pass through.
+export async function logout(signal?: AbortSignal): Promise<void> {
+  const response = await apiFetch("/api/auth/logout", {
+    method: "POST",
+    signal,
+  })
+  if (response.status !== 204) {
+    throw new ApiError(response.status)
+  }
+}

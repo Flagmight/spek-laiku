@@ -52,6 +52,16 @@ public sealed class AuthController(
         });
     }
 
+    // Anonymous, so a user whose session already ended gets the same 204 (FR-017).
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Logout()
+    {
+        await signInManager.SignOutAsync();
+        return NoContent();
+    }
+
     [Authorize]
     [HttpGet("me")]
     [ProducesResponseType<CurrentUserResponse>(StatusCodes.Status200OK)]
