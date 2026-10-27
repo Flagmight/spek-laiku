@@ -187,10 +187,11 @@ description: "Implementation tasks for user login and logout"
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T054 [P] Update `README.md`: add a "Log in and log out" section that describes the Log in page, the 5-attempt / 15-minute lockout and the 15 to 30 minute session, and the manual steps for testing an Administrator or Suspended account by changing `Role` or `AccountStatus` in the database (quickstart.md, Manual Validation steps 5 and 6).
-- [ ] T055 [P] Check every new or changed C# class is under 200 lines (constitution I), and every new React page or component is under about 200 lines; split by responsibility if not.
-- [ ] T056 Run `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx` from the repository root, and `npm run lint`, `npm run format:check`, `npm test` and `npm run build` from `frontend/`. Fix any failure without weakening tests or checks.
-- [ ] T057 Run the manual steps in `specs/002-user-login/quickstart.md` and record the result. Then review `git diff`: no debug code, commented-out code, secrets, `.env*` or `appsettings.Development.json` changes, and no migration.
+- [X] T054 [P] Update `README.md`: add a "Log in and log out" section that describes the Log in page, the 5-attempt / 15-minute lockout and the 15 to 30 minute session, and the manual steps for testing an Administrator or Suspended account by changing `Role` or `AccountStatus` in the database (quickstart.md, Manual Validation steps 5 and 6).
+- [X] T055 [P] Check every new or changed C# class is under 200 lines (constitution I), and every new React page or component is under about 200 lines; split by responsibility if not.
+- [X] T056 Run `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx` from the repository root, and `npm run lint`, `npm run format:check`, `npm test` and `npm run build` from `frontend/`. Fix any failure without weakening tests or checks.
+- [X] T057 Run the manual steps in `specs/002-user-login/quickstart.md` and record the result. Then review `git diff`: no debug code, commented-out code, secrets, `.env*` or `appsettings.Development.json` changes, and no migration.
+  - Result (2026-10-27, local Docker PostgreSQL): steps 1 to 7 passed against the running API (status codes, messages, lockout and its log entry, Administrator and Suspended logins, 403 when already signed in); registering and logging in were also confirmed in the browser. Steps 6 (Account Suspended page on screen), 8 (outside `returnTo`) and 9 (keyboard only, 320 px) were not repeated by hand; they are covered by `AccountSuspendedPage.test.tsx`, `logout.test.tsx`, `signedInOnly.test.tsx`, `keyboard.test.tsx` and `responsive.test.tsx`. The test account was restored afterwards. The diff review found no debug code, commented-out code, secrets, settings files or migrations.
 
 ---
 
