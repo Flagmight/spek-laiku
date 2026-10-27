@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using SpekLaiku.Api.DTOs.Responses;
+using SpekLaiku.Api.Entities;
 
 namespace SpekLaiku.IntegrationTests;
 
@@ -41,6 +42,46 @@ public class LoginEndpointTests(PostgreSqlApiFactory factory)
             Path, new { email = user.Email!.ToUpperInvariant(), password = Password });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_SuspendedUserWithCorrectPassword_Returns200WithSuspendedStatusAndSignsIn()
+    {
+        var user = await factory.CreateUserAsync(AccountStatus.Suspended, Password);
+        using var client = factory.CreateHttpsClient();
+
+        var response = await client.PostAsJsonAsync(Path, new { email = user.Email, password = Password });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Suspended", body.GetProperty("accountStatus").GetString());
+        var cookie = Assert.Single(response.Headers.GetValues("Set-Cookie"));
+        Assert.StartsWith(".AspNetCore.Identity.Application=", cookie);
+    }
+
+    [Fact]
+    public async Task Login_Administrator_Returns200WithAdministratorRole()
+    {
+        var user = await factory.CreateUserAsync(password: Password, role: "Administrator");
+        using var client = factory.CreateHttpsClient();
+
+        var response = await client.PostAsJsonAsync(Path, new { email = user.Email, password = Password });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Administrator", body.GetProperty("role").GetString());
+        Assert.Equal("Active", body.GetProperty("accountStatus").GetString());
+    }
+
+    [Fact]
+    public async Task Login_SuspendedUserWithWrongPassword_Returns401LikeAnyoneElse()
+    {
+        var user = await factory.CreateUserAsync(AccountStatus.Suspended, Password);
+        using var client = factory.CreateHttpsClient();
+
+        var response = await client.PostAsJsonAsync(Path, new { email = user.Email, password = "WrongPassword1!" });
+
+        await AssertIncorrectCredentialsAsync(response);
     }
 
     [Fact]

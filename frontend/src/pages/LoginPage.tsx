@@ -1,12 +1,29 @@
 import { useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom"
 import { LoginForm } from "../components/loginForm"
+import { loginDestination } from "../helpers/loginDestination"
 import { usePageTitle } from "../hooks/usePageTitle"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { useLoginStore } from "../stores/useLoginStore"
+import type { NavigationState } from "../types/navigationState"
+
+const loginReasonMessages = {
+  required: "Log in to continue.",
+  expired: "Your session has expired. Log in again.",
+}
 
 export function LoginPage() {
   usePageTitle("Log in")
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const returnTo = searchParams.get("returnTo")
+  const loginReason = (useLocation().state as NavigationState | null)
+    ?.loginReason
   const status = useLoginStore((state) => state.status)
   const errors = useLoginStore((state) => state.errors)
   const submit = useLoginStore((state) => state.submit)
@@ -17,15 +34,17 @@ export function LoginPage() {
   useEffect(() => reset, [reset])
 
   useEffect(() => {
-    if (status === "success") {
-      // The store has already set the signed-in user. Replace, so Back does not reopen the Log in page.
-      navigate("/", { replace: true })
+    // The store has already set the signed-in user. Replace, so Back does not reopen the Log in page.
+    const user = useCurrentUserStore.getState().user
+    if (status === "success" && user) {
+      navigate(loginDestination(user, returnTo), { replace: true })
     }
-  }, [status, navigate])
+  }, [status, navigate, returnTo])
 
   return (
     <>
       <h1>Log in</h1>
+      {loginReason && <p role="status">{loginReasonMessages[loginReason]}</p>}
       <LoginForm
         status={status}
         errors={errors}
