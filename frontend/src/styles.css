@@ -150,6 +150,7 @@ input[aria-invalid="true"] {
 }
 
 .field-error,
+.form-error,
 .server-error p {
   color: #b42318;
   font-weight: 600;
@@ -194,8 +195,10 @@ form button {
   margin-top: 16px;
 }
 
+/* The incorrect email or password message sits in the same box as the summary. */
+.form-error,
 .error-summary {
-  margin-bottom: 16px;
+  margin: 0 0 16px;
   padding: 8px 16px;
   border: 2px solid #b42318;
 }

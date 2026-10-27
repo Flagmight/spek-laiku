@@ -8,6 +8,7 @@ export function LoginPage() {
   usePageTitle("Log in")
   const navigate = useNavigate()
   const status = useLoginStore((state) => state.status)
+  const errors = useLoginStore((state) => state.errors)
   const submit = useLoginStore((state) => state.submit)
   const retry = useLoginStore((state) => state.retry)
   const reset = useLoginStore((state) => state.reset)
@@ -25,7 +26,12 @@ export function LoginPage() {
   return (
     <>
       <h1>Log in</h1>
-      <LoginForm status={status} onSubmit={submit} onRetry={retry} />
+      <LoginForm
+        status={status}
+        errors={errors}
+        onSubmit={submit}
+        onRetry={retry}
+      />
       <p>
         <Link to="/register">Create an account</Link>
       </p>

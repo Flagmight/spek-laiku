@@ -19,5 +19,9 @@ public static class IdentityOptionsSetup
         options.Password.RequireLowercase = false;
         options.Password.RequireNonAlphanumeric = false;
         options.Password.RequireUppercase = false;
+        // 5 failed logins in a row lock the account for login for 15 minutes (FR-026 of feature 002).
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.AllowedForNewUsers = true;
     }
 }

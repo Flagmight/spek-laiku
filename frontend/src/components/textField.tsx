@@ -8,6 +8,8 @@ interface TextFieldProps {
   value: string
   hint?: string
   error?: string
+  // The id of a message elsewhere on the page that also describes this field.
+  describedById?: string
   onChange: (value: string) => void
 }
 
@@ -17,13 +19,14 @@ export function TextField({
   label,
   hint,
   error,
+  describedById,
   onChange,
   ...input
 }: TextFieldProps) {
   const hintId = `${id}-hint`
   const errorId = `${id}-error`
   // Screen readers read the label, then the hint, then the error (US4 scenario 2).
-  const describedBy = [hint && hintId, error && errorId]
+  const describedBy = [hint && hintId, error && errorId, describedById]
     .filter(Boolean)
     .join(" ")
   return (

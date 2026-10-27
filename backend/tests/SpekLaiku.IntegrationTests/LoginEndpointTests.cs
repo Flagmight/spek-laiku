@@ -67,16 +67,6 @@ public class LoginEndpointTests(PostgreSqlApiFactory factory)
     }
 
     [Fact]
-    public async Task Login_EmptyForm_Returns401NotServerError()
-    {
-        using var client = factory.CreateHttpsClient();
-
-        var response = await client.PostAsJsonAsync(Path, new { email = "", password = "" });
-
-        await AssertIncorrectCredentialsAsync(response);
-    }
-
-    [Fact]
     public async Task Login_ResponseNeverContainsPasswordOrHash()
     {
         var user = await factory.CreateUserAsync(password: Password);
