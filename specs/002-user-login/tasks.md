@@ -173,13 +173,13 @@ description: "Implementation tasks for user login and logout"
 
 ### Tests for User Story 6
 
-- [ ] T050 [P] [US6] Extend `frontend/src/tests/keyboard.test.tsx` with tests that on the Log in page the tab order is skip link, navigation (Home, Log in, Register), "Email", "Password", "Log in", "Create an account", and that the form submits with Enter; and that "Log out" can be reached and used with the keyboard.
-- [ ] T051 [P] [US6] Extend `frontend/src/tests/accessibility.test.tsx` and `frontend/src/tests/layout.test.tsx` with tests that the Log in and Account Suspended pages each have exactly one `<h1>`, their page titles, and "Skip to main content" as the first focusable item; and that each field's label and error are announced through `aria-describedby` (spec FR-023, FR-025).
-- [ ] T052 [P] [US6] Extend `frontend/src/tests/responsive.test.tsx` with tests that the Log in form and the Account Suspended page use the same full-width field and button rules, the 44 × 44 px minimum target size and the 16 px input text as the Register page (spec FR-024).
+- [X] T050 [P] [US6] Extend `frontend/src/tests/keyboard.test.tsx` with tests that on the Log in page the tab order is skip link, navigation (Home, Log in, Register), "Email", "Password", "Log in", "Create an account", and that the form submits with Enter; and that "Log out" can be reached and used with the keyboard.
+- [X] T051 [P] [US6] Extend `frontend/src/tests/accessibility.test.tsx` and `frontend/src/tests/layout.test.tsx` with tests that the Log in and Account Suspended pages each have exactly one `<h1>`, their page titles, and "Skip to main content" as the first focusable item; and that each field's label and error are announced through `aria-describedby` (spec FR-023, FR-025).
+- [X] T052 [P] [US6] Extend `frontend/src/tests/responsive.test.tsx` with tests that the Log in form and the Account Suspended page use the same full-width field and button rules, the 44 × 44 px minimum target size and the 16 px input text as the Register page (spec FR-024).
 
 ### Implementation for User Story 6
 
-- [ ] T053 [US6] In `frontend/src/styles.css` apply the existing Register form rules (full-width fields and buttons below the mobile breakpoint, minimum 44 × 44 px targets, 16 px inputs, visible 2 px focus outline) to the Log in form, the Account Suspended page and the "Log out" button, reusing the existing class names where possible instead of copying rules.
+- [X] T053 [US6] In `frontend/src/styles.css` apply the existing Register form rules (full-width fields and buttons below the mobile breakpoint, minimum 44 × 44 px targets, 16 px inputs, visible 2 px focus outline) to the Log in form, the Account Suspended page and the "Log out" button, reusing the existing class names where possible instead of copying rules.
 
 **Checkpoint**: All user stories are complete.
 

@@ -40,7 +40,7 @@ describe("shared layout", () => {
     expect(screen.queryByText(/Success:/)).not.toBeInTheDocument()
   })
 
-  it.each(["/", "/register"])(
+  it.each(["/", "/register", "/login"])(
     "makes 'Skip to main content' the first focusable item on %s",
     async (path) => {
       const user = userEvent.setup()
@@ -53,6 +53,25 @@ describe("shared layout", () => {
       ).toHaveFocus()
     },
   )
+
+  it("makes 'Skip to main content' the first focusable item on the Account Suspended page", async () => {
+    stubFetch(() =>
+      jsonResponse(200, {
+        email: "user@example.com",
+        role: "Registered User",
+        accountStatus: "Suspended",
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp("/account-suspended")
+    await screen.findByRole("heading", { level: 1, name: "Account suspended" })
+
+    await user.tab()
+
+    expect(
+      screen.getByRole("link", { name: "Skip to main content" }),
+    ).toHaveFocus()
+  })
 
   it("moves focus to the main content when the skip link is selected", async () => {
     const user = userEvent.setup()

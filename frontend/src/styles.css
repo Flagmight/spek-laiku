@@ -64,6 +64,7 @@ header {
 nav ul {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   max-width: 40rem;
   margin: 0 auto;
@@ -71,12 +72,18 @@ nav ul {
   list-style: none;
 }
 
-nav a {
+nav a,
+main a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   min-width: 44px;
   padding: 0 12px;
+}
+
+/* Links in the page content, such as "Create an account", line up with the text around them. */
+main a {
+  padding: 0;
 }
 
 nav a[aria-current="page"] {
@@ -175,7 +182,8 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Buttons that are not the main action. */
+/* Buttons that are not the main action, including Log out in the navigation. */
+nav button,
 .success-banner button,
 .server-error button {
   background: #ffffff;
