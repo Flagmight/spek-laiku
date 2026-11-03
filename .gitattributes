@@ -1,0 +1,4 @@
+# Text files are stored with LF and checked out with LF on every machine, whatever the local
+# core.autocrlf setting, so formatting checks (Prettier's endOfLine "lf") give the same result
+# on Windows as in CI. Git detects binary files and leaves them unchanged.
+* text=auto eol=lf
