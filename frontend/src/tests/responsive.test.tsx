@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import styles from "../styles.css?inline"
-import { jsonResponse, renderApp } from "./renderApp"
+import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
 
 // jsdom applies stylesheet rules but does no layout, so these tests check the CSS rules
 // behind the 320 px requirements. The real size check is the manual quickstart step at 320 px.
@@ -222,5 +222,105 @@ describe("Account Suspended page at 320 px", () => {
       expectTouchTarget(target)
     }
     expect(getComputedStyle(logOut).width).not.toBe("100%")
+  })
+})
+
+// Opens the create form as an Active Administrator with Outdoor selected, so every field is shown.
+async function renderCategoriesPageWithForm() {
+  routeFetch({
+    "GET /api/auth/me": () => jsonResponse(200, signedInUser("Administrator")),
+    "GET /api/admin/categories": () =>
+      jsonResponse(200, [
+        {
+          id: "id-museum",
+          name: "Museum",
+          type: "Indoor",
+          defaultDurationHours: 2,
+          requiresDaylight: false,
+          maxWindMs: null,
+          maxRainMmPerHour: null,
+          minTemperatureC: null,
+          maxTemperatureC: null,
+          placeTags: ["tourism=museum"],
+          version: 1,
+        },
+      ]),
+  })
+  const user = userEvent.setup()
+  renderApp("/admin/categories")
+  await user.click(
+    await screen.findByRole("button", { name: "Create category" }),
+  )
+  await user.click(screen.getByRole("radio", { name: "Outdoor" }))
+  return screen.getByRole("region", { name: "Create category" })
+}
+
+describe("Activity categories page at 320 px", () => {
+  it("shows the list and the form in one column, list first", async () => {
+    const form = await renderCategoriesPageWithForm()
+    const list = screen.getByRole("list", { name: "Activity categories" })
+    const layout = form.closest(".categories-layout")
+
+    expect(layout).not.toBeNull()
+    expect(getComputedStyle(layout!).display).toBe("grid")
+    // One column: no column template below 40em.
+    expect(getComputedStyle(layout!).gridTemplateColumns).toBe("none")
+    expect(
+      list.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it("shows the list and the form side by side from 40em wide", () => {
+    expect(styles).toMatch(
+      /@media \(min-width: 40em\) \{[^@]*\.categories-layout\.with-form \{\s*grid-template-columns: minmax\(0, 2fr\) minmax\(0, 3fr\);/,
+    )
+  })
+
+  it("uses the Register page field rules: full width, at least 44 px tall, 16 px text", async () => {
+    const form = await renderCategoriesPageWithForm()
+
+    const inputs = within(form).getAllByRole("textbox")
+    expect(inputs).toHaveLength(7)
+    for (const input of inputs) {
+      const style = getComputedStyle(input)
+      expect(style.width).toBe("100%")
+      expect(style.boxSizing).toBe("border-box")
+      expect(px(style.minHeight)).toBeGreaterThanOrEqual(minimumTarget)
+      expect(px(style.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
+    }
+  })
+
+  it("keeps the radio buttons and the checkbox small and makes their labels 44 × 44 px targets", async () => {
+    const form = await renderCategoriesPageWithForm()
+
+    for (const choice of [
+      ...within(form).getAllByRole("radio"),
+      within(form).getByRole("checkbox"),
+    ]) {
+      expect(getComputedStyle(choice).width).not.toBe("100%")
+      const label =
+        choice.closest("label") ??
+        form.querySelector(`label[for="${choice.id}"]`)
+      expectTouchTarget(label!)
+    }
+  })
+
+  it("makes Save and Cancel full width and every link and button a 44 × 44 px target", async () => {
+    const form = await renderCategoriesPageWithForm()
+
+    for (const name of ["Save", "Cancel"]) {
+      const button = within(form).getByRole("button", { name })
+      expect(getComputedStyle(button).width).toBe("100%")
+    }
+    const targets = [
+      ...screen.getAllByRole("link"),
+      ...screen.getAllByRole("button"),
+    ]
+    expect(targets).toContain(
+      screen.getByRole("button", { name: "Edit Museum" }),
+    )
+    for (const target of targets) {
+      expectTouchTarget(target)
+    }
   })
 })

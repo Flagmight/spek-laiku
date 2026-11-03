@@ -185,7 +185,10 @@ button:disabled {
 /* Buttons that are not the main action, including Log out in the navigation. */
 nav button,
 .success-banner button,
-.server-error button {
+.server-error button,
+.form-error button,
+.category-list button,
+.form-actions button[type="button"] {
   background: #ffffff;
   color: #1d4ed8;
 }
@@ -225,9 +228,105 @@ form button {
   font-weight: 600;
 }
 
+/*
+  Radio buttons and checkboxes keep their own size; the label next to them is the 44 × 44 px
+  target, and selecting the label selects the choice.
+*/
+input[type="radio"],
+input[type="checkbox"] {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+}
+
+fieldset.form-field {
+  margin: 0 0 16px;
+  padding: 0;
+  border: none;
+}
+
+fieldset.form-field legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: 600;
+}
+
+.radio-option,
+.checkbox-field label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  margin: 0;
+}
+
+.radio-option {
+  font-weight: 400;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Activity categories: one column on phones, the list first (docs/ux-design.md section 8). */
+.categories-layout {
+  display: grid;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.category-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #d9dee3;
+}
+
+.category-name {
+  flex: 1 1 auto;
+  font-weight: 600;
+}
+
+.category-type {
+  color: #52606d;
+}
+
+.category-form h2 {
+  margin-top: 0;
+}
+
 /* Wider screens: buttons are sized to their text. */
 @media (min-width: 40em) {
   form button {
     width: auto;
+  }
+
+  .form-actions {
+    flex-direction: row;
+  }
+
+  /* The list on the left and the open form on the right. */
+  .categories-layout.with-form {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    align-items: start;
   }
 }

@@ -323,13 +323,15 @@ receives a clear validation message.
 
 | Field | Required | Restrictions | Validation |
 |----|----|----|----|
-| Name | Yes | 2 to 60 characters, unique | "A category with this name already exists." |
+| Name | Yes | 2 to 60 characters after trimming, unique without regard to letter case | "Enter a category name." / "Category name must be between 2 and 60 characters." / "A category with this name already exists." |
 | Type | Yes | Indoor or Outdoor | "Select a type." |
 | Max wind, max rain | Outdoor only | Same ranges as Form 4 | Same messages as Form 4 |
-| Min / max temperature | Outdoor only | Same rules as Form 4 | Same message as Form 4 |
+| Min / max temperature | Outdoor only | Same rules as Form 4 | "Enter a minimum temperature between -30 and 45 °C." / "Enter a maximum temperature between -30 and 45 °C." / "Minimum temperature must be lower than maximum temperature." |
 | Default duration (h) | Yes | 0.5 to 12 | Same message as Form 4 |
 | Requires daylight | No | Checkbox | \- |
-| Map place tags | Yes | One or more key=value pairs separated by commas, max 200 characters | "Enter tags in the form key=value, for example leisure=slipway." |
+| Map place tags | Yes | One or more key=value pairs separated by commas, max 200 characters | "Enter tags in the form key=value, for example leisure=slipway." / "Map place tags can be at most 200 characters." |
+
+The first setup adds five starter categories (Cycling, Kayaking, Picnic, Heritage site and Museum), which administrators may edit afterwards (feature 003, FR-025).
 
 ## 6. Designing Application States
 
@@ -351,7 +353,7 @@ area.
 | Server error | Show "Error: Something went wrong. Try again." with a **Retry** button. Never show stack traces or database details. |
 | External service unavailable | Show "Error: The weather service is unavailable. No forecast is shown." (or "map data service"), with Retry. No guessed or old data is displayed (NFR-007). Saved plans stay unchanged (NFR-008). |
 | Unauthorized (not logged in) | Redirect to Log in with "Log in to continue." After login, return to the page the user wanted. |
-| Forbidden (logged in, no permission) | Show the Access Denied (403) page, with links to Home and My plans. |
+| Forbidden (logged in, no permission) | Show the Access Denied (403) page with "You do not have permission to open this page.", with links to Home and My plans (the My plans link comes with feature 010). |
 | Not found | Show the Not Found (404) page. |
 | Success | Show "✓ Success: …" in a banner that stays until dismissed, not one that disappears by itself. |
 
@@ -392,7 +394,10 @@ area.
 |  | Success | "Plan duplicated." / "Plan deleted." |
 |  | Confirmation | Delete asks "Delete 'Weekend in Kaunas'? This cannot be undone." with **Delete** and **Cancel**. |
 |  | Forbidden / not found | Opening another user's plan by URL gives 403. A deleted plan gives 404 ("This plan no longer exists."). |
-| Admin: Activity Categories | Empty | "No categories yet. Create the first category." |
+| Admin: Activity Categories | Loading | "Loading activity categories…" |
+|  | Empty | "No categories yet. Create the first category." |
+|  | Server error | "Error: Activity categories could not be loaded." with Retry. |
+|  | Conflict | "Error: This category was changed by someone else. Reload it and try again." with **Reload**, at the top of the form. |
 |  | Success | "✓ Success: Category saved." |
 |  | Forbidden | A non-administrator gets Access Denied. |
 | Admin: Service Status | Loading | "Checking services…" |

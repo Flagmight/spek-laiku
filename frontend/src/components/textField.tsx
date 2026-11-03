@@ -3,7 +3,9 @@ import { formatErrorMessage } from "../helpers/formatErrorMessage"
 interface TextFieldProps {
   id: string
   label: string
-  type: "email" | "password"
+  type: "email" | "password" | "text"
+  // For example "decimal" on a number field typed as text, so phones show a number keyboard.
+  inputMode?: "decimal"
   autoComplete: string
   value: string
   hint?: string

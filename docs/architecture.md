@@ -135,6 +135,8 @@ and specs/ contains feature specifications.
 <p>│ ├── src/</p>
 <p>│ │ └── SpekLaiku.Api/</p>
 <p>│ │ ├── Controllers/</p>
+<p>│ │ ├── Authorization/</p>
+<p>│ │ ├── Errors/</p>
 <p>│ │ ├── Services/</p>
 <p>│ │ ├── Clients/</p>
 <p>│ │ ├── DTOs/</p>
@@ -179,6 +181,8 @@ and specs/ contains feature specifications.
 |----|----|
 | backend/src/SpekLaiku.Api/ | The ASP.NET Core Web API project. |
 | Controllers/ | Thin controllers: routes, HTTP status codes, authenticated user, calling services. No business rules. |
+| Authorization/ | Authorization policies, requirements and handlers, applied to controllers by policy name (first used by feature 003: `ActiveAdministrator`). |
+| Errors/ | The exception handler that logs unexpected failures and answers with a general `500` problem response. |
 | Services/ | Application services with the business logic (suitability, scheduling, plan checks, plans, categories, accounts, service status). |
 | Clients/ | HTTP clients for Open-Meteo (forecast and geocoding) and Overpass. Services use them through dependency injection. |
 | DTOs/Requests/, DTOs/Responses/ | Request and response objects at the API boundary. Entities are never returned directly. |

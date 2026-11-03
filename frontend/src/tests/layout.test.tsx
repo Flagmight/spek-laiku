@@ -1,7 +1,13 @@
 import { screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
-import { jsonResponse, renderApp, stubFetch } from "./renderApp"
+import {
+  jsonResponse,
+  renderApp,
+  routeFetch,
+  signedInUser,
+  stubFetch,
+} from "./renderApp"
 
 describe("shared layout", () => {
   beforeEach(() => {
@@ -81,5 +87,26 @@ describe("shared layout", () => {
     await user.keyboard("{Enter}")
 
     expect(screen.getByRole("main")).toHaveFocus()
+  })
+})
+
+describe.each([
+  ["Administrator", "Activity categories"],
+  ["Registered User", "Access denied"],
+])("skip link on /admin/categories for a %s", (role, heading) => {
+  it(`makes 'Skip to main content' the first focusable item on the ${heading} page`, async () => {
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser(role)),
+      "GET /api/admin/categories": () => jsonResponse(200, []),
+    })
+    const user = userEvent.setup()
+    renderApp("/admin/categories")
+    await screen.findByRole("heading", { level: 1, name: heading })
+
+    await user.tab()
+
+    expect(
+      screen.getByRole("link", { name: "Skip to main content" }),
+    ).toHaveFocus()
   })
 })

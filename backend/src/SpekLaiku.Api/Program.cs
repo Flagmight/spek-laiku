@@ -1,7 +1,10 @@
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SpekLaiku.Api.Authorization;
 using SpekLaiku.Api.Data;
 using SpekLaiku.Api.Entities;
 using SpekLaiku.Api.Errors;
@@ -15,7 +18,10 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            // The web defaults read "8" as the number 8; the contract refuses a string for a number
+            // field as an invalid request (contracts/categories-api.md).
+            .AddJsonOptions(options => options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict);
         builder.Services.Configure<ApiBehaviorOptions>(options =>
         {
             options.InvalidModelStateResponseFactory = context =>
@@ -82,11 +88,18 @@ public class Program
                 return Task.CompletedTask;
             };
         });
-        builder.Services.AddAuthorization();
+        // The handler reads the account on every request, so a role or status change applies at once
+        // (research section 1).
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy(AuthorizationPolicies.ActiveAdministrator, policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new ActiveAdministratorRequirement()));
+        builder.Services.AddScoped<IAuthorizationHandler, ActiveAdministratorHandler>();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();
         builder.Services.AddScoped<LoginService>();
+        builder.Services.AddScoped<ActivityCategoryService>();
 
         var app = builder.Build();
 

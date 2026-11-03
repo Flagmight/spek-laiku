@@ -8,9 +8,12 @@ namespace SpekLaiku.Api.Data;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : IdentityDbContext<ApplicationUser>(options)
 {
+    public DbSet<ActivityCategory> ActivityCategories => Set<ActivityCategory>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.ApplyConfiguration(new ActivityCategoryConfiguration());
         builder.Entity<ApplicationUser>()
             .Property(user => user.AccountStatus)
             .HasConversion<int>()
