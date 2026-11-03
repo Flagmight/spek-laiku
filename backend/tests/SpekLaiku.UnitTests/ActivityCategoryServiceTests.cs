@@ -149,6 +149,165 @@ public class ActivityCategoryServiceTests
         Assert.Empty(await new ActivityCategoryService(context).ListAsync(CancellationToken.None));
     }
 
+    [Fact]
+    public async Task GetAsync_ReturnsTheCategoryOrNull()
+    {
+        await using var context = CreateContext();
+        var kayaking = await AddAsync(context, Category("Kayaking"));
+        var service = new ActivityCategoryService(context);
+
+        Assert.Equal("Kayaking", (await service.GetAsync(kayaking.Id, CancellationToken.None))?.Name);
+        Assert.Null(await service.GetAsync(Guid.NewGuid(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_StoresTheNewValues()
+    {
+        await using var context = CreateContext();
+        var kayaking = await AddAsync(context, Category("Kayaking"));
+
+        var result = await new ActivityCategoryService(context)
+            .UpdateAsync(kayaking.Id, Update(Swimming, kayaking.Version), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var stored = await context.ActivityCategories.AsNoTracking().SingleAsync();
+        Assert.Equal(kayaking.Id, stored.Id);
+        Assert.Equal("Swimming", stored.Name);
+        Assert.Equal("SWIMMING", stored.NormalizedName);
+        Assert.Equal(ActivityType.Outdoor, stored.Type);
+        Assert.Equal(8m, stored.MaxWindMs);
+        Assert.Equal(["leisure=bathing_place", "sport=swimming"], stored.PlaceTags);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UnknownId_ReturnsNotFound()
+    {
+        await using var context = CreateContext();
+
+        var result = await new ActivityCategoryService(context)
+            .UpdateAsync(Guid.NewGuid(), Update(Swimming, 0), CancellationToken.None);
+
+        Assert.True(result.IsNotFound);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_OtherVersion_ReturnsConflictAndChangesNothing()
+    {
+        await using var context = CreateContext();
+        var kayaking = await AddAsync(context, Category("Kayaking", version: 5));
+
+        var result = await new ActivityCategoryService(context)
+            .UpdateAsync(kayaking.Id, Update(Swimming, 4), CancellationToken.None);
+
+        Assert.True(result.IsConflict);
+        Assert.Equal("Kayaking", (await context.ActivityCategories.AsNoTracking().SingleAsync()).Name);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ChangeCommittedBetweenReadAndWrite_ReturnsConflict()
+    {
+        var databaseName = Guid.NewGuid().ToString();
+        Guid id;
+        await using (var setup = CreateContext(databaseName))
+        {
+            id = (await AddAsync(setup, Category("Kayaking"))).Id;
+        }
+
+        await using var context = CreateContext(
+            databaseName,
+            new ThrowingSaveInterceptor(new DbUpdateConcurrencyException("The row was changed.")));
+
+        var result = await new ActivityCategoryService(context)
+            .UpdateAsync(id, Update(Swimming, 0), CancellationToken.None);
+
+        Assert.True(result.IsConflict);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_OwnNameInOtherCase_IsAllowed()
+    {
+        await using var context = CreateContext();
+        var kayaking = await AddAsync(context, Category("Kayaking"));
+
+        var result = await new ActivityCategoryService(context).UpdateAsync(
+            kayaking.Id, Update(Swimming with { Name = " KAYAKING " }, kayaking.Version), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal("KAYAKING", (await context.ActivityCategories.AsNoTracking().SingleAsync()).Name);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NameOfAnotherCategory_ReturnsNameError()
+    {
+        await using var context = CreateContext();
+        await AddAsync(context, Category("Museum"));
+        var kayaking = await AddAsync(context, Category("Kayaking"));
+
+        var result = await new ActivityCategoryService(context).UpdateAsync(
+            kayaking.Id, Update(Swimming with { Name = "museum" }, kayaking.Version), CancellationToken.None);
+
+        AssertNameError(result);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_InvalidRequest_ReturnsErrorsBeforeCheckingIdOrVersion()
+    {
+        await using var context = CreateContext();
+        var request = new ActivityCategoryRequest(null, null, null, false, null, null, null, null, null);
+
+        var result = await new ActivityCategoryService(context)
+            .UpdateAsync(Guid.NewGuid(), Update(request, 99), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.IsNotFound);
+        Assert.Equal(ActivityCategoryValidator.Validate(request).Errors, result.Errors);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_OutdoorToIndoor_ClearsTheFourLimits()
+    {
+        await using var context = CreateContext();
+        var outdoor = Category("Kayaking");
+        outdoor.Type = ActivityType.Outdoor;
+        outdoor.MaxWindMs = 8m;
+        outdoor.MaxRainMmPerHour = 0.5m;
+        outdoor.MinTemperatureC = 15m;
+        outdoor.MaxTemperatureC = 35m;
+        await AddAsync(context, outdoor);
+
+        var result = await new ActivityCategoryService(context).UpdateAsync(
+            outdoor.Id, Update(Swimming with { Name = "Kayaking", Type = "Indoor" }, 0), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var stored = await context.ActivityCategories.AsNoTracking().SingleAsync();
+        Assert.Equal(ActivityType.Indoor, stored.Type);
+        Assert.Null(stored.MaxWindMs);
+        Assert.Null(stored.MaxRainMmPerHour);
+        Assert.Null(stored.MinTemperatureC);
+        Assert.Null(stored.MaxTemperatureC);
+    }
+
+    private static UpdateActivityCategoryRequest Update(ActivityCategoryRequest request, uint version) => new(
+        request.Name,
+        request.Type,
+        request.DefaultDurationHours,
+        request.RequiresDaylight,
+        request.MaxWindMs,
+        request.MaxRainMmPerHour,
+        request.MinTemperatureC,
+        request.MaxTemperatureC,
+        request.PlaceTags,
+        version);
+
+    // Saves the category and detaches it, so the service loads it fresh like a new request.
+    private static async Task<ActivityCategory> AddAsync(ApplicationDbContext context, ActivityCategory category)
+    {
+        context.ActivityCategories.Add(category);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        return category;
+    }
+
     private static void AssertNameError(ActivityCategoryResult result)
     {
         Assert.False(result.Succeeded);
@@ -157,23 +316,27 @@ public class ActivityCategoryServiceTests
         Assert.Equal(DuplicateNameMessage, error.Value);
     }
 
-    private static ApplicationDbContext CreateContext(params IInterceptor[] interceptors)
+    private static ApplicationDbContext CreateContext(params IInterceptor[] interceptors) =>
+        CreateContext(Guid.NewGuid().ToString(), interceptors);
+
+    private static ApplicationDbContext CreateContext(string databaseName, params IInterceptor[] interceptors)
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(databaseName)
             .AddInterceptors(interceptors)
             .Options;
         return new ApplicationDbContext(options);
     }
 
-    private static ActivityCategory Category(string name) => new()
+    private static ActivityCategory Category(string name, uint version = 0) => new()
     {
         Id = Guid.NewGuid(),
         Name = name,
         NormalizedName = name.ToUpperInvariant(),
         Type = ActivityType.Indoor,
         DefaultDurationHours = 1m,
-        PlaceTags = ["tourism=museum"]
+        PlaceTags = ["tourism=museum"],
+        Version = version
     };
 
     private static DbUpdateException UniqueViolation(string constraintName) => new(

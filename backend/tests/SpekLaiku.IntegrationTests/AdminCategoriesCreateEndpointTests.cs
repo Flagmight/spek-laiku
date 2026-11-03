@@ -68,7 +68,8 @@ public class AdminCategoriesCreateEndpointTests(PostgreSqlApiFactory factory)
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = await ReadCategoryAsync(response);
-        Assert.Equal($"/api/admin/categories/{created.Id}", response.Headers.Location?.OriginalString);
+        // CreatedAtAction writes an absolute URL; the contract fixes its path.
+        Assert.Equal($"/api/admin/categories/{created.Id}", response.Headers.Location?.AbsolutePath);
         Assert.Equal(
             new ActivityCategoryResponse(
                 created.Id, name, "Outdoor", 2m, true, 8m, 0.5m, 18m, 35m, created.PlaceTags, created.Version),
