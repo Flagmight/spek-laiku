@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SpekLaiku.Api.Authorization;
 using SpekLaiku.Api.Data;
 using SpekLaiku.Api.Entities;
 using SpekLaiku.Api.Errors;
@@ -82,7 +84,13 @@ public class Program
                 return Task.CompletedTask;
             };
         });
-        builder.Services.AddAuthorization();
+        // The handler reads the account on every request, so a role or status change applies at once
+        // (research section 1).
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy(AuthorizationPolicies.ActiveAdministrator, policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new ActiveAdministratorRequirement()));
+        builder.Services.AddScoped<IAuthorizationHandler, ActiveAdministratorHandler>();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();
