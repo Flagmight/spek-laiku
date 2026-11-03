@@ -224,7 +224,10 @@ describe("Editing an activity category", () => {
     await user.click(screen.getByRole("button", { name: "Save" }))
 
     await screen.findByText("✓ Success: Category saved.")
-    expect(puts(requests)[1].body).toMatchObject({ maxWindMs: 10, version: 2000 })
+    expect(puts(requests)[1].body).toMatchObject({
+      maxWindMs: 10,
+      version: 2000,
+    })
   })
 
   it("on 404 keeps the form open with the server error and reloads the list", async () => {
@@ -272,7 +275,9 @@ describe("Editing an activity category", () => {
 
     await user.click(screen.getByRole("button", { name: "Create category" }))
 
-    expect(screen.getByRole("heading", { name: "Create category" })).toHaveFocus()
+    expect(
+      screen.getByRole("heading", { name: "Create category" }),
+    ).toHaveFocus()
     expect(screen.getByLabelText("Name")).toHaveValue("")
   })
 

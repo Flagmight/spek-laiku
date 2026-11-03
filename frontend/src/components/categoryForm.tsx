@@ -131,14 +131,20 @@ export function CategoryForm({
           onChange={(value) => change("duration", value)}
         />
         {values.type === "Outdoor" && (
-          <WeatherLimitFields values={values} errors={errors} onChange={change} />
+          <WeatherLimitFields
+            values={values}
+            errors={errors}
+            onChange={change}
+          />
         )}
         <div className="form-field checkbox-field">
           <input
             id="category-requiresDaylight"
             type="checkbox"
             checked={values.requiresDaylight}
-            onChange={(event) => change("requiresDaylight", event.target.checked)}
+            onChange={(event) =>
+              change("requiresDaylight", event.target.checked)
+            }
           />
           <label htmlFor="category-requiresDaylight">Requires daylight</label>
         </div>

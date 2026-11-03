@@ -13,8 +13,7 @@ const tagsMessage =
 // Answers every save with the given field errors, as the server does for a 400.
 function stubInvalidSave(errors: Record<string, string[]>) {
   return routeFetch({
-    "GET /api/auth/me": () =>
-      jsonResponse(200, signedInUser("Administrator")),
+    "GET /api/auth/me": () => jsonResponse(200, signedInUser("Administrator")),
     "GET /api/admin/categories": () => jsonResponse(200, []),
     "POST /api/admin/categories": () =>
       jsonResponse(400, {
@@ -61,9 +60,9 @@ describe("Category form validation", () => {
     expect(descriptions(screen.getByLabelText("Name"))).toContain(
       `Error: ${nameMessage}`,
     )
-    expect(
-      descriptions(screen.getByRole("group", { name: "Type" })),
-    ).toContain(`Error: ${typeMessage}`)
+    expect(descriptions(screen.getByRole("group", { name: "Type" }))).toContain(
+      `Error: ${typeMessage}`,
+    )
     expect(
       descriptions(screen.getByLabelText("Default duration (h)")),
     ).toContain(`Error: ${durationMessage}`)
@@ -146,7 +145,9 @@ describe("Category form validation", () => {
     await user.type(screen.getByLabelText("Default duration (h)"), "2")
     await user.type(screen.getByLabelText("Max wind (m/s)"), "31")
     await user.type(screen.getByLabelText("Max rain (mm/h)"), "0.5")
-    await user.click(screen.getByRole("checkbox", { name: "Requires daylight" }))
+    await user.click(
+      screen.getByRole("checkbox", { name: "Requires daylight" }),
+    )
     await user.type(screen.getByLabelText("Map place tags"), "slipway")
 
     await save(user)

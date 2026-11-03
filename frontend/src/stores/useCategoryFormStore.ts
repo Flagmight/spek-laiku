@@ -17,11 +17,7 @@ import { useCurrentUserStore } from "./useCurrentUserStore"
 export const categoryFormTimeoutMs = 10_000
 
 export type CategoryFormStatus =
-  | "idle"
-  | "pending"
-  | "invalid"
-  | "conflict"
-  | "serverError"
+  "idle" | "pending" | "invalid" | "conflict" | "serverError"
 
 // The category being edited and the version the form was opened (or last reloaded) with.
 export interface CategoryTarget {
@@ -87,93 +83,91 @@ function toResult(outcome: CategorySaveOutcome): FormResult {
   }
 }
 
-export const useCategoryFormStore = create<CategoryFormState>()(
-  (set, get) => {
-    // Runs one request with the timeout; value is undefined when it threw. Returns null when
-    // reset() took over meanwhile, so the caller drops the result.
-    async function run<T>(
-      start: (signal: AbortSignal) => Promise<T>,
-    ): Promise<{ value: T | undefined } | null> {
-      const abort = new AbortController()
-      set({ controller: abort })
-      const timeout = setTimeout(() => abort.abort(), categoryFormTimeoutMs)
-      let value: T | undefined
-      try {
-        value = await start(abort.signal)
-      } catch {
-        // A 5xx, a network error or the timeout. Technical details are never shown.
-      } finally {
-        clearTimeout(timeout)
+export const useCategoryFormStore = create<CategoryFormState>()((set, get) => {
+  // Runs one request with the timeout; value is undefined when it threw. Returns null when
+  // reset() took over meanwhile, so the caller drops the result.
+  async function run<T>(
+    start: (signal: AbortSignal) => Promise<T>,
+  ): Promise<{ value: T | undefined } | null> {
+    const abort = new AbortController()
+    set({ controller: abort })
+    const timeout = setTimeout(() => abort.abort(), categoryFormTimeoutMs)
+    let value: T | undefined
+    try {
+      value = await start(abort.signal)
+    } catch {
+      // A 5xx, a network error or the timeout. Technical details are never shown.
+    } finally {
+      clearTimeout(timeout)
+    }
+
+    return get().controller === abort ? { value } : null
+  }
+
+  return {
+    ...initialCategoryFormState,
+    submit: async (request, target) => {
+      // get() reads the current state, so a second click in the same render is still ignored.
+      if (get().status === "pending") {
+        return undefined
       }
 
-      return get().controller === abort ? { value } : null
-    }
-
-    return {
-      ...initialCategoryFormState,
-      submit: async (request, target) => {
-        // get() reads the current state, so a second click in the same render is still ignored.
-        if (get().status === "pending") {
-          return undefined
-        }
-
-        set({ status: "pending", errors: {}, lastRequest: { request, target } })
-        const finished = await run((signal) =>
-          target
-            ? updateCategory(target.id, request, target.version, signal)
-            : createCategory(request, signal),
-        )
-        if (!finished) {
-          return undefined
-        }
-
-        const outcome = finished.value
-        set({ ...(outcome ? toResult(outcome) : serverError), controller: null })
-        if (outcome?.kind === "saved") {
-          void useActivityCategoriesStore.getState().load()
-          return outcome.category
-        }
-
+      set({ status: "pending", errors: {}, lastRequest: { request, target } })
+      const finished = await run((signal) =>
+        target
+          ? updateCategory(target.id, request, target.version, signal)
+          : createCategory(request, signal),
+      )
+      if (!finished) {
         return undefined
-      },
-      retry: async () => {
-        const { lastRequest, submit } = get()
-        return lastRequest
-          ? submit(lastRequest.request, lastRequest.target)
-          : undefined
-      },
-      // Not "pending": nothing is being saved, so the form does not say "Saving category…".
-      reloadCategory: async (id) => {
-        const finished = await run((signal) => getCategory(id, signal))
-        if (!finished) {
-          return undefined
-        }
+      }
 
-        const category = finished.value
-        if (!category) {
-          // getCategory gives null when the category no longer exists: the list shows what is left.
-          if (category === null) {
-            void useActivityCategoriesStore.getState().load()
-          }
-          set({ ...serverError, controller: null })
-          return undefined
-        }
+      const outcome = finished.value
+      set({ ...(outcome ? toResult(outcome) : serverError), controller: null })
+      if (outcome?.kind === "saved") {
+        void useActivityCategoriesStore.getState().load()
+        return outcome.category
+      }
 
-        const { lastRequest } = get()
-        set({
-          ...idle,
-          controller: null,
-          lastRequest: lastRequest && {
-            ...lastRequest,
-            target: { id, version: category.version },
-          },
-        })
-        return category
-      },
-      reset: () => {
-        get().controller?.abort()
-        set(initialCategoryFormState)
-      },
-    }
-  },
-)
+      return undefined
+    },
+    retry: async () => {
+      const { lastRequest, submit } = get()
+      return lastRequest
+        ? submit(lastRequest.request, lastRequest.target)
+        : undefined
+    },
+    // Not "pending": nothing is being saved, so the form does not say "Saving category…".
+    reloadCategory: async (id) => {
+      const finished = await run((signal) => getCategory(id, signal))
+      if (!finished) {
+        return undefined
+      }
+
+      const category = finished.value
+      if (!category) {
+        // getCategory gives null when the category no longer exists: the list shows what is left.
+        if (category === null) {
+          void useActivityCategoriesStore.getState().load()
+        }
+        set({ ...serverError, controller: null })
+        return undefined
+      }
+
+      const { lastRequest } = get()
+      set({
+        ...idle,
+        controller: null,
+        lastRequest: lastRequest && {
+          ...lastRequest,
+          target: { id, version: category.version },
+        },
+      })
+      return category
+    },
+    reset: () => {
+      get().controller?.abort()
+      set(initialCategoryFormState)
+    },
+  }
+})

@@ -42,16 +42,21 @@ const request: ActivityCategoryRequest = {
 
 describe("activityCategoriesApi", () => {
   it("lists the categories", async () => {
-    routeFetch({ "GET /api/admin/categories": () => jsonResponse(200, [kayaking]) })
+    routeFetch({
+      "GET /api/admin/categories": () => jsonResponse(200, [kayaking]),
+    })
 
     await expect(listCategories()).resolves.toEqual([kayaking])
   })
 
-  it.each([401, 403, 500])("throws ApiError %i when listing fails", async (status) => {
-    routeFetch({ "GET /api/admin/categories": () => jsonResponse(status) })
+  it.each([401, 403, 500])(
+    "throws ApiError %i when listing fails",
+    async (status) => {
+      routeFetch({ "GET /api/admin/categories": () => jsonResponse(status) })
 
-    await expect(listCategories()).rejects.toEqual(new ApiError(status))
-  })
+      await expect(listCategories()).rejects.toEqual(new ApiError(status))
+    },
+  )
 
   it("returns null for a category that does not exist", async () => {
     routeFetch({ [`GET /api/admin/categories/${id}`]: () => jsonResponse(404) })

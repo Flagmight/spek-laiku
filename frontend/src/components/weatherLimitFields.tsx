@@ -21,8 +21,16 @@ const fields: {
 }[] = [
   { field: "maxWindMs", label: "Max wind (m/s)", hint: "0 to 30" },
   { field: "maxRainMmPerHour", label: "Max rain (mm/h)", hint: "0 to 20" },
-  { field: "minTemperatureC", label: "Min temperature (°C)", hint: "-30 to 45" },
-  { field: "maxTemperatureC", label: "Max temperature (°C)", hint: "-30 to 45" },
+  {
+    field: "minTemperatureC",
+    label: "Min temperature (°C)",
+    hint: "-30 to 45",
+  },
+  {
+    field: "maxTemperatureC",
+    label: "Max temperature (°C)",
+    hint: "-30 to 45",
+  },
 ]
 
 // The four weather limits of an Outdoor category, typed as text so the server gives the range
