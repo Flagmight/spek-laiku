@@ -1,7 +1,12 @@
 import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
-import { jsonResponse, renderApp } from "./renderApp"
+import {
+  jsonResponse,
+  renderApp,
+  routeFetch,
+  signedInUser as routeSignedInUser,
+} from "./renderApp"
 
 // The visitor is signed out; every registration request gets the given answer.
 function stubApi(answer: () => Response) {
@@ -219,5 +224,135 @@ describe("keyboard use of Log out", () => {
     expect(
       await screen.findByText("✓ Success: You have logged out."),
     ).toBeInTheDocument()
+  })
+})
+
+describe("keyboard use of the Activity categories page", () => {
+  const kayaking = {
+    id: "id-kayaking",
+    name: "Kayaking",
+    type: "Outdoor",
+    defaultDurationHours: 2,
+    requiresDaylight: true,
+    maxWindMs: 8,
+    maxRainMmPerHour: 0.5,
+    minTemperatureC: 15,
+    maxTemperatureC: 35,
+    placeTags: ["leisure=slipway", "sport=canoe"],
+    version: 1,
+  }
+  const museum = {
+    ...kayaking,
+    id: "id-museum",
+    name: "Museum",
+    type: "Indoor",
+    requiresDaylight: false,
+    maxWindMs: null,
+    maxRainMmPerHour: null,
+    minTemperatureC: null,
+    maxTemperatureC: null,
+    placeTags: ["tourism=museum"],
+  }
+
+  function stubAdministrator() {
+    return routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(200, routeSignedInUser("Administrator")),
+      "GET /api/admin/categories": () => jsonResponse(200, [kayaking, museum]),
+      "POST /api/admin/categories": () => jsonResponse(201, museum),
+    })
+  }
+
+  it("reaches the skip link, the navigation, Create category and each Edit button in that order", async () => {
+    stubAdministrator()
+    const user = userEvent.setup()
+    renderApp("/admin/categories")
+    await screen.findByRole("button", { name: "Edit Museum" })
+
+    const expected = [
+      screen.getByRole("link", { name: "Skip to main content" }),
+      screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Categories" }),
+      screen.getByRole("button", { name: "Log out" }),
+      screen.getByRole("button", { name: "Create category" }),
+      screen.getByRole("button", { name: "Edit Kayaking" }),
+      screen.getByRole("button", { name: "Edit Museum" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+  })
+
+  it("reaches the form fields in page order and changes the type with the arrow keys", async () => {
+    stubAdministrator()
+    const user = userEvent.setup()
+    renderApp("/admin/categories")
+    await user.click(
+      await screen.findByRole("button", { name: "Edit Kayaking" }),
+    )
+    expect(screen.getByRole("heading", { name: "Edit Kayaking" })).toHaveFocus()
+
+    const expected = [
+      screen.getByLabelText("Name"),
+      screen.getByRole("radio", { name: "Outdoor" }),
+      screen.getByLabelText("Default duration (h)"),
+      screen.getByLabelText("Max wind (m/s)"),
+      screen.getByLabelText("Max rain (mm/h)"),
+      screen.getByLabelText("Min temperature (°C)"),
+      screen.getByLabelText("Max temperature (°C)"),
+      screen.getByRole("checkbox", { name: "Requires daylight" }),
+      screen.getByLabelText("Map place tags"),
+      screen.getByRole("button", { name: "Save" }),
+      screen.getByRole("button", { name: "Cancel" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+
+    screen.getByRole("radio", { name: "Outdoor" }).focus()
+    await user.keyboard("{ArrowLeft}")
+
+    expect(screen.getByRole("radio", { name: "Indoor" })).toBeChecked()
+    expect(screen.queryByLabelText("Max wind (m/s)")).not.toBeInTheDocument()
+  })
+
+  it("creates a category using only the keyboard", async () => {
+    const { requests } = stubAdministrator()
+    const user = userEvent.setup()
+    renderApp("/admin/categories")
+    await screen.findByRole("button", { name: "Edit Museum" })
+    for (let step = 0; step < 5; step++) {
+      await user.tab()
+    }
+    expect(
+      screen.getByRole("button", { name: "Create category" }),
+    ).toHaveFocus()
+    await user.keyboard("{Enter}")
+
+    await user.tab()
+    await user.keyboard("Gallery")
+    await user.tab()
+    expect(screen.getByRole("radio", { name: "Indoor" })).toHaveFocus()
+    await user.keyboard(" ")
+    await user.tab()
+    await user.keyboard("1.5")
+    await user.tab() // Requires daylight stays unchecked
+    await user.tab()
+    await user.keyboard("tourism=gallery{Enter}")
+
+    expect(
+      await screen.findByText("✓ Success: Category saved."),
+    ).toBeInTheDocument()
+    expect(
+      requests.find((request) => request.method === "POST")?.body,
+    ).toMatchObject({
+      name: "Gallery",
+      type: "Indoor",
+      defaultDurationHours: 1.5,
+      requiresDaylight: false,
+      placeTags: "tourism=gallery",
+    })
   })
 })

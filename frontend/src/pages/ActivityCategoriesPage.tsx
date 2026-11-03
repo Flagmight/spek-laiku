@@ -57,7 +57,14 @@ export function ActivityCategoriesPage() {
           Create category
         </button>
       )}
-      <div className="categories-layout">
+      {/* Two columns on wider screens only while a form is open (styles.css). */}
+      <div
+        className={
+          openForm.kind === "none"
+            ? "categories-layout"
+            : "categories-layout with-form"
+        }
+      >
         <div className="categories-list-part">
           <CategoryList
             onEdit={(category) => open({ kind: "edit", category })}

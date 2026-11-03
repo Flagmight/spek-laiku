@@ -1,7 +1,13 @@
 import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
-import { jsonResponse, renderApp, stubFetch } from "./renderApp"
+import {
+  jsonResponse,
+  renderApp,
+  routeFetch,
+  signedInUser,
+  stubFetch,
+} from "./renderApp"
 
 function stubRegistration(answer: () => Promise<Response>) {
   vi.stubGlobal(
@@ -236,5 +242,116 @@ describe.each([
     await user.keyboard("{Enter}")
 
     expect(screen.getByRole("main")).toHaveFocus()
+  })
+})
+
+describe("Activity categories and Access denied page structure", () => {
+  it.each([
+    ["Administrator", "Activity categories"],
+    ["Registered User", "Access denied"],
+  ])(
+    "for a %s has exactly one h1 and the tab title '%s - Spėk laiku'",
+    async (role, heading) => {
+      routeFetch({
+        "GET /api/auth/me": () => jsonResponse(200, signedInUser(role)),
+        "GET /api/admin/categories": () => jsonResponse(200, []),
+      })
+      document.title = ""
+      renderApp("/admin/categories")
+
+      const headings = await screen.findAllByRole("heading", { level: 1 })
+      expect(headings).toHaveLength(1)
+      expect(headings[0]).toHaveTextContent(heading)
+      await vi.waitFor(() =>
+        expect(document.title).toBe(`${heading} - Spėk laiku`),
+      )
+    },
+  )
+})
+
+describe("Activity categories form accessibility", () => {
+  async function openOutdoorForm(save: () => Promise<Response>) {
+    routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(200, signedInUser("Administrator")),
+      "GET /api/admin/categories": () => jsonResponse(200, []),
+      "POST /api/admin/categories": save,
+    })
+    const user = userEvent.setup()
+    renderApp("/admin/categories")
+    await user.click(
+      await screen.findByRole("button", { name: "Create category" }),
+    )
+    await user.click(screen.getByRole("radio", { name: "Outdoor" }))
+    return user
+  }
+
+  it("gives every field a visible label tied to its input", async () => {
+    await openOutdoorForm(() => new Promise<Response>(() => {}))
+    const form = screen.getByRole("region", { name: "Create category" })
+
+    const inputs = within(form).getAllByRole("textbox")
+    expect(inputs).toHaveLength(7)
+    for (const input of [
+      ...inputs,
+      ...within(form).getAllByRole("radio"),
+      within(form).getByRole("checkbox"),
+    ]) {
+      const label =
+        form.querySelector(`label[for="${input.id}"]`) ?? input.closest("label")
+      expect(label).not.toBeNull()
+      expect(label).toBeVisible()
+      expect(label?.textContent?.trim()).not.toBe("")
+    }
+    expect(within(form).getByRole("group", { name: "Type" })).toBeVisible()
+  })
+
+  it.each([
+    ["Default duration (h)", "0.5 to 12, in steps of 0.5"],
+    ["Max wind (m/s)", "0 to 30"],
+    ["Max rain (mm/h)", "0 to 20"],
+    ["Min temperature (°C)", "-30 to 45"],
+    ["Max temperature (°C)", "-30 to 45"],
+  ])("links the range hint to %s", async (label, hint) => {
+    await openOutdoorForm(() => new Promise<Response>(() => {}))
+
+    expect(descriptionsOf(screen.getByLabelText(label))).toContain(hint)
+  })
+
+  it("announces saving in a status region and the server error as an alert", async () => {
+    let respond: (response: Response) => void = () => {}
+    const user = await openOutdoorForm(
+      () => new Promise<Response>((resolve) => (respond = resolve)),
+    )
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(screen.getByText("Saving category…")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    respond(jsonResponse(500))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Error: Something went wrong. Try again.",
+    )
+  })
+
+  it("announces the list loading in a status region and a load error as an alert", async () => {
+    let respond: (response: Response) => void = () => {}
+    routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(200, signedInUser("Administrator")),
+      "GET /api/admin/categories": () =>
+        new Promise<Response>((resolve) => (respond = resolve)),
+    })
+    renderApp("/admin/categories")
+
+    expect(
+      await screen.findByText("Loading activity categories…"),
+    ).toHaveAttribute("role", "status")
+    respond(jsonResponse(500))
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Error: Activity categories could not be loaded.",
+    )
   })
 })
