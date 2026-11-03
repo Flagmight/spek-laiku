@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
@@ -17,7 +18,10 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
-        builder.Services.AddControllers();
+        builder.Services.AddControllers()
+            // The web defaults read "8" as the number 8; the contract refuses a string for a number
+            // field as an invalid request (contracts/categories-api.md).
+            .AddJsonOptions(options => options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict);
         builder.Services.Configure<ApiBehaviorOptions>(options =>
         {
             options.InvalidModelStateResponseFactory = context =>
