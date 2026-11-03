@@ -2,7 +2,7 @@
 
 Activity planning application for families and groups in Lithuania. Users create a list of possible activities (kayaking, cycling, outdoor heritage visits, picnics, indoor activities) and set acceptable weather conditions. The system uses hourly forecasts from Open-Meteo and nearby places from the OpenStreetMap Overpass API to find suitable time slots, and recalculates the plan when the forecast changes.
 
-Status: in development. Implemented so far: user registration (feature `001-user-registration`) and login and logout (feature `002-user-login`).
+Status: in development. Implemented so far: user registration (feature `001-user-registration`), login and logout (feature `002-user-login`) and activity category management for administrators (feature `003-activity-categories`).
 
 ## Technology
 
@@ -60,7 +60,7 @@ npm test
 npm run build
 ```
 
-On Windows with `core.autocrlf=true`, `npm run format:check` may report files that were checked out with CRLF line endings; Git stores them with LF, so CI is not affected.
+`.gitattributes` checks text files out with LF line endings on every machine, so the format check gives the same result on Windows as in CI. In a clone made before that file was added, check the files out again once, with no uncommitted changes: `git rm -r --cached -q .` then `git reset --hard`.
 
 ### Run the application
 
@@ -75,6 +75,8 @@ On Windows with `core.autocrlf=true`, `npm run format:check` may report files th
    ```powershell
    dotnet ef database update --project .\backend\src\SpekLaiku.Api
    ```
+
+   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories.
 
 3. Trust the ASP.NET Core development certificate once per machine. The sign-in cookie is `Secure`, so the API runs over https:
 
@@ -106,7 +108,7 @@ On Windows with `core.autocrlf=true`, `npm run format:check` may report files th
 
 ### Testing an Administrator or Suspended account
 
-There is no administration page yet, so change a registered account directly in the database (table `AspNetUsers`), then log in again:
+There is no user administration page yet, so change a registered account directly in the database (table `AspNetUsers`), then log in again:
 
 ```sql
 -- Administrator
@@ -123,6 +125,16 @@ UPDATE "AspNetUsers" SET "Role" = 'Registered User', "AccountStatus" = 0 WHERE "
 ```
 
 The application reads the role and status from the database on each page load, but the page opened after login is chosen when logging in, so log out and log in again to check it.
+
+## Activity categories
+
+- **Page** (`/admin/categories`, "Categories" in the navigation): lists every category in alphabetical order. "Create category" and each category's "Edit" open a form next to the list (below it on a phone) with the name, type (Indoor or Outdoor), default duration, the weather limits of an Outdoor category (maximum wind, maximum rain, minimum and maximum temperature), "Requires daylight" and the map place tags (`key=value` pairs such as `leisure=slipway`, used by a later feature to find places on OpenStreetMap). Categories cannot be deleted.
+- **Validation**: every value is checked on the server; each message is shown next to its field, with an error summary when two or more fields fail. Names are unique without regard to letter case.
+- **Two administrators**: a save is refused with "Error: This category was changed by someone else. Reload it and try again." when the category changed since the form was opened; "Reload" shows the stored values.
+- **Starter categories**: the migration adds Cycling, Kayaking, Picnic, Heritage site (all Outdoor) and Museum (Indoor) once. Administrators may edit or rename them afterwards.
+- **Who can open it**: only a signed-in Active Administrator. A visitor is sent to Log in, a Registered User sees "Access denied", and a Suspended user opens the Account Suspended page. The API refuses everyone else with `401` or `403` and reads the account on every request, so a suspension applies at once.
+
+To try it, make an account an Administrator with the SQL in "Testing an Administrator or Suspended account" above, log in again and select **Categories**. The manual checks for a release are in `specs/003-activity-categories/quickstart.md`.
 
 ## Development workflow
 
