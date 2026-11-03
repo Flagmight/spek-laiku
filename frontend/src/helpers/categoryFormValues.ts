@@ -1,9 +1,34 @@
 import type {
   ActivityCategory,
+  ActivityCategoryField,
+  ActivityCategoryFieldErrors,
   ActivityCategoryRequest,
   ActivityType,
 } from "../types/activityCategory"
 import { parseDecimal } from "./parseDecimal"
+
+// The id of each field's input in contract order, which is also the order on the page.
+// Type points at its first radio button.
+export const categoryFieldIds: Record<ActivityCategoryField, string> = {
+  name: "category-name",
+  type: "category-type",
+  defaultDurationHours: "category-defaultDurationHours",
+  maxWindMs: "category-maxWindMs",
+  maxRainMmPerHour: "category-maxRainMmPerHour",
+  minTemperatureC: "category-minTemperatureC",
+  maxTemperatureC: "category-maxTemperatureC",
+  placeTags: "category-placeTags",
+}
+
+// The messages with their field ids in page order, for the error summary and the first focus.
+export function categoryFieldErrors(errors: ActivityCategoryFieldErrors) {
+  return (Object.keys(categoryFieldIds) as ActivityCategoryField[]).flatMap(
+    (field) => {
+      const message = errors[field]
+      return message ? [{ fieldId: categoryFieldIds[field], message }] : []
+    },
+  )
+}
 
 // The category form's values as typed; numbers stay text until they are sent.
 export interface CategoryFormValues {

@@ -1,3 +1,4 @@
+import { categoryFieldIds } from "../helpers/categoryFormValues"
 import { formatErrorMessage } from "../helpers/formatErrorMessage"
 import type { ActivityType } from "../types/activityCategory"
 
@@ -8,8 +9,8 @@ interface CategoryTypeFieldProps {
 }
 
 const types: ActivityType[] = ["Indoor", "Outdoor"]
-export const categoryTypeFieldId = "category-type"
-const errorId = `${categoryTypeFieldId}-error`
+const firstRadioId = categoryFieldIds.type
+const errorId = `${firstRadioId}-error`
 
 // Type as two radio buttons in a fieldset; none is selected until the administrator chooses.
 export function CategoryTypeField({
@@ -28,7 +29,7 @@ export function CategoryTypeField({
         <label key={type} className="radio-option">
           <input
             // The first radio carries the field id, so the error summary can move focus to it.
-            id={index === 0 ? categoryTypeFieldId : undefined}
+            id={index === 0 ? firstRadioId : undefined}
             type="radio"
             name="category-type"
             value={type}

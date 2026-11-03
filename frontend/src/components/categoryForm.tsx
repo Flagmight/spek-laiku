@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import type { FormEvent } from "react"
 import {
+  categoryFieldErrors,
   categoryFormValues,
   categoryRequest,
 } from "../helpers/categoryFormValues"
@@ -9,6 +10,7 @@ import { formatErrorMessage } from "../helpers/formatErrorMessage"
 import { useCategoryFormStore } from "../stores/useCategoryFormStore"
 import type { ActivityCategory } from "../types/activityCategory"
 import { CategoryTypeField } from "./categoryTypeField"
+import { ErrorSummary } from "./errorSummary"
 import { TextField } from "./textField"
 import { WeatherLimitFields } from "./weatherLimitFields"
 
@@ -40,6 +42,17 @@ export function CategoryForm({
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
+
+  // After refused values, focus the first invalid field (FR-011). errors is a new object after
+  // every refused save, so focus moves each time.
+  useEffect(() => {
+    if (status === "invalid") {
+      const [first] = categoryFieldErrors(errors)
+      if (first) {
+        document.getElementById(first.fieldId)?.focus()
+      }
+    }
+  }, [status, errors])
 
   function change<K extends keyof CategoryFormValues>(
     field: K,
@@ -91,6 +104,7 @@ export function CategoryForm({
             </button>
           </div>
         )}
+        <ErrorSummary errors={categoryFieldErrors(errors)} />
         <TextField
           id="category-name"
           label="Name"
