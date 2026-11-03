@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -91,6 +92,34 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
         var result = await userManager.CreateAsync(user, password);
         Assert.True(result.Succeeded, string.Join(", ", result.Errors.Select(error => error.Code)));
         return user;
+    }
+
+    /// <summary>
+    /// Creates a user with the given role and status, signs it in through the real SignInManager and
+    /// returns an https client that holds the sign-in cookie.
+    /// </summary>
+    public async Task<HttpClient> CreateSignedInClientAsync(
+        string role = "Registered User",
+        AccountStatus status = AccountStatus.Active)
+    {
+        var user = await CreateUserAsync(status, role: role);
+        var client = CreateHttpsClient();
+        var response = await client.PostAsync(
+            $"{TestSignInStartupFilter.Path}?email={Uri.EscapeDataString(user.Email!)}", content: null);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        return client;
+    }
+
+    /// <summary>
+    /// A category name of at most 60 characters with a short random suffix. The test database, with
+    /// the starter categories, is shared by the collection, so every created category needs its own
+    /// name (research section 5).
+    /// </summary>
+    public static string UniqueCategoryName(string prefix)
+    {
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var maxPrefixLength = 60 - suffix.Length - 1;
+        return $"{(prefix.Length > maxPrefixLength ? prefix[..maxPrefixLength] : prefix)} {suffix}";
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
