@@ -1,9 +1,11 @@
 import { Route, Routes } from "react-router-dom"
 import { AccountSuspendedPage } from "../pages/AccountSuspendedPage"
+import { ActivityCategoriesPage } from "../pages/ActivityCategoriesPage"
 import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
 import { RegisterPage } from "../pages/RegisterPage"
 import { Layout } from "./layout"
+import { SignedInOnly } from "./signedInOnly"
 import { SignedOutOnly } from "./signedOutOnly"
 import { SuspendedOnly } from "./suspendedOnly"
 
@@ -26,6 +28,15 @@ export function AppRoutes() {
             <SignedOutOnly>
               <LoginPage />
             </SignedOutOnly>
+          }
+        />
+        <Route
+          path="admin/categories"
+          element={
+            // The server refuses anyone but an Active Administrator; US4 adds AdministratorOnly here.
+            <SignedInOnly>
+              <ActivityCategoriesPage />
+            </SignedInOnly>
           }
         />
         <Route

@@ -1,6 +1,8 @@
 import "@testing-library/jest-dom/vitest"
 import { cleanup } from "@testing-library/react"
 import { afterEach, vi } from "vitest"
+import { useActivityCategoriesStore } from "../stores/useActivityCategoriesStore"
+import { useCategoryFormStore } from "../stores/useCategoryFormStore"
 import {
   initialCurrentUserState,
   useCurrentUserStore,
@@ -16,6 +18,8 @@ afterEach(() => {
   useRegistrationStore.getState().reset()
   useLoginStore.getState().reset()
   useLogoutStore.getState().reset()
+  useActivityCategoriesStore.getState().reset()
+  useCategoryFormStore.getState().reset()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
