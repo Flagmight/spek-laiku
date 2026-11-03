@@ -95,6 +95,7 @@ public class Program
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();
         builder.Services.AddScoped<LoginService>();
+        builder.Services.AddScoped<ActivityCategoryService>();
 
         var app = builder.Build();
 
