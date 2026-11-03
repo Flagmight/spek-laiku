@@ -1,10 +1,11 @@
-import { render } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import type { InitialEntry } from "react-router-dom"
 import { onTestFinished, vi } from "vitest"
 import { AppRoutes } from "../components/appRoutes"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import type { CurrentUser } from "../types/currentUser"
+import { CurrentLocation } from "./currentLocation"
 
 export function jsonResponse(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -98,4 +99,18 @@ export function renderApp(initialEntry: InitialEntry = "/") {
       <AppRoutes />
     </MemoryRouter>,
   )
+}
+
+// Like renderApp, and currentLocation() returns the address a guard or page navigated to.
+export function renderAppWithLocation(initialEntry: InitialEntry = "/") {
+  void useCurrentUserStore.getState().refresh()
+  render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <AppRoutes />
+      <CurrentLocation />
+    </MemoryRouter>,
+  )
+  return {
+    currentLocation: () => screen.getByTestId("location").textContent,
+  }
 }

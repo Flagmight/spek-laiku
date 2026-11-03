@@ -125,3 +125,43 @@ describe("top navigation", () => {
     )
   })
 })
+
+describe("top navigation for administrators", () => {
+  it("shows Home, Categories and Log out to an Active Administrator", async () => {
+    stubFetch(() =>
+      jsonResponse(200, { ...signedInUser, role: "Administrator" }),
+    )
+    renderApp("/")
+
+    expect(
+      await navigation().findByRole("link", { name: "Categories" }),
+    ).toHaveAttribute("href", "/admin/categories")
+    expect(
+      navigation()
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Home", "Categories", "Log out"])
+  })
+
+  it.each([
+    ["a visitor", 401, undefined],
+    ["an Active Registered User", 200, signedInUser],
+    [
+      "a Suspended Administrator",
+      200,
+      { ...signedInUser, role: "Administrator", accountStatus: "Suspended" },
+    ],
+  ])("does not show Categories to %s", async (_caller, status, body) => {
+    stubFetch(() => jsonResponse(status, body))
+    renderApp("/")
+
+    await screen.findByRole("heading", { level: 1 })
+    await vi.waitFor(() =>
+      expect(
+        navigation().queryByRole("link", { name: /^(Register|Log out)$/ }) ??
+          navigation().queryByRole("button", { name: "Log out" }),
+      ).not.toBeNull(),
+    )
+    expect(navigation().queryByRole("link", { name: "Categories" })).toBeNull()
+  })
+})

@@ -3,11 +3,17 @@ import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { LogoutButton } from "./logoutButton"
 
 // A visitor sees Home, Log in and Register; a signed-in user, of any role or status, sees Home
-// and Log out (FR-016, FR-021).
+// and Log out (FR-016, FR-021). An Active Administrator also sees Categories between them
+// (feature 003, FR-017); a Suspended Administrator does not.
 export function TopNavigation() {
   const status = useCurrentUserStore((state) => state.status)
+  const user = useCurrentUserStore((state) => state.user)
   // Hidden while loading, so a signed-in user never sees "Log in" or "Register" flash up.
   const showVisitorLinks = status === "signedOut" || status === "error"
+  const showAdministratorLinks =
+    status === "signedIn" &&
+    user?.role === "Administrator" &&
+    user.accountStatus === "Active"
 
   return (
     <ul>
@@ -25,6 +31,11 @@ export function TopNavigation() {
             <NavLink to="/register">Register</NavLink>
           </li>
         </>
+      )}
+      {showAdministratorLinks && (
+        <li>
+          <NavLink to="/admin/categories">Categories</NavLink>
+        </li>
       )}
       {status === "signedIn" && (
         <li>
