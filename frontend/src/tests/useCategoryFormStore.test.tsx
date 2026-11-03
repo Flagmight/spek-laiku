@@ -235,3 +235,106 @@ describe("useCategoryFormStore", () => {
     expect(refresh).toHaveBeenCalledTimes(1)
   })
 })
+
+describe("useCategoryFormStore for an existing category", () => {
+  const updateRoute = `PUT /api/admin/categories/${swimming.id}`
+  const getRoute = `GET /api/admin/categories/${swimming.id}`
+  const target = { id: swimming.id, version: 7 }
+
+  async function update(result: { current: CategoryFormState }) {
+    let saved: ActivityCategory | undefined
+    await act(async () => {
+      saved = await result.current.submit(request, target)
+    })
+    return saved
+  }
+
+  it("sends PUT to the category with its version", async () => {
+    const { requests } = routeFetch({
+      [updateRoute]: () => jsonResponse(200, swimming),
+      [listRoute]: () => jsonResponse(200, [swimming]),
+    })
+    const { result } = renderHook(() => useCategoryFormStore())
+
+    const saved = await update(result)
+
+    expect(saved).toEqual(swimming)
+    expect(requests[0].method).toBe("PUT")
+    expect(requests[0].body).toEqual({ ...request, version: 7 })
+  })
+
+  it("sets conflict on 409 and keeps the last request", async () => {
+    routeFetch({ [updateRoute]: () => jsonResponse(409) })
+    const { result } = renderHook(() => useCategoryFormStore())
+
+    await update(result)
+
+    expect(result.current.status).toBe("conflict")
+    expect(result.current.lastRequest).toEqual({ request, target })
+  })
+
+  it("reloadCategory resolves with the stored category and uses its version from then on", async () => {
+    const stored = { ...swimming, name: "Open water", version: 9 }
+    let respond = () => jsonResponse(409)
+    const { requests } = routeFetch({
+      [updateRoute]: () => respond(),
+      [getRoute]: () => jsonResponse(200, stored),
+      [listRoute]: () => jsonResponse(200, [stored]),
+    })
+    const { result } = renderHook(() => useCategoryFormStore())
+    await update(result)
+
+    let reloaded: ActivityCategory | undefined
+    await act(async () => {
+      reloaded = await result.current.reloadCategory(swimming.id)
+    })
+
+    expect(reloaded).toEqual(stored)
+    expect(result.current.status).toBe("idle")
+    expect(result.current.lastRequest?.target).toEqual({
+      id: swimming.id,
+      version: 9,
+    })
+
+    // Retry, for example after a server error, compares against the reloaded version too.
+    respond = () => jsonResponse(500)
+    await act(async () => {
+      await result.current.retry()
+    })
+    expect(requests.filter((sent) => sent.method === "PUT")[1].body).toEqual({
+      ...request,
+      version: 9,
+    })
+  })
+
+  it("reports a server error when reloading fails", async () => {
+    routeFetch({
+      [updateRoute]: () => jsonResponse(409),
+      [getRoute]: () => jsonResponse(500),
+    })
+    const { result } = renderHook(() => useCategoryFormStore())
+    await update(result)
+
+    let reloaded: unknown = null
+    await act(async () => {
+      reloaded = await result.current.reloadCategory(swimming.id)
+    })
+
+    expect(reloaded).toBeUndefined()
+    expect(result.current.status).toBe("serverError")
+  })
+
+  it("on 404 reports a server error and reloads the list", async () => {
+    routeFetch({
+      [updateRoute]: () => jsonResponse(404),
+      [listRoute]: () => jsonResponse(200, []),
+    })
+    const load = vi.spyOn(useActivityCategoriesStore.getState(), "load")
+    const { result } = renderHook(() => useCategoryFormStore())
+
+    await update(result)
+
+    expect(result.current.status).toBe("serverError")
+    expect(load).toHaveBeenCalledTimes(1)
+  })
+})

@@ -5,10 +5,15 @@ import { CategoryList } from "../components/categoryList"
 import { usePageTitle } from "../hooks/usePageTitle"
 import { useActivityCategoriesStore } from "../stores/useActivityCategoriesStore"
 import { useCategoryFormStore } from "../stores/useCategoryFormStore"
+import type { ActivityCategory } from "../types/activityCategory"
 import type { NavigationState } from "../types/navigationState"
 
-// Which form is open: none, the create form, or (US2) the edit form for a category id.
-type OpenForm = { kind: "none" } | { kind: "create" }
+// Which form is open: none, the create form, or the edit form. The edit form keeps the category
+// as selected, so it stays open with its message when a reload of the list no longer has it.
+type OpenForm =
+  | { kind: "none" }
+  | { kind: "create" }
+  | { kind: "edit"; category: ActivityCategory }
 
 export function ActivityCategoriesPage() {
   usePageTitle("Activity categories")
@@ -16,6 +21,7 @@ export function ActivityCategoriesPage() {
   const { pathname } = useLocation()
   const status = useActivityCategoriesStore((state) => state.status)
   const [openForm, setOpenForm] = useState<OpenForm>({ kind: "none" })
+  const editing = openForm.kind === "edit" ? openForm.category : null
 
   // The stores outlive the page, so leaving it aborts pending requests and the next visit starts fresh.
   useEffect(() => {
@@ -26,14 +32,14 @@ export function ActivityCategoriesPage() {
     }
   }, [])
 
-  function openCreateForm() {
+  // Opening a form replaces any open one without a warning (spec Edge Cases).
+  function open(form: OpenForm) {
     useCategoryFormStore.getState().reset()
-    setOpenForm({ kind: "create" })
+    setOpenForm(form)
   }
 
   function closeForm() {
-    useCategoryFormStore.getState().reset()
-    setOpenForm({ kind: "none" })
+    open({ kind: "none" })
   }
 
   function saved() {
@@ -47,19 +53,22 @@ export function ActivityCategoriesPage() {
     <>
       <h1>Activity categories</h1>
       {status === "loaded" && (
-        <button type="button" onClick={openCreateForm}>
+        <button type="button" onClick={() => open({ kind: "create" })}>
           Create category
         </button>
       )}
       <div className="categories-layout">
         <div className="categories-list-part">
-          {/* US2 opens the edit form from here. */}
-          <CategoryList onEdit={() => {}} />
+          <CategoryList
+            onEdit={(category) => open({ kind: "edit", category })}
+          />
         </div>
-        {openForm.kind === "create" && (
+        {openForm.kind !== "none" && (
           <div className="categories-form-part">
+            {/* A new key mounts a fresh form, so its fields and focus start from the selection. */}
             <CategoryForm
-              category={null}
+              key={editing?.id ?? "create"}
+              category={editing}
               onSaved={saved}
               onCancel={closeForm}
             />

@@ -1,36 +1,22 @@
 import { useEffect, useRef, useState } from "react"
 import type { FormEvent } from "react"
+import {
+  categoryFormValues,
+  categoryRequest,
+} from "../helpers/categoryFormValues"
+import type { CategoryFormValues } from "../helpers/categoryFormValues"
 import { formatErrorMessage } from "../helpers/formatErrorMessage"
-import { parseDecimal } from "../helpers/parseDecimal"
 import { useCategoryFormStore } from "../stores/useCategoryFormStore"
-import type {
-  ActivityCategory,
-  ActivityCategoryRequest,
-  ActivityType,
-} from "../types/activityCategory"
+import type { ActivityCategory } from "../types/activityCategory"
 import { CategoryTypeField } from "./categoryTypeField"
 import { TextField } from "./textField"
 import { WeatherLimitFields } from "./weatherLimitFields"
-import type { WeatherLimitValues } from "./weatherLimitFields"
 
 interface CategoryFormProps {
   // null opens the create form.
   category: ActivityCategory | null
   onSaved: (category: ActivityCategory) => void
   onCancel: () => void
-}
-
-function numberText(value: number | null | undefined) {
-  return value === null || value === undefined ? "" : String(value)
-}
-
-function initialLimits(category: ActivityCategory | null): WeatherLimitValues {
-  return {
-    maxWindMs: numberText(category?.maxWindMs),
-    maxRainMmPerHour: numberText(category?.maxRainMmPerHour),
-    minTemperatureC: numberText(category?.minTemperatureC),
-    maxTemperatureC: numberText(category?.maxTemperatureC),
-  }
 }
 
 export function CategoryForm({
@@ -42,42 +28,24 @@ export function CategoryForm({
   const errors = useCategoryFormStore((state) => state.errors)
   const submit = useCategoryFormStore((state) => state.submit)
   const retry = useCategoryFormStore((state) => state.retry)
+  const reloadCategory = useCategoryFormStore((state) => state.reloadCategory)
   const headingRef = useRef<HTMLHeadingElement>(null)
-
-  const [name, setName] = useState(category?.name ?? "")
-  const [type, setType] = useState<ActivityType | null>(category?.type ?? null)
-  const [duration, setDuration] = useState(
-    numberText(category?.defaultDurationHours),
-  )
-  const [limits, setLimits] = useState(() => initialLimits(category))
-  const [requiresDaylight, setRequiresDaylight] = useState(
-    category?.requiresDaylight ?? false,
-  )
-  const [placeTags, setPlaceTags] = useState(
-    category?.placeTags.join(", ") ?? "",
-  )
+  const [values, setValues] = useState(() => categoryFormValues(category))
+  // The version saves are compared against: the opened one, or the reloaded one (FR-026).
+  const [version, setVersion] = useState(category?.version ?? 0)
   const pending = status === "pending"
-  const outdoor = type === "Outdoor"
+  const heading = category ? `Edit ${category.name}` : "Create category"
 
   // Focusing the heading also scrolls it into view, so the form is seen when it opens (FR-013).
   useEffect(() => {
     headingRef.current?.focus()
   }, [])
 
-  function toRequest(): ActivityCategoryRequest {
-    // The name and tags are sent exactly as typed, so the server applies the 200-character
-    // limit to the text as entered (FR-009). An Indoor category has no weather limits (FR-007).
-    return {
-      name,
-      type,
-      defaultDurationHours: parseDecimal(duration),
-      requiresDaylight,
-      maxWindMs: outdoor ? parseDecimal(limits.maxWindMs) : null,
-      maxRainMmPerHour: outdoor ? parseDecimal(limits.maxRainMmPerHour) : null,
-      minTemperatureC: outdoor ? parseDecimal(limits.minTemperatureC) : null,
-      maxTemperatureC: outdoor ? parseDecimal(limits.maxTemperatureC) : null,
-      placeTags,
-    }
+  function change<K extends keyof CategoryFormValues>(
+    field: K,
+    value: CategoryFormValues[K],
+  ) {
+    setValues((current) => ({ ...current, [field]: value }))
   }
 
   function finish(saved: ActivityCategory | undefined) {
@@ -88,26 +56,55 @@ export function CategoryForm({
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    finish(await submit(toRequest()))
+    const target = category ? { id: category.id, version } : undefined
+    finish(await submit(categoryRequest(values), target))
+  }
+
+  async function reload() {
+    if (!category) {
+      return
+    }
+
+    const stored = await reloadCategory(category.id)
+    if (stored) {
+      setValues(categoryFormValues(stored))
+      setVersion(stored.version)
+    }
   }
 
   return (
     <section className="category-form" aria-labelledby="category-form-heading">
       <h2 id="category-form-heading" ref={headingRef} tabIndex={-1}>
-        {category ? `Edit ${category.name}` : "Create category"}
+        {heading}
       </h2>
       {/* noValidate: the browser's own bubbles must never replace the server's messages. */}
       <form noValidate onSubmit={(event) => void save(event)}>
+        {status === "conflict" && (
+          <div role="alert" className="form-error">
+            <p>
+              {formatErrorMessage(
+                "This category was changed by someone else. Reload it and try again.",
+              )}
+            </p>
+            <button type="button" onClick={() => void reload()}>
+              Reload
+            </button>
+          </div>
+        )}
         <TextField
           id="category-name"
           label="Name"
           type="text"
           autoComplete="off"
-          value={name}
+          value={values.name}
           error={errors.name}
-          onChange={setName}
+          onChange={(value) => change("name", value)}
         />
-        <CategoryTypeField value={type} error={errors.type} onChange={setType} />
+        <CategoryTypeField
+          value={values.type}
+          error={errors.type}
+          onChange={(value) => change("type", value)}
+        />
         <TextField
           id="category-defaultDurationHours"
           label="Default duration (h)"
@@ -115,25 +112,19 @@ export function CategoryForm({
           inputMode="decimal"
           autoComplete="off"
           hint="0.5 to 12, in steps of 0.5"
-          value={duration}
+          value={values.duration}
           error={errors.defaultDurationHours}
-          onChange={setDuration}
+          onChange={(value) => change("duration", value)}
         />
-        {outdoor && (
-          <WeatherLimitFields
-            values={limits}
-            errors={errors}
-            onChange={(field, value) =>
-              setLimits((current) => ({ ...current, [field]: value }))
-            }
-          />
+        {values.type === "Outdoor" && (
+          <WeatherLimitFields values={values} errors={errors} onChange={change} />
         )}
         <div className="form-field checkbox-field">
           <input
             id="category-requiresDaylight"
             type="checkbox"
-            checked={requiresDaylight}
-            onChange={(event) => setRequiresDaylight(event.target.checked)}
+            checked={values.requiresDaylight}
+            onChange={(event) => change("requiresDaylight", event.target.checked)}
           />
           <label htmlFor="category-requiresDaylight">Requires daylight</label>
         </div>
@@ -143,9 +134,9 @@ export function CategoryForm({
           type="text"
           autoComplete="off"
           hint="key=value pairs separated by commas, for example leisure=slipway"
-          value={placeTags}
+          value={values.placeTags}
           error={errors.placeTags}
-          onChange={setPlaceTags}
+          onChange={(value) => change("placeTags", value)}
         />
         <div className="form-actions">
           <button type="submit" disabled={pending}>
