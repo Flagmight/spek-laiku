@@ -9,6 +9,8 @@ import {
 } from "../stores/useCurrentUserStore"
 import { useLoginStore } from "../stores/useLoginStore"
 import { useLogoutStore } from "../stores/useLogoutStore"
+import { usePlanPeriodStore } from "../stores/usePlanPeriodStore"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import { useRegistrationStore } from "../stores/useRegistrationStore"
 
 afterEach(() => {
@@ -20,6 +22,8 @@ afterEach(() => {
   useLogoutStore.getState().reset()
   useActivityCategoriesStore.getState().reset()
   useCategoryFormStore.getState().reset()
+  usePlanPeriodStore.getState().reset()
+  usePlanSetupStore.getState().clear()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
