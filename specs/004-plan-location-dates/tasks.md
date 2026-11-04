@@ -466,12 +466,12 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Tests for User Story 3
 
-- [ ] T061 [P] [US3] Add `frontend/src/tests/parseTravelDistance.test.ts`. Cover:
+- [X] T061 [P] [US3] Add `frontend/src/tests/parseTravelDistance.test.ts`. Cover:
   - `""` and `"   "` → `{ kind: "default" }` (sent as `null`);
   - `"45"`, `" 45 "` and `"045"` → `{ kind: "number", value: 45 }`;
   - `"12.5"` → `{ kind: "number", value: 12.5 }`, so the server refuses it;
   - `"abc"`, `"1e3"`, `"12,5"` and `"-"` → `{ kind: "invalid" }`.
-- [ ] T062 [P] [US3] Extend `frontend/src/tests/PlanSetupPage.test.tsx` (distance part). Cover:
+- [X] T062 [P] [US3] Extend `frontend/src/tests/PlanSetupPage.test.tsx` (distance part). Cover:
   - a new plan shows "Maximum travel distance (km)" with the value 30 and the hint "Whole number from 1 to 200" linked through `aria-describedby`;
   - "abc" shows "Error: Enter a whole number between 1 and 200." next to the field and in the summary without sending a request;
   - a server error for `maxTravelDistanceKm` (for 0, 201 or 12.5) is shown the same way, with focus on the field when it is the first invalid one;
@@ -480,8 +480,8 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Implementation for User Story 3
 
-- [ ] T063 [P] [US3] Create `frontend/src/helpers/parseTravelDistance.ts` with `parseTravelDistance(text)` returning the outcomes in T061. Accept `^\d+(\.\d+)?$` after trimming; whole-number and range checks stay on the server (FR-016).
-- [ ] T064 [US3] In `frontend/src/pages/PlanSetupPage.tsx` (or `planSetupForm.tsx`):
+- [X] T063 [P] [US3] Create `frontend/src/helpers/parseTravelDistance.ts` with `parseTravelDistance(text)` returning the outcomes in T061. Accept `^\d+(\.\d+)?$` after trimming; whole-number and range checks stay on the server (FR-016).
+- [X] T064 [US3] In `frontend/src/pages/PlanSetupPage.tsx` (or `planSetupForm.tsx`):
   - add the existing `TextField` "Maximum travel distance (km)" with `type="text"`, `inputMode="numeric"`, the hint "Whole number from 1 to 200", and the value from `usePlanSetupStore.maxTravelDistanceText`;
   - on Continue, an `invalid` parse adds the local `maxTravelDistanceKm` error; otherwise send the number or `null`;
   - after a successful check, set `maxTravelDistanceText` to the returned `maxTravelDistanceKm` as text, so an empty field shows 30 again (spec User Story 3, scenario 4). Setting the text must not clear `checked`: add a `setChecked(setup)` variant that also sets this text, or set both in one store update.

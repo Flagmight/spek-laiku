@@ -57,6 +57,12 @@ export const usePlanSetupStore = create<PlanSetupState>()((set) => ({
     })),
   setMaxTravelDistanceText: (text) =>
     set({ maxTravelDistanceText: text, checked: null }),
-  setChecked: (setup) => set({ checked: setup }),
+  // Also shows the distance the server kept, so an empty field shows 30 again (spec US3 scenario 4);
+  // this does not count as a change, so the setup stays checked.
+  setChecked: (setup) =>
+    set({
+      checked: setup,
+      maxTravelDistanceText: String(setup.maxTravelDistanceKm),
+    }),
   clear: () => set(initialPlanSetupState),
 }))

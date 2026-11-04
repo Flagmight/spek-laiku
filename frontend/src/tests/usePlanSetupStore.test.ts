@@ -102,6 +102,15 @@ describe("usePlanSetupStore", () => {
     expect(store().checked).toBeNull()
   })
 
+  it("shows the distance the server kept and stays checked", () => {
+    store().setMaxTravelDistanceText("")
+
+    store().setChecked(checkedSetup)
+
+    expect(store().maxTravelDistanceText).toBe("30")
+    expect(store().checked).toEqual(checkedSetup)
+  })
+
   it("clear() returns to the initial state", () => {
     checkedState()
     store().setMaxTravelDistanceText("50")

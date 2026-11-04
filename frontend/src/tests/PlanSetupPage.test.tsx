@@ -514,7 +514,7 @@ describe("Plan setup page: Continue", () => {
     ).toHaveAttribute("role", "status")
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled()
     expect(requests.find((request) => request.method === "POST")?.body).toEqual(
-      { locationId: 598316, dates: ["2026-11-07"], maxTravelDistanceKm: null },
+      { locationId: 598316, dates: ["2026-11-07"], maxTravelDistanceKm: 30 },
     )
 
     answer(jsonResponse(200, checkedKaunas()))
@@ -603,5 +603,136 @@ describe("Plan setup page: Continue", () => {
     )
     expect(message.closest("[role='alert']")).not.toBeNull()
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument()
+  })
+})
+
+function distance() {
+  return screen.getByLabelText("Maximum travel distance (km)")
+}
+
+function sentDistance(requests: { method: string; body: unknown }[]) {
+  const post = requests.filter((request) => request.method === "POST").at(-1)
+  return (post?.body as { maxTravelDistanceKm: number | null })
+    .maxTravelDistanceKm
+}
+
+describe("Plan setup page: maximum travel distance", () => {
+  it("starts at 30 with its allowed range as a hint", async () => {
+    renderPlanSetup()
+
+    const field = await screen.findByLabelText("Maximum travel distance (km)")
+
+    expect(field).toHaveValue("30")
+    expect(field).toHaveAttribute("inputmode", "numeric")
+    const hint = screen.getByText("Whole number from 1 to 200")
+    expect(field.getAttribute("aria-describedby")).toContain(hint.id)
+  })
+
+  it("refuses text that is not a number without sending anything", async () => {
+    const user = userEvent.setup()
+    const { requests } = await renderReadySetup(
+      () => jsonResponse(200, checkedKaunas()),
+      user,
+    )
+    await user.clear(distance())
+    await user.type(distance(), "abc")
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    expect(
+      screen.getByText("Error: Enter a whole number between 1 and 200."),
+    ).toBeInTheDocument()
+    expect(distance()).toHaveAttribute("aria-invalid", "true")
+    expect(distance()).toHaveFocus()
+    expect(requests.some((request) => request.method === "POST")).toBe(false)
+  })
+
+  it("lists a refused distance in the summary with the other errors", async () => {
+    const user = userEvent.setup()
+    renderPlanSetup()
+    await waitFor(() => expect(dateInput()).toBeEnabled())
+    await user.clear(distance())
+    await user.type(distance(), "abc")
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    const summary = within(screen.getByRole("alert", { name: "Error summary" }))
+    expect(
+      summary.getAllByRole("link").map((link) => link.textContent),
+    ).toEqual([
+      "Error: Select a location in Lithuania from the list.",
+      "Error: Add at least one date.",
+      "Error: Enter a whole number between 1 and 200.",
+    ])
+  })
+
+  it.each(["0", "201", "12.5"])(
+    "shows the server's message for %s next to the field and focuses it",
+    async (text) => {
+      const user = userEvent.setup()
+      const { requests } = await renderReadySetup(
+        () =>
+          jsonResponse(400, {
+            errors: {
+              maxTravelDistanceKm: ["Enter a whole number between 1 and 200."],
+            },
+          }),
+        user,
+      )
+      await user.clear(distance())
+      await user.type(distance(), text)
+
+      await user.click(screen.getByRole("button", { name: "Continue" }))
+
+      expect(
+        await screen.findByText(
+          "Error: Enter a whole number between 1 and 200.",
+        ),
+      ).toBeInTheDocument()
+      expect(distance()).toHaveFocus()
+      expect(sentDistance(requests)).toBe(Number(text))
+    },
+  )
+
+  it("sends nothing for an empty field and shows 30 again after the check", async () => {
+    const user = userEvent.setup()
+    const { requests } = await renderReadySetup(
+      () => jsonResponse(200, checkedKaunas()),
+      user,
+    )
+    await user.clear(distance())
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Activity selection",
+    })
+    expect(sentDistance(requests)).toBeNull()
+    expect(usePlanSetupStore.getState().maxTravelDistanceText).toBe("30")
+    expect(usePlanSetupStore.getState().checked).not.toBeNull()
+  })
+
+  it("sends 50 and shows it on Activity selection", async () => {
+    const user = userEvent.setup()
+    const { requests } = await renderReadySetup(
+      () =>
+        jsonResponse(200, {
+          ...checkedKaunas(),
+          maxTravelDistanceKm: 50,
+        }),
+      user,
+    )
+    await user.clear(distance())
+    await user.type(distance(), "50")
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    expect(
+      await screen.findByText(
+        "Kaunas, Kaunas County · Sat 7 Nov 2026 · Maximum travel distance: 50 km",
+      ),
+    ).toBeInTheDocument()
+    expect(sentDistance(requests)).toBe(50)
   })
 })

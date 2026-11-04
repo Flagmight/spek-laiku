@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import type { FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { formatErrorMessage } from "../helpers/formatErrorMessage"
+import { parseTravelDistance } from "../helpers/parseTravelDistance"
 import {
   dateErrorsByDate,
   summaryErrors,
@@ -12,6 +13,7 @@ import type { PlanSetupFieldErrors } from "../types/planSetup"
 import { ErrorSummary } from "./errorSummary"
 import { LocationSearchField, locationInputId } from "./locationSearchField"
 import { dateInputId, PlanDatesField } from "./planDatesField"
+import { TextField } from "./textField"
 
 export const distanceInputId = "max-travel-distance"
 
@@ -30,11 +32,13 @@ const serverMessages = {
   tooManyRequests: "Too many requests. Wait a minute and try again.",
 }
 
-// The Plan setup form: Location, Dates and Continue (spec FR-012 to FR-015). Continue first checks
-// what the page can see (a chosen place, at least one date), then asks the server to check
-// everything; an accepted setup opens the Activity selection step.
+// The Plan setup form: Location, Dates, Maximum travel distance and Continue (spec FR-012 to
+// FR-016). Continue first checks what the page can see (a chosen place, at least one date, a
+// distance that is a number), then asks the server to check everything; an accepted setup opens the
+// Activity selection step.
 export function PlanSetupForm() {
   const navigate = useNavigate()
+  const distanceText = usePlanSetupStore((state) => state.maxTravelDistanceText)
   const status = usePlanSetupCheckStore((state) => state.status)
   const serverErrors = usePlanSetupCheckStore((state) => state.errors)
   const lastRequest = usePlanSetupCheckStore((state) => state.lastRequest)
@@ -63,7 +67,9 @@ export function PlanSetupForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const { location, dates } = usePlanSetupStore.getState()
+    const { location, dates, maxTravelDistanceText } =
+      usePlanSetupStore.getState()
+    const distance = parseTravelDistance(maxTravelDistanceText)
     const found: PlanSetupFieldErrors = {}
     if (!location) {
       found.locationId = "Select a location in Lithuania from the list."
@@ -71,19 +77,22 @@ export function PlanSetupForm() {
     if (dates.length === 0) {
       found.dates = "Add at least one date."
     }
-    if (!location || dates.length === 0) {
+    if (distance.kind === "invalid") {
+      found.maxTravelDistanceKm = "Enter a whole number between 1 and 200."
+    }
+    if (!location || Object.keys(found).length > 0) {
       usePlanSetupCheckStore.getState().reset()
       setPageErrors(found)
       return
     }
 
     setPageErrors(null)
-    // The distance field comes with user story 3; until then the server uses its default of 30.
     finish(
       await usePlanSetupCheckStore.getState().submit({
         locationId: location.id,
         dates,
-        maxTravelDistanceKm: null,
+        // Empty means the default; the server then uses 30 (spec FR-016).
+        maxTravelDistanceKm: distance.kind === "number" ? distance.value : null,
       }),
     )
   }
@@ -104,6 +113,19 @@ export function PlanSetupForm() {
       <PlanDatesField
         error={errors.dates}
         dateErrors={dateErrorsByDate(errors, sentDates)}
+      />
+      <TextField
+        id={distanceInputId}
+        label="Maximum travel distance (km)"
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        hint="Whole number from 1 to 200"
+        value={distanceText}
+        error={errors.maxTravelDistanceKm}
+        onChange={(text) =>
+          usePlanSetupStore.getState().setMaxTravelDistanceText(text)
+        }
       />
       <p role="status" className="loading-status">
         {status === "pending" ? "Checking your plan setup…" : ""}
