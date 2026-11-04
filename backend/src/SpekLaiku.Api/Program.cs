@@ -113,6 +113,7 @@ public class Program
             })
             // The default client logging writes each request address, which holds the search text (spec FR-008).
             .RemoveAllLoggers();
+        builder.Services.AddScoped<LocationSearchService>();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();
