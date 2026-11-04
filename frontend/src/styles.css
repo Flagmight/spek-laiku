@@ -86,6 +86,16 @@ main a {
   padding: 0;
 }
 
+/* A link that starts a task, such as "Create plan" on Home, looks like the main button. */
+main a.button-link {
+  padding: 8px 16px;
+  border: 1px solid #1d4ed8;
+  border-radius: 4px;
+  background: #1d4ed8;
+  color: #ffffff;
+  text-decoration: none;
+}
+
 nav a[aria-current="page"] {
   font-weight: 700;
 }

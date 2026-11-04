@@ -3,6 +3,7 @@ import { AccountSuspendedPage } from "../pages/AccountSuspendedPage"
 import { ActivityCategoriesPage } from "../pages/ActivityCategoriesPage"
 import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
+import { PlanSetupPage } from "../pages/PlanSetupPage"
 import { RegisterPage } from "../pages/RegisterPage"
 import { AdministratorOnly } from "./administratorOnly"
 import { Layout } from "./layout"
@@ -31,6 +32,7 @@ export function AppRoutes() {
             </SignedOutOnly>
           }
         />
+        <Route path="plan/setup" element={<PlanSetupPage />} />
         <Route
           path="admin/categories"
           element={

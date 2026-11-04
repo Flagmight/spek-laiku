@@ -33,6 +33,7 @@ describe("keyboard use of the Register page", () => {
     const expected = [
       screen.getByRole("link", { name: "Skip to main content" }),
       screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Create plan" }),
       screen.getByRole("link", { name: "Log in" }),
       screen.getByRole("link", { name: "Register" }),
       screen.getByLabelText("Email"),
@@ -160,6 +161,7 @@ describe("keyboard use of the Log in page", () => {
     const expected = [
       screen.getByRole("link", { name: "Skip to main content" }),
       screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Create plan" }),
       screen.getByRole("link", { name: "Log in" }),
       screen.getByRole("link", { name: "Register" }),
       screen.getByLabelText("Email"),
@@ -217,6 +219,13 @@ describe("keyboard use of Log out", () => {
     await user.tab() // Skip to main content
     await user.tab()
     expect(screen.getByRole("link", { name: "Home" })).toHaveFocus()
+    await user.tab()
+    expect(
+      within(screen.getByRole("navigation", { name: "Main" })).getByRole(
+        "link",
+        { name: "Create plan" },
+      ),
+    ).toHaveFocus()
     await user.tab()
     expect(logOut).toHaveFocus()
     await user.keyboard("{Enter}")

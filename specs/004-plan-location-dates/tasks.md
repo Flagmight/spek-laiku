@@ -204,7 +204,7 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Tests for User Story 1
 
-- [ ] T025 [P] [US1] Add `backend/tests/SpekLaiku.UnitTests/LocationSearchServiceTests.cs`, using a fake `IGeocodingClient` with call counting and a real `MemoryCache`, with these cases:
+- [X] T025 [P] [US1] Add `backend/tests/SpekLaiku.UnitTests/LocationSearchServiceTests.cs`, using a fake `IGeocodingClient` with call counting and a real `MemoryCache`, with these cases:
   - text trimmed to fewer than 2 or more than 100 characters, or `null`, returns `Invalid` with `query` = "Enter between 2 and 100 characters." and no client call;
   - places are mapped with `LocationAreaName`, and a non-`LT` place is dropped;
   - at most 10 places are returned, in the client's order;
@@ -213,13 +213,13 @@ description: "Task list for feature 004 Plan Location and Dates"
   - a failure (`ExternalServiceException`) is re-thrown and not cached, so the next search calls the client again;
   - `FindAsync(id)` returns a place cached by an earlier search without calling `GetAsync`, otherwise calls `GetAsync`;
   - `FindAsync` returns `null` for an unknown id and for a non-`LT` place.
-- [ ] T026 [P] [US1] Add `backend/tests/SpekLaiku.IntegrationTests/LocationsEndpointTests.cs` (collection `PostgreSqlCollection`, scripting `factory.Geocoding` with a unique text per test), as a Visitor:
+- [X] T026 [P] [US1] Add `backend/tests/SpekLaiku.IntegrationTests/LocationsEndpointTests.cs` (collection `PostgreSqlCollection`, scripting `factory.Geocoding` with a unique text per test), as a Visitor:
   - `GET /api/locations?query=<text>` returns `200` with the contract body (`id`, `name`, `area`, `latitude`, `longitude`);
   - a scripted non-`LT` place is not returned, and an empty script gives `{"locations":[]}`;
   - `query=<unique>%2C%20Kaunas%20Count` returns the places scripted for `<unique>` (the text before the comma);
   - `query` of `a`, three spaces, 101 characters, or missing gives `400` with `errors.query`;
   - scripted `Timeout`, `Network`, `UnexpectedStatus` and `InvalidResponse` failures each give `503` with title "Service unavailable." and detail "Location search is unavailable. Try again later.", and no place data.
-- [ ] T027 [P] [US1] Add `frontend/src/tests/locationsApi.test.ts` and `frontend/src/tests/useLocationSearchStore.test.ts` (fake timers, `routeFetch`). Cover:
+- [X] T027 [P] [US1] Add `frontend/src/tests/locationsApi.test.ts` and `frontend/src/tests/useLocationSearchStore.test.ts` (fake timers, `routeFetch`). Cover:
   - `searchLocations` sends `GET /api/locations?query=<encoded>` and returns the list;
   - non-200 statuses throw `ApiError` with the status;
   - `queryChanged` waits 300 ms before sending, and typing again within 300 ms sends only the last text;
@@ -229,7 +229,7 @@ description: "Task list for feature 004 Plan Location and Dates"
   - `ApiError` 429 → `tooManyRequests`; `503`, any other error, a network error or 10 s without an answer → `unavailable`;
   - a newer search aborts the older one, and a late older answer never replaces newer results;
   - `reset()` aborts and returns to `idle`.
-- [ ] T028 [P] [US1] Add `frontend/src/tests/PlanSetupPage.test.tsx` (location part) with `renderApp("/plan/setup")` and `routeFetch`. Every page test also answers `GET /api/plan-setup/period` with a fixed period, for example `{ "firstDate": "2026-11-04", "lastDate": "2026-11-10", "maxDates": 7 }`. Cover:
+- [X] T028 [P] [US1] Add `frontend/src/tests/PlanSetupPage.test.tsx` (location part) with `renderApp("/plan/setup")` and `routeFetch`. Every page test also answers `GET /api/plan-setup/period` with a fixed period, for example `{ "firstDate": "2026-11-04", "lastDate": "2026-11-10", "maxDates": 7 }`. Cover:
   - one `<h1>` "Plan setup", title "Plan setup - Spėk laiku", and the progress bar showing step 1 of 4 with `aria-current="step"` on "Plan setup";
   - typing "Kaun" shows and announces "Searching locations…" in a `role="status"` region, then the options "Kaunas, Kaunas County" and "Kauniai, Biržai District Municipality";
   - choosing by click, and by ArrowDown + Enter, closes the list and puts "Kaunas, Kaunas County" in the input;
@@ -239,11 +239,11 @@ description: "Task list for feature 004 Plan Location and Dates"
   - `503` shows "Error: Location search is unavailable. Try again later." in `role="alert"`, with no options;
   - `429` shows "Error: Too many requests. Wait a minute and try again." with no options;
   - the input has `maxLength` 100.
-- [ ] T029 [P] [US1] Extend `frontend/src/tests/topNavigation.test.tsx` and `frontend/src/tests/HomePage.test.tsx` with tests that a visitor sees a "Create plan" link to `/plan/setup` in the navigation (between Home and Log in) and a "Create plan" link on Home, and that following either opens the Plan setup page.
+- [X] T029 [P] [US1] Extend `frontend/src/tests/topNavigation.test.tsx` and `frontend/src/tests/HomePage.test.tsx` with tests that a visitor sees a "Create plan" link to `/plan/setup` in the navigation (between Home and Log in) and a "Create plan" link on Home, and that following either opens the Plan setup page.
 
 ### Implementation for User Story 1
 
-- [ ] T030 [US1] Create `backend/src/SpekLaiku.Api/Services/LocationSearchService.cs` (`IGeocodingClient`, `IMemoryCache`), with `public const int MinQueryLength = 2`, `MaxQueryLength = 100` and `MaxResults = 10`.
+- [X] T030 [US1] Create `backend/src/SpekLaiku.Api/Services/LocationSearchService.cs` (`IGeocodingClient`, `IMemoryCache`), with `public const int MinQueryLength = 2`, `MaxQueryLength = 100` and `MaxResults = 10`.
   - **`SearchAsync(string? query, CancellationToken)`:**
     - trim; if the length is outside 2 to 100, return `Invalid` with `query` = "Enter between 2 and 100 characters.";
     - take the trimmed text before the first comma, because Open-Meteo reads text after a comma as an exact area filter (research section 1). When fewer than 2 characters remain, return `Success` with an empty list without calling the client. Use this text for the call and the cache key;
@@ -253,18 +253,18 @@ description: "Task list for feature 004 Plan Location and Dates"
   - **`FindAsync(long id, CancellationToken)`:** read the cache by id; otherwise call `GetAsync`, keep it only when `LT`, map and cache it; return `null` otherwise.
   - Failures are not caught, so they reach `ApiExceptionHandler`.
   - Register it with `AddScoped<LocationSearchService>()` in `Program.cs` (or in the T019 extension).
-- [ ] T031 [US1] Create `backend/src/SpekLaiku.Api/Controllers/LocationsController.cs`:
+- [X] T031 [US1] Create `backend/src/SpekLaiku.Api/Controllers/LocationsController.cs`:
   - attributes: `[ApiController]`, `[Route("api/locations")]`, `[Authorize(Policy = AuthorizationPolicies.PlanCreator)]`, `[EnableRateLimiting(RateLimitPolicies.PlanSetup)]`;
   - `[HttpGet] Search([FromQuery] string? query, CancellationToken)` calls the service and returns `200` with `LocationSearchResponse` (mapped with `IMapper`), or `400` with `ValidationProblemDetails` in the same shape as `AuthController`;
   - `ProducesResponseType` for 200, 400, 403, 429 and 503. No business rules.
-- [ ] T032 [P] [US1] Create `frontend/src/api/locationsApi.ts`: `searchLocations(query: string, signal?: AbortSignal): Promise<PlanLocation[]>` using `apiFetch(`/api/locations?query=${encodeURIComponent(query)}`)`. `200` returns `body.locations`; any other status throws `ApiError(status)`; network and abort errors pass through.
-- [ ] T033 [US1] Create `frontend/src/stores/useLocationSearchStore.ts` (research section 11):
+- [X] T032 [P] [US1] Create `frontend/src/api/locationsApi.ts`: `searchLocations(query: string, signal?: AbortSignal): Promise<PlanLocation[]>` using `apiFetch(`/api/locations?query=${encodeURIComponent(query)}`)`. `200` returns `body.locations`; any other status throws `ApiError(status)`; network and abort errors pass through.
+- [X] T033 [US1] Create `frontend/src/stores/useLocationSearchStore.ts` (research section 11):
   - **State:** `status: "idle" | "loading" | "loaded" | "empty" | "unavailable" | "tooManyRequests"`, `results: PlanLocation[]`, `controller`, and a pending pause timer.
   - **`queryChanged(text)`:** clears the pause timer and aborts any request. If the trimmed text is shorter than 2, it sets `idle` with no results. Otherwise, after `locationSearchPauseMs = 300`, it sets `loading` and calls `searchLocations` with a `locationSearchTimeoutMs = 10_000` abort.
   - **Result:** only the latest request's result is applied. `ApiError` with status 429 → `tooManyRequests`; anything else → `unavailable`. Results are always empty on failure.
   - **`reset()`.**
   - Reset it in `frontend/src/tests/setup.ts`.
-- [ ] T034 [US1] Create `frontend/src/components/locationSearchField.tsx`, an ARIA 1.2 combobox (research section 11), under about 200 lines.
+- [X] T034 [US1] Create `frontend/src/components/locationSearchField.tsx`, an ARIA 1.2 combobox (research section 11), under about 200 lines.
   - **Input:** visible label "Location"; `role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`, `aria-controls` pointing at the listbox, `aria-activedescendant` for the highlighted option; `maxLength={100}`; `autoComplete="off"`.
   - **Options:** `role="listbox"` with `role="option"` items "<name>, <area>" and `aria-selected` on the highlighted item.
   - **Keys and mouse:** ArrowDown and ArrowUp move the highlight; Enter chooses; Escape closes; clicking chooses (prevent the input blur on `mousedown`); blur closes.
@@ -273,13 +273,13 @@ description: "Task list for feature 004 Plan Location and Dates"
     - a `role="status"` region announcing "Searching locations…", "1 location found" or "<n> locations found", and "No location found. Check the spelling or try a larger town.";
     - a `role="alert"` region for "Error: Location search is unavailable. Try again later." and "Error: Too many requests. Wait a minute and try again.";
     - an optional `error` prop for the field error from Continue, shown under the input and linked with `aria-describedby` and `aria-invalid`.
-- [ ] T035 [P] [US1] Create `frontend/src/components/planProgress.tsx`: `PlanProgress({ current }: { current: 1 | 2 | 3 | 4 })` renders `<nav aria-label="Plan progress">` with an ordered list of "Plan setup", "Activities", "Places and forecast" and "Schedule".
+- [X] T035 [P] [US1] Create `frontend/src/components/planProgress.tsx`: `PlanProgress({ current }: { current: 1 | 2 | 3 | 4 })` renders `<nav aria-label="Plan progress">` with an ordered list of "Plan setup", "Activities", "Places and forecast" and "Schedule".
   - The current step has `aria-current="step"`.
   - Earlier steps are links (step 1 → `/plan/setup`; steps 2 to 4 become links only when later features add their routes, so for now only step 1 can be a link).
   - Later steps are plain text, not selectable.
   - Also render a compact "Step n of 4: <name>" element with `aria-hidden="true"`, shown only on narrow screens by CSS, so screen readers read the list once (spec FR-020).
-- [ ] T036 [US1] Create `frontend/src/pages/PlanSetupPage.tsx` with `usePageTitle("Plan setup")`, one `<h1>` "Plan setup", `<PlanProgress current={1} />` and `LocationSearchField`. On mount, call `usePlanPeriodStore.getState().load()`; US2 uses the result. On unmount, reset `useLocationSearchStore` and `usePlanPeriodStore` but not `usePlanSetupStore`. In `frontend/src/components/appRoutes.tsx` add the route `plan/setup` → `PlanSetupPage` (the guard comes in US6).
-- [ ] T037 [US1] In `frontend/src/components/topNavigation.tsx`, add a `NavLink` "Create plan" to `/plan/setup` after Home. Show it when the status is `"signedOut"` or `"error"` (a visitor), or when signed in with `role === "Registered User"` and `accountStatus === "Active"`. Update the top comment. In `frontend/src/pages/HomePage.tsx`, add a `Link` "Create plan" to `/plan/setup` with a button class, under the same rule. Put the rule in one exported function `canCreatePlan(status, user)` in `frontend/src/helpers/canCreatePlan.ts`, used by both and by the guard in US6.
+- [X] T036 [US1] Create `frontend/src/pages/PlanSetupPage.tsx` with `usePageTitle("Plan setup")`, one `<h1>` "Plan setup", `<PlanProgress current={1} />` and `LocationSearchField`. On mount, call `usePlanPeriodStore.getState().load()`; US2 uses the result. On unmount, reset `useLocationSearchStore` and `usePlanPeriodStore` but not `usePlanSetupStore`. In `frontend/src/components/appRoutes.tsx` add the route `plan/setup` → `PlanSetupPage` (the guard comes in US6).
+- [X] T037 [US1] In `frontend/src/components/topNavigation.tsx`, add a `NavLink` "Create plan" to `/plan/setup` after Home. Show it when the status is `"signedOut"` or `"error"` (a visitor), or when signed in with `role === "Registered User"` and `accountStatus === "Active"`. Update the top comment. In `frontend/src/pages/HomePage.tsx`, add a `Link` "Create plan" to `/plan/setup` with a button class, under the same rule. Put the rule in one exported function `canCreatePlan(status, user)` in `frontend/src/helpers/canCreatePlan.ts`, used by both and by the guard in US6.
 
 **Checkpoint**: A visitor can open Plan setup and choose a place in Lithuania; the server already enforces the policy and the request limit.
 

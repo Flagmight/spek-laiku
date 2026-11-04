@@ -1,10 +1,12 @@
 import { NavLink } from "react-router-dom"
+import { canCreatePlan } from "../helpers/canCreatePlan"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { LogoutButton } from "./logoutButton"
 
 // A visitor sees Home, Log in and Register; a signed-in user, of any role or status, sees Home
 // and Log out (FR-016, FR-021). An Active Administrator also sees Categories between them
-// (feature 003, FR-017); a Suspended Administrator does not.
+// (feature 003, FR-017); a Suspended Administrator does not. A visitor and an Active Registered
+// User also see Create plan after Home (feature 004, spec FR-001, FR-002).
 export function TopNavigation() {
   const status = useCurrentUserStore((state) => state.status)
   const user = useCurrentUserStore((state) => state.user)
@@ -22,6 +24,11 @@ export function TopNavigation() {
           Home
         </NavLink>
       </li>
+      {canCreatePlan(status, user) && (
+        <li>
+          <NavLink to="/plan/setup">Create plan</NavLink>
+        </li>
+      )}
       {showVisitorLinks && (
         <>
           <li>

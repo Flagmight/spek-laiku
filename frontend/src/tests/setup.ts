@@ -8,6 +8,7 @@ import {
   useCurrentUserStore,
 } from "../stores/useCurrentUserStore"
 import { useLoginStore } from "../stores/useLoginStore"
+import { useLocationSearchStore } from "../stores/useLocationSearchStore"
 import { useLogoutStore } from "../stores/useLogoutStore"
 import { usePlanPeriodStore } from "../stores/usePlanPeriodStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
@@ -23,6 +24,7 @@ afterEach(() => {
   useActivityCategoriesStore.getState().reset()
   useCategoryFormStore.getState().reset()
   usePlanPeriodStore.getState().reset()
+  useLocationSearchStore.getState().reset()
   usePlanSetupStore.getState().clear()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()

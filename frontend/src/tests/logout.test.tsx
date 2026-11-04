@@ -103,7 +103,7 @@ describe("Log out", () => {
       navigation()
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Home", "Log in", "Register"])
+    ).toEqual(["Home", "Create plan", "Log in", "Register"])
     expect(navigation().queryByRole("button", { name: "Log out" })).toBeNull()
   })
 
