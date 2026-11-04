@@ -8,6 +8,7 @@ import { PlanSetupPage } from "../pages/PlanSetupPage"
 import { RegisterPage } from "../pages/RegisterPage"
 import { AdministratorOnly } from "./administratorOnly"
 import { Layout } from "./layout"
+import { PlanCreatorOnly } from "./planCreatorOnly"
 import { SignedInOnly } from "./signedInOnly"
 import { SignedOutOnly } from "./signedOutOnly"
 import { SuspendedOnly } from "./suspendedOnly"
@@ -33,8 +34,22 @@ export function AppRoutes() {
             </SignedOutOnly>
           }
         />
-        <Route path="plan/setup" element={<PlanSetupPage />} />
-        <Route path="plan/activities" element={<ActivitySelectionPage />} />
+        <Route
+          path="plan/setup"
+          element={
+            <PlanCreatorOnly>
+              <PlanSetupPage />
+            </PlanCreatorOnly>
+          }
+        />
+        <Route
+          path="plan/activities"
+          element={
+            <PlanCreatorOnly>
+              <ActivitySelectionPage />
+            </PlanCreatorOnly>
+          }
+        />
         <Route
           path="admin/categories"
           element={

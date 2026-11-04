@@ -190,3 +190,38 @@ describe("Create plan in the navigation", () => {
     expect(createPlan).toHaveAttribute("aria-current", "page")
   })
 })
+
+describe("Create plan by role", () => {
+  it.each([
+    ["an Active Registered User", { ...signedInUser }, true],
+    [
+      "a Suspended Registered User",
+      { ...signedInUser, accountStatus: "Suspended" },
+      false,
+    ],
+    [
+      "an Active Administrator",
+      { ...signedInUser, role: "Administrator" },
+      false,
+    ],
+    [
+      "a Suspended Administrator",
+      { ...signedInUser, role: "Administrator", accountStatus: "Suspended" },
+      false,
+    ],
+  ])("is shown to %s: %s", async (_who, user, shown) => {
+    stubFetch(() => jsonResponse(200, user))
+    renderApp("/")
+
+    await navigation().findByRole("link", { name: "Home" })
+    await vi.waitFor(() =>
+      expect(
+        navigation().queryByRole("button", { name: "Log out" }),
+      ).not.toBeNull(),
+    )
+
+    expect(
+      navigation().queryByRole("link", { name: "Create plan" }) !== null,
+    ).toBe(shown)
+  })
+})

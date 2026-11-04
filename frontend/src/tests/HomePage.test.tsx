@@ -43,3 +43,25 @@ describe("HomePage Create plan button", () => {
     ).toBeInTheDocument()
   })
 })
+
+describe("HomePage Create plan button by role", () => {
+  it.each([
+    ["Registered User", "Active", true],
+    ["Registered User", "Suspended", false],
+    ["Administrator", "Active", false],
+    ["Administrator", "Suspended", false],
+  ])("for a %s (%s) is shown: %s", async (role, accountStatus, shown) => {
+    stubFetch(() =>
+      jsonResponse(200, { email: "user@example.com", role, accountStatus }),
+    )
+    renderApp("/")
+
+    await screen.findByRole("button", { name: "Log out" })
+
+    expect(
+      within(screen.getByRole("main")).queryByRole("link", {
+        name: "Create plan",
+      }) !== null,
+    ).toBe(shown)
+  })
+})

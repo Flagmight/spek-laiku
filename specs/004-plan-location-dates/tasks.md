@@ -430,23 +430,23 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Tests for User Story 6
 
-- [ ] T057 [P] [US6] Add `backend/tests/SpekLaiku.IntegrationTests/PlanSetupAuthorizationTests.cs`, a theory over all three endpoints (`GET /api/locations?query=<unique>`, `GET /api/plan-setup/period` and `POST /api/plan-setup/check` with a valid body) and every caller in the contract's authorization table:
+- [X] T057 [P] [US6] Add `backend/tests/SpekLaiku.IntegrationTests/PlanSetupAuthorizationTests.cs`, a theory over all three endpoints (`GET /api/locations?query=<unique>`, `GET /api/plan-setup/period` and `POST /api/plan-setup/check` with a valid body) and every caller in the contract's authorization table:
   - a Visitor and an Active Registered User are not `401`/`403`;
   - a Suspended Registered User, an Active Administrator and a Suspended Administrator get `403` with no location data and no call to the fake client;
   - a signed-in user whose account is deleted after signing in gets `403`;
   - a Registered User whose status is set to `Suspended` in the database after signing in gets `403` on the next request.
-- [ ] T058 [P] [US6] Add `frontend/src/tests/planCreatorOnly.test.tsx` and extend `frontend/src/tests/topNavigation.test.tsx` and `frontend/src/tests/HomePage.test.tsx`. Cover:
+- [X] T058 [P] [US6] Add `frontend/src/tests/planCreatorOnly.test.tsx` and extend `frontend/src/tests/topNavigation.test.tsx` and `frontend/src/tests/HomePage.test.tsx`. Cover:
   - `/plan/setup` and `/plan/activities` render nothing while the current user loads;
   - both open for a visitor and an Active Registered User;
   - an Active Administrator sees the Access Denied page at the same address and no request is sent to `/api/locations` or `/api/plan-setup/period`;
   - a Suspended Registered User and a Suspended Administrator are sent to `/account-suspended`;
   - "Create plan" is in the navigation and on Home for a visitor and an Active Registered User, and absent for an Active Administrator, a Suspended Registered User and a Suspended Administrator;
   - a Continue answered with `403` refreshes the current user, and the page then shows Access Denied.
-- [ ] T059 [P] [US6] Add `frontend/src/tests/canCreatePlan.test.ts` with one case per status, role and account status combination, including `"loading"` → `false` and `"error"` → `true`.
+- [X] T059 [P] [US6] Add `frontend/src/tests/canCreatePlan.test.ts` with one case per status, role and account status combination, including `"loading"` → `false` and `"error"` → `true`.
 
 ### Implementation for User Story 6
 
-- [ ] T060 [US6] Create `frontend/src/components/planCreatorOnly.tsx` (research section 8):
+- [X] T060 [US6] Create `frontend/src/components/planCreatorOnly.tsx` (research section 8):
   - render nothing while the status is `"loading"`;
   - a signed-in user with `accountStatus === "Suspended"` gets `<Navigate to="/account-suspended" replace />`;
   - a signed-in user whose role is not `"Registered User"` gets `AccessDeniedPage`;
