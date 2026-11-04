@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom"
 import { AccountSuspendedPage } from "../pages/AccountSuspendedPage"
+import { ActivitySelectionPage } from "../pages/ActivitySelectionPage"
 import { ActivityCategoriesPage } from "../pages/ActivityCategoriesPage"
 import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
@@ -33,6 +34,7 @@ export function AppRoutes() {
           }
         />
         <Route path="plan/setup" element={<PlanSetupPage />} />
+        <Route path="plan/activities" element={<ActivitySelectionPage />} />
         <Route
           path="admin/categories"
           element={

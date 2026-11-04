@@ -26,7 +26,7 @@ export function ErrorSummary({ errors }: ErrorSummaryProps) {
     <div role="alert" aria-label="Error summary" className="error-summary">
       <ul>
         {errors.map(({ fieldId, message }) => (
-          <li key={fieldId}>
+          <li key={`${fieldId} ${message}`}>
             <a
               href={`#${fieldId}`}
               onClick={(event) => focusField(event, fieldId)}

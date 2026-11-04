@@ -1,14 +1,13 @@
 import { useEffect } from "react"
-import { LocationSearchField } from "../components/locationSearchField"
-import { PlanDatesField } from "../components/planDatesField"
 import { PlanProgress } from "../components/planProgress"
+import { PlanSetupForm } from "../components/planSetupForm"
 import { usePageTitle } from "../hooks/usePageTitle"
 import { useLocationSearchStore } from "../stores/useLocationSearchStore"
 import { usePlanPeriodStore } from "../stores/usePlanPeriodStore"
+import { usePlanSetupCheckStore } from "../stores/usePlanSetupCheckStore"
 
-// Step 1 of a plan: the location and the dates (and, in later phases, the distance and Continue).
-// What the user enters stays in usePlanSetupStore when the page closes; the search and the date
-// limits do not.
+// Step 1 of a plan: the location and the dates, then Continue. What the user enters stays in
+// usePlanSetupStore when the page closes; the search, the date limits and the check do not.
 export function PlanSetupPage() {
   usePageTitle("Plan setup")
 
@@ -18,6 +17,7 @@ export function PlanSetupPage() {
     return () => {
       useLocationSearchStore.getState().reset()
       usePlanPeriodStore.getState().reset()
+      usePlanSetupCheckStore.getState().reset()
     }
   }, [])
 
@@ -25,8 +25,7 @@ export function PlanSetupPage() {
     <>
       <h1>Plan setup</h1>
       <PlanProgress current={1} />
-      <LocationSearchField />
-      <PlanDatesField />
+      <PlanSetupForm />
     </>
   )
 }

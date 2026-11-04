@@ -429,3 +429,179 @@ describe("Plan setup page: dates", () => {
     expect(dateInput()).not.toHaveAttribute("aria-invalid")
   })
 })
+
+const checkRoute = "POST /api/plan-setup/check"
+
+// A visitor who chose Kaunas and added 7 November, ready to continue.
+async function renderReadySetup(
+  check: () => Response | Promise<Response>,
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  const fetch = routeFetch({
+    "GET /api/auth/me": () => jsonResponse(401),
+    "GET /api/plan-setup/period": () => jsonResponse(200, period),
+    "GET /api/locations?query=Kaun": found([kaunas]),
+    [checkRoute]: check,
+  })
+  renderApp("/plan/setup")
+  await waitFor(() => expect(dateInput()).toBeEnabled())
+  await search(user, "Kaun")
+  await user.click(await screen.findByRole("option"))
+  await addDate(user, "2026-11-07")
+  return fetch
+}
+
+function checkedKaunas(dates: string[] = ["2026-11-07"]) {
+  return { location: kaunas, dates, maxTravelDistanceKm: 30 }
+}
+
+describe("Plan setup page: Continue", () => {
+  it("shows both missing fields in place and in the summary, focuses Location and sends nothing", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderPlanSetup()
+    await waitFor(() => expect(dateInput()).toBeEnabled())
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    const summary = within(screen.getByRole("alert", { name: "Error summary" }))
+    expect(
+      summary.getAllByRole("link").map((link) => link.textContent),
+    ).toEqual([
+      "Error: Select a location in Lithuania from the list.",
+      "Error: Add at least one date.",
+    ])
+    expect(location()).toHaveFocus()
+    expect(location()).toHaveAttribute("aria-invalid", "true")
+    expect(dateInput()).toHaveAttribute("aria-invalid", "true")
+    await user.click(
+      summary.getByRole("link", { name: "Error: Add at least one date." }),
+    )
+    expect(dateInput()).toHaveFocus()
+    expect(requests.some((request) => request.method === "POST")).toBe(false)
+  })
+
+  it("refuses typed text that was not chosen from the list and keeps it", async () => {
+    const user = userEvent.setup()
+    renderPlanSetup({ Kaun: found([kaunas]) })
+    await waitFor(() => expect(dateInput()).toBeEnabled())
+    await search(user, "Kaun")
+    await addDate(user, "2026-11-07")
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    expect(
+      screen.getByText("Error: Select a location in Lithuania from the list."),
+    ).toBeInTheDocument()
+    expect(location()).toHaveValue("Kaun")
+    expect(location()).toHaveFocus()
+  })
+
+  it("announces the check, disables Continue, then opens Activity selection", async () => {
+    let answer: (response: Response) => void = () => {}
+    const user = userEvent.setup()
+    const { requests } = await renderReadySetup(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+      user,
+    )
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    expect(
+      await screen.findByText("Checking your plan setup…"),
+    ).toHaveAttribute("role", "status")
+    expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled()
+    expect(requests.find((request) => request.method === "POST")?.body).toEqual(
+      { locationId: 598316, dates: ["2026-11-07"], maxTravelDistanceKm: null },
+    )
+
+    answer(jsonResponse(200, checkedKaunas()))
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Activity selection",
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it("marks each refused date and names it in the summary", async () => {
+    const user = userEvent.setup()
+    await renderReadySetup(
+      () =>
+        jsonResponse(400, {
+          errors: {
+            "dates[0]": ["Dates cannot be in the past."],
+            "dates[1]": ["Forecast is not available that far ahead."],
+          },
+        }),
+      user,
+    )
+    await addDate(user, "2026-11-08")
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    const summary = within(
+      await screen.findByRole("alert", { name: "Error summary" }),
+    )
+    expect(
+      summary.getAllByRole("link").map((link) => link.textContent),
+    ).toEqual([
+      "Error: Sat 7 Nov 2026: Dates cannot be in the past.",
+      "Error: Sun 8 Nov 2026: Forecast is not available that far ahead.",
+    ])
+    const firstChip = within(
+      screen.getByRole("group", { name: "Dates" }),
+    ).getAllByRole("listitem")[0]
+    expect(firstChip).toHaveTextContent("Error: Dates cannot be in the past.")
+    expect(dateInput()).toHaveFocus()
+  })
+
+  it.each([
+    ["a server error", () => Promise.resolve(jsonResponse(500))],
+    ["a network error", () => Promise.reject(new TypeError("Failed to fetch"))],
+  ])(
+    "offers Retry after %s, which sends the same values",
+    async (_case, failure) => {
+      let calls = 0
+      const user = userEvent.setup()
+      const { requests } = await renderReadySetup(() => {
+        calls += 1
+        return calls === 1 ? failure() : jsonResponse(200, checkedKaunas())
+      }, user)
+
+      await user.click(screen.getByRole("button", { name: "Continue" }))
+
+      expect(
+        await screen.findByText("Error: Something went wrong. Try again."),
+      ).toBeInTheDocument()
+      expect(location()).toHaveValue("Kaunas, Kaunas County")
+      await user.click(screen.getByRole("button", { name: "Retry" }))
+
+      expect(
+        await screen.findByRole("heading", {
+          level: 1,
+          name: "Activity selection",
+        }),
+      ).toBeInTheDocument()
+      const posts = requests.filter((request) => request.method === "POST")
+      expect(posts).toHaveLength(2)
+      expect(posts[1].body).toEqual(posts[0].body)
+    },
+  )
+
+  it("tells the user to wait when there were too many requests, with Retry", async () => {
+    const user = userEvent.setup()
+    await renderReadySetup(() => jsonResponse(429), user)
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    const message = await screen.findByText(
+      "Error: Too many requests. Wait a minute and try again.",
+    )
+    expect(message.closest("[role='alert']")).not.toBeNull()
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument()
+  })
+})

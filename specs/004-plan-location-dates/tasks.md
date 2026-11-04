@@ -346,12 +346,12 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Tests for User Story 4
 
-- [ ] T044 [P] [US4] Add `backend/tests/SpekLaiku.UnitTests/PlanSetupServiceTests.cs` (fake `IGeocodingClient`, real `MemoryCache`, `ForecastPeriod` with `FixedTimeProvider`) with these cases:
+- [X] T044 [P] [US4] Add `backend/tests/SpekLaiku.UnitTests/PlanSetupServiceTests.cs` (fake `IGeocodingClient`, real `MemoryCache`, `ForecastPeriod` with `FixedTimeProvider`) with these cases:
   - a valid request returns `Success` with the server's location data, sorted dates, and distance 30 for null;
   - an unknown id or a non-`LT` place adds `locationId` "Select a location in Lithuania from the list." as the **first** error, with the validator's errors after it in order;
   - a missing or non-positive id does not call the client;
   - a client failure is re-thrown.
-- [ ] T045 [P] [US4] Add `backend/tests/SpekLaiku.IntegrationTests/PlanSetupCheckEndpointTests.cs` (set `factory.Clock.UtcNow` at the start of each test; use a unique place id per test). Cover:
+- [X] T045 [P] [US4] Add `backend/tests/SpekLaiku.IntegrationTests/PlanSetupCheckEndpointTests.cs` (set `factory.Clock.UtcNow` at the start of each test; use a unique place id per test). Cover:
   - `POST /api/plan-setup/check` as a Visitor with a scripted place and dates `["2026-11-08","2026-11-07"]` returns `200` with sorted dates, the name, area and position of the scripted place (the request sends only the id), and `maxTravelDistanceKm` 30 when null;
   - every message from `data-model.md`, with keys in contract order and all failing fields returned together;
   - the boundaries at `2026-11-04T21:59Z` versus `22:00Z`;
@@ -360,23 +360,23 @@ description: "Task list for feature 004 Plan Location and Dates"
   - an unscripted id and a scripted `LV` place give the location message;
   - `{"maxTravelDistanceKm":"30"}`, `{"dates":["7/11/2026"]}` and a non-JSON body give `errors.request`;
   - a scripted get failure gives `503`.
-- [ ] T046 [P] [US4] Add `backend/tests/SpekLaiku.IntegrationTests/PlanSetupRateLimitTests.cs` in collection `PostgreSqlCollection`, for the shared database. It must not use the shared host's high limit: each test builds its own host with `factory.WithWebHostBuilder(b => b.UseSetting("RateLimiting:PlanSetup:PermitLimit", "3"))`, with a fresh `FakeGeocodingClient` registered through `ConfigureTestServices`, and disposes it at the end. Cover:
+- [X] T046 [P] [US4] Add `backend/tests/SpekLaiku.IntegrationTests/PlanSetupRateLimitTests.cs` in collection `PostgreSqlCollection`, for the shared database. It must not use the shared host's high limit: each test builds its own host with `factory.WithWebHostBuilder(b => b.UseSetting("RateLimiting:PlanSetup:PermitLimit", "3"))`, with a fresh `FakeGeocodingClient` registered through `ConfigureTestServices`, and disposes it at the end. Cover:
   - three requests (search, check, search) succeed and the fourth (search or check) gets `429` with title "Too many requests.", detail "Too many requests. Wait a minute and try again.", and a `Retry-After` header when present;
   - the refused search does not increase `SearchCalls`;
   - a Visitor and a signed-in Registered User on the same test server share the count;
   - a host built with `PermitLimit` `0` fails to start with the options validation message.
-- [ ] T047 [P] [US4] Add `frontend/src/tests/planSetupApi.test.ts` and `frontend/src/tests/usePlanSetupCheckStore.test.ts` (fake timers, `routeFetch`). Cover:
+- [X] T047 [P] [US4] Add `frontend/src/tests/planSetupApi.test.ts` and `frontend/src/tests/usePlanSetupCheckStore.test.ts` (fake timers, `routeFetch`). Cover:
   - `checkPlanSetup` posts JSON to `/api/plan-setup/check`;
   - `200` → `checked`; `400` with known keys (including `dates[1]`) → `invalid` with the first message per key; `403` → `forbidden`; `429` → `tooManyRequests`; other statuses throw `ApiError`;
   - the store: `pending` while waiting; a second submit is ignored; `checked` calls `usePlanSetupStore.setChecked` and resolves `true`; `invalid` keeps the errors; `tooManyRequests` and `serverError` (5xx, network, 10 s timeout) keep `lastRequest` for `retry()`; `forbidden` calls `useCurrentUserStore.refresh()`; `reset()` aborts.
-- [ ] T048 [P] [US4] Extend `frontend/src/tests/PlanSetupPage.test.tsx` (Continue part). Cover:
+- [X] T048 [P] [US4] Extend `frontend/src/tests/PlanSetupPage.test.tsx` (Continue part). Cover:
   - Continue with nothing entered shows "Error: Select a location in Lithuania from the list." and "Error: Add at least one date." next to their fields, plus an error summary listing both with links that move focus. Focus moves to the Location input, and no request is sent;
   - typed text with no chosen place gives the location error and keeps the text;
   - a valid setup shows and announces "Checking your plan setup…", disables Continue, then navigates to `/plan/activities`;
   - a server `dates[0]` error marks that chip with the message, and the summary entry reads "Sat 7 Nov 2026: Dates cannot be in the past.";
   - `500`, a network error and the 10 s timeout show "Error: Something went wrong. Try again." with Retry, which sends the same body;
   - `429` shows "Error: Too many requests. Wait a minute and try again." with Retry.
-- [ ] T049 [P] [US4] Add `frontend/src/tests/ActivitySelectionPage.test.tsx`. Cover:
+- [X] T049 [P] [US4] Add `frontend/src/tests/ActivitySelectionPage.test.tsx`. Cover:
   - with a checked setup in the store, `/plan/activities` shows one `<h1>` "Activity selection" and the title "Activity selection - Spėk laiku";
   - the progress bar shows step 2 current and step 1 as a link to `/plan/setup`;
   - the summary reads "Kaunas, Kaunas County · Sat 7 Nov 2026, Sun 8 Nov 2026 · Maximum travel distance: 30 km";
@@ -385,24 +385,24 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Implementation for User Story 4
 
-- [ ] T050 [US4] Create `backend/src/SpekLaiku.Api/Services/PlanSetupService.cs` (`LocationSearchService`, `ForecastPeriod`). `CheckAsync(PlanSetupCheckRequest, CancellationToken)` works like this:
+- [X] T050 [US4] Create `backend/src/SpekLaiku.Api/Services/PlanSetupService.cs` (`LocationSearchService`, `ForecastPeriod`). `CheckAsync(PlanSetupCheckRequest, CancellationToken)` works like this:
   - get the period;
   - run `PlanSetupValidator.Validate`;
   - when `LocationId > 0`, call `FindAsync` and, if it returns `null`, put `locationId` "Select a location in Lithuania from the list." **first** in a new ordered error list, followed by the validator's errors;
   - return `Invalid` when there are any errors, otherwise `Success(new CheckedPlanSetup(place, dates, distance))`.
 
   Register it with `AddScoped<PlanSetupService>()`.
-- [ ] T051 [US4] Extend `backend/src/SpekLaiku.Api/Controllers/PlanSetupController.cs` (created in US2, with the policy and the request limit on the class):
+- [X] T051 [US4] Extend `backend/src/SpekLaiku.Api/Controllers/PlanSetupController.cs` (created in US2, with the policy and the request limit on the class):
   - `[HttpPost("check")]` returns `200` with `CheckedPlanSetupResponse`, or `400` `ValidationProblemDetails` built from the ordered errors (keys and order as in the contract);
   - `ProducesResponseType` for 200, 400, 403, 429 and 503. No business rules.
-- [ ] T052 [P] [US4] Add to `frontend/src/api/planSetupApi.ts` (created in T022): `checkPlanSetup(request, signal)` returns `PlanSetupCheckOutcome = { kind: "checked"; setup } | { kind: "invalid"; errors } | { kind: "forbidden" } | { kind: "tooManyRequests" }`. A `400` reads the first message for `locationId`, `dates`, `maxTravelDistanceKm` and every `dates[<n>]` key, and a `400` without known keys throws. Other statuses throw `ApiError`, following `activityCategoriesApi.ts`.
-- [ ] T053 [US4] Create `frontend/src/stores/usePlanSetupCheckStore.ts` following `useLoginStore`/`useCategoryFormStore`:
+- [X] T052 [P] [US4] Add to `frontend/src/api/planSetupApi.ts` (created in T022): `checkPlanSetup(request, signal)` returns `PlanSetupCheckOutcome = { kind: "checked"; setup } | { kind: "invalid"; errors } | { kind: "forbidden" } | { kind: "tooManyRequests" }`. A `400` reads the first message for `locationId`, `dates`, `maxTravelDistanceKm` and every `dates[<n>]` key, and a `400` without known keys throws. Other statuses throw `ApiError`, following `activityCategoriesApi.ts`.
+- [X] T053 [US4] Create `frontend/src/stores/usePlanSetupCheckStore.ts` following `useLoginStore`/`useCategoryFormStore`:
   - state: `status: "idle" | "pending" | "invalid" | "serverError" | "tooManyRequests"`, `errors`, `lastRequest`, `controller`;
   - `submit(request)`: `planSetupCheckTimeoutMs = 10_000`; second submits ignored through `get()`; on `checked` call `usePlanSetupStore.getState().setChecked(setup)` and resolve `true`; on `forbidden` call `useCurrentUserStore.getState().refresh()`;
   - `retry()` and `reset()`.
 
   Reset it in `frontend/src/tests/setup.ts`.
-- [ ] T054 [US4] Extend `frontend/src/pages/PlanSetupPage.tsx` with "Continue".
+- [X] T054 [US4] Extend `frontend/src/pages/PlanSetupPage.tsx` with "Continue".
   - **Checks before sending:** no chosen location → `locationId` "Select a location in Lithuania from the list."; no dates → `dates` "Add at least one date.". In either case show them without sending.
   - **Sending:** otherwise build `{ locationId, dates, maxTravelDistanceKm: null }` (the distance field comes in US3) and call `submit`.
   - **While pending:** show "Checking your plan setup…" in `role="status"` and disable Continue.
@@ -410,8 +410,8 @@ description: "Task list for feature 004 Plan Location and Dates"
   - **Server error and too many requests:** show "Error: Something went wrong. Try again." or "Error: Too many requests. Wait a minute and try again." in `role="alert"` with a Retry button calling `retry()`.
   - **Success:** `navigate("/plan/activities")`.
   - **Size:** if the page passes about 200 lines, move the form into `frontend/src/components/planSetupForm.tsx`.
-- [ ] T055 [P] [US4] Create `frontend/src/components/planSetupSummary.tsx`. It renders, from a `CheckedPlanSetup`, "<name>, <area>", the formatted dates joined with ", ", and "Maximum travel distance: <n> km", in a description list or a paragraph separated by " · ".
-- [ ] T056 [US4] Create `frontend/src/pages/ActivitySelectionPage.tsx` (first version, spec FR-024 to FR-026):
+- [X] T055 [P] [US4] Create `frontend/src/components/planSetupSummary.tsx`. It renders, from a `CheckedPlanSetup`, "<name>, <area>", the formatted dates joined with ", ", and "Maximum travel distance: <n> km", in a description list or a paragraph separated by " · ".
+- [X] T056 [US4] Create `frontend/src/pages/ActivitySelectionPage.tsx` (first version, spec FR-024 to FR-026):
   - `usePageTitle("Activity selection")`, one `<h1>` "Activity selection", `<PlanProgress current={2} />`, `PlanSetupSummary`, and a "Back" link to `/plan/setup` styled as a button;
   - with `checked === null`, render `<Navigate to="/plan/setup" replace />`;
   - add a comment that feature 005 adds activity selection here.
