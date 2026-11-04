@@ -372,6 +372,9 @@ area.
 | Plan Setup | Loading | "Searching locations…" while the user types in Location. |
 |  | Empty | "No location found. Check the spelling or try a larger town." |
 |  | Server error | "Error: Location search is unavailable. Try again later." |
+|  | Too many requests | "Error: Too many requests. Wait a minute and try again." (location search, or Continue with Retry). |
+|  | Loading dates | "Loading available dates…" while the date limits load; the date picker and **Add date** are disabled. |
+|  | Dates unavailable | "Error: Available dates could not be loaded. Try again." with Retry. Location still works. |
 | Activity Selection | Loading | "Loading activity categories…" |
 |  | Empty | "No activities added yet. Select at least one category to continue." |
 |  | Server error | "Error: Activity categories could not be loaded." with Retry. |
@@ -628,7 +631,7 @@ Work 1 as new requirements before implementation.
 | Log in | FR-003, FR-040 |
 | Home | FR-006, FR-021 |
 | Plan Details / Edit | FR-022, FR-034 |
-| Plan Setup | FR-035, FR-046, FR-007 |
+| Plan Setup | FR-035, FR-046, FR-007, FR-049 |
 | Activity Selection | FR-006, FR-008, FR-011 to FR-014, FR-016, FR-037 |
 | Places and Forecast | FR-009 to FR-015, FR-036 |
 | Schedule Overview | FR-017 to FR-019, FR-034 to FR-036, FR-047 |
@@ -673,9 +676,10 @@ Independent Work 1 before implementation.
 | FR-043 | Administrator views recent service errors | Admin: Service Status |
 | FR-044 | Administrator defines map place tags per category | Admin: Activity Categories |
 | FR-045 | Password minimum + confirmation | Register |
-| FR-046 | Location in Lithuania from search results; 1 to 7 valid dates | Plan Setup |
+| FR-046 | Location in Lithuania from search results; 1 to 7 valid dates within today + 6 days | Plan Setup |
 | FR-047 | Display forecast weather for each scheduled activity | Schedule Overview |
 | FR-048 | Suggest alternatives and accept/reject | Plan Problems and Alternatives |
+| FR-049 | Limit location searches and plan setup checks per network address | Plan Setup |
 | NFR-012 | Text contrast of at least 4.5:1 (3:1 for large text and components) | Section 9 |
 | NFR-013 | Loading, success and error messages announced to assistive technology | Section 9 |
 | NFR-014 | One main heading, a page title and a skip link on every page | Section 9 |

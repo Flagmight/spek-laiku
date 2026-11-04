@@ -509,13 +509,19 @@ and MUST require the password to be entered twice during registration.
 
 **FR-046:** The system MUST require a location in Lithuania chosen from
 search results, and between 1 and 7 dates that are not in the past and
-fall within the available forecast period.
+fall within the available forecast period. The forecast period is today
+and the following 6 days, judged by the current date in Lithuania.
 
 **FR-047:** The system MUST display the forecast weather conditions for
 each scheduled activity.
 
 **FR-048:** The system MUST suggest alternatives for each detected plan
 problem, and the user MUST be able to accept or reject each alternative.
+
+**FR-049:** The system MUST limit location searches and plan setup
+checks to 30 per minute from one network address, so that the public
+location search cannot be used to flood the external location service,
+and MUST tell the user to wait when the limit is reached.
 
 ## 8. Writing Non-Functional Requirements
 
