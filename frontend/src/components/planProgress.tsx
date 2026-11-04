@@ -44,6 +44,14 @@ export function PlanProgress({ current }: { current: 1 | 2 | 3 | 4 }) {
       </ol>
       <p className="plan-progress-compact" aria-hidden="true">
         Step {current} of {steps.length}: {steps[current - 1].name}
+        <span className="plan-progress-segments">
+          {steps.map((step, index) => (
+            <span
+              key={step.name}
+              className={index < current ? "done" : undefined}
+            />
+          ))}
+        </span>
       </p>
     </nav>
   )

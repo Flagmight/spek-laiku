@@ -534,7 +534,7 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Tests for User Story 7
 
-- [ ] T069 [P] [US7] Extend `frontend/src/tests/keyboard.test.tsx` with tests that on Plan setup the tab order is:
+- [X] T069 [P] [US7] Extend `frontend/src/tests/keyboard.test.tsx` with tests that on Plan setup the tab order is:
   1. the skip link;
   2. the navigation;
   3. the progress bar (no focusable later steps);
@@ -546,21 +546,21 @@ description: "Task list for feature 004 Plan Location and Dates"
   9. Continue.
 
   Also test that a location can be chosen and a date added, and that the user can continue using only the keyboard.
-- [ ] T070 [P] [US7] Extend `frontend/src/tests/accessibility.test.tsx` and `frontend/src/tests/layout.test.tsx`. Cover:
+- [X] T070 [P] [US7] Extend `frontend/src/tests/accessibility.test.tsx` and `frontend/src/tests/layout.test.tsx`. Cover:
   - Plan setup and Activity selection each have exactly one `<h1>`, their titles, and "Skip to main content" as the first focusable item;
   - every field has a visible label;
   - the combobox has `role="combobox"`, `aria-expanded`, `aria-controls` and `aria-activedescendant` while an option is highlighted;
   - Dates is a `group` named "Dates";
   - loading and count messages are in `role="status"`, and errors in `role="alert"` or linked through `aria-describedby` with `aria-invalid="true"`;
   - error texts start with "Error: " (not colour alone).
-- [ ] T071 [P] [US7] Extend `frontend/src/tests/responsive.test.tsx` with tests that the CSS puts the distance and date fields side by side with chips in a row on desktop. Below the existing mobile breakpoint, check that:
+- [X] T071 [P] [US7] Extend `frontend/src/tests/responsive.test.tsx` with tests that the CSS puts the distance and date fields side by side with chips in a row on desktop. Below the existing mobile breakpoint, check that:
   - fields are stacked, chips wrap, and buttons are full width;
   - the progress list labels are hidden and the "Step n of 4" element is shown;
   - buttons, chip remove buttons and options are at least 44 × 44 px, and inputs use at least 16 px text.
 
 ### Implementation for User Story 7
 
-- [ ] T072 [US7] In `frontend/src/styles.css`, add the Plan setup and Activity selection styles, reusing the existing form, button and breakpoint rules instead of copying them:
+- [X] T072 [US7] In `frontend/src/styles.css`, add the Plan setup and Activity selection styles, reusing the existing form, button and breakpoint rules instead of copying them:
   - the combobox list (positioned under the input, highlighted option visible without relying on colour alone, for example an outline);
   - the date chips (row on desktop, wrapping on phones);
   - the distance and date fields side by side on desktop, stacked on phones;

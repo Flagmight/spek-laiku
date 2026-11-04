@@ -110,23 +110,25 @@ export function PlanSetupForm() {
     <form noValidate onSubmit={(event) => void onSubmit(event)}>
       <ErrorSummary errors={summaryErrors(errors, sentDates, fieldIds)} />
       <LocationSearchField error={errors.locationId} />
-      <PlanDatesField
-        error={errors.dates}
-        dateErrors={dateErrorsByDate(errors, sentDates)}
-      />
-      <TextField
-        id={distanceInputId}
-        label="Maximum travel distance (km)"
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        hint="Whole number from 1 to 200"
-        value={distanceText}
-        error={errors.maxTravelDistanceKm}
-        onChange={(text) =>
-          usePlanSetupStore.getState().setMaxTravelDistanceText(text)
-        }
-      />
+      <div className="plan-fields">
+        <PlanDatesField
+          error={errors.dates}
+          dateErrors={dateErrorsByDate(errors, sentDates)}
+        />
+        <TextField
+          id={distanceInputId}
+          label="Maximum travel distance (km)"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          hint="Whole number from 1 to 200"
+          value={distanceText}
+          error={errors.maxTravelDistanceKm}
+          onChange={(text) =>
+            usePlanSetupStore.getState().setMaxTravelDistanceText(text)
+          }
+        />
+      </div>
       <p role="status" className="loading-status">
         {status === "pending" ? "Checking your plan setup…" : ""}
       </p>

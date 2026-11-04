@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import {
   jsonResponse,
   renderApp,
@@ -101,6 +102,43 @@ describe.each([
     })
     const user = userEvent.setup()
     renderApp("/admin/categories")
+    await screen.findByRole("heading", { level: 1, name: heading })
+
+    await user.tab()
+
+    expect(
+      screen.getByRole("link", { name: "Skip to main content" }),
+    ).toHaveFocus()
+  })
+})
+
+describe.each([
+  ["/plan/setup", "Plan setup"],
+  ["/plan/activities", "Activity selection"],
+])("skip link on %s", (page, heading) => {
+  it(`makes 'Skip to main content' the first focusable item on the ${heading} page`, async () => {
+    usePlanSetupStore.getState().setChecked({
+      location: {
+        id: 598316,
+        name: "Kaunas",
+        area: "Kaunas County",
+        latitude: 54.90156,
+        longitude: 23.90909,
+      },
+      dates: ["2026-11-07"],
+      maxTravelDistanceKm: 30,
+    })
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, {
+          firstDate: "2026-11-04",
+          lastDate: "2026-11-10",
+          maxDates: 7,
+        }),
+    })
+    const user = userEvent.setup()
+    renderApp(page)
     await screen.findByRole("heading", { level: 1, name: heading })
 
     await user.tab()

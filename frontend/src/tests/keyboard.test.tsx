@@ -1,6 +1,7 @@
-import { screen, within } from "@testing-library/react"
+import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import {
   jsonResponse,
   renderApp,
@@ -363,5 +364,106 @@ describe("keyboard use of the Activity categories page", () => {
       requiresDaylight: false,
       placeTags: "tourism=gallery",
     })
+  })
+})
+
+const kaunas = {
+  id: 598316,
+  name: "Kaunas",
+  area: "Kaunas County",
+  latitude: 54.90156,
+  longitude: 23.90909,
+}
+
+// A visitor on Plan setup; every search answers with Kaunas, whatever was typed so far.
+function stubPlanSetup() {
+  const found = () => jsonResponse(200, { locations: [kaunas] })
+  return routeFetch({
+    "GET /api/auth/me": () => jsonResponse(401),
+    "GET /api/plan-setup/period": () =>
+      jsonResponse(200, {
+        firstDate: "2026-11-04",
+        lastDate: "2026-11-10",
+        maxDates: 7,
+      }),
+    "GET /api/locations?query=Ka": found,
+    "GET /api/locations?query=Kau": found,
+    "GET /api/locations?query=Kaun": found,
+    "POST /api/plan-setup/check": () =>
+      jsonResponse(200, {
+        location: kaunas,
+        dates: ["2026-11-07"],
+        maxTravelDistanceKm: 30,
+      }),
+  })
+}
+
+describe("keyboard use of the Plan setup page", () => {
+  it("reaches the skip link, the navigation, Location, the dates, the distance and Continue in that order", async () => {
+    usePlanSetupStore.getState().addDate("2026-11-07")
+    stubPlanSetup()
+    const user = userEvent.setup()
+    renderApp("/plan/setup")
+    await waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+
+    const expected = [
+      screen.getByRole("link", { name: "Skip to main content" }),
+      screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Create plan" }),
+      screen.getByRole("link", { name: "Log in" }),
+      screen.getByRole("link", { name: "Register" }),
+      // Step 1 of the progress bar is the current page, so it has nothing to focus.
+      screen.getByRole("combobox", { name: "Location" }),
+      screen.getByLabelText("Date"),
+      screen.getByRole("button", { name: "Add date" }),
+      screen.getByRole("button", { name: "Remove Sat 7 Nov 2026" }),
+      screen.getByLabelText("Maximum travel distance (km)"),
+      screen.getByRole("button", { name: "Continue" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+  })
+
+  it("chooses a place, adds a date and continues with the keyboard only", async () => {
+    stubPlanSetup()
+    const user = userEvent.setup()
+    renderApp("/plan/setup")
+    const location = await screen.findByRole("combobox", { name: "Location" })
+    await waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+
+    location.focus()
+    await user.keyboard("Kaun")
+    await screen.findByRole("option", { name: "Kaunas, Kaunas County" })
+    await user.keyboard("{ArrowDown}{Enter}")
+    expect(location).toHaveValue("Kaunas, Kaunas County")
+
+    await user.tab()
+    expect(screen.getByLabelText("Date")).toHaveFocus()
+    // The browser's own date picker fills the value; it is keyboard operable.
+    fireEvent.change(screen.getByLabelText("Date"), {
+      target: { value: "2026-11-07" },
+    })
+    await user.tab()
+    await user.keyboard("{Enter}")
+    expect(
+      within(screen.getByRole("group", { name: "Dates" })).getByText(
+        "Sat 7 Nov 2026",
+      ),
+    ).toBeInTheDocument()
+
+    await user.tab() // Remove Sat 7 Nov 2026
+    await user.tab() // Maximum travel distance
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Continue" })).toHaveFocus()
+    await user.keyboard("{Enter}")
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Activity selection",
+      }),
+    ).toBeInTheDocument()
   })
 })

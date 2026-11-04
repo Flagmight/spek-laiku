@@ -1,6 +1,7 @@
 import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import styles from "../styles.css?inline"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
 
@@ -322,5 +323,116 @@ describe("Activity categories page at 320 px", () => {
     for (const target of targets) {
       expectTouchTarget(target)
     }
+  })
+})
+
+// Plan setup with one date chip, and Kaunas offered for "Kaun".
+async function renderPlanSetupWithChip() {
+  usePlanSetupStore.getState().addDate("2026-11-07")
+  routeFetch({
+    "GET /api/auth/me": () => jsonResponse(401),
+    "GET /api/plan-setup/period": () =>
+      jsonResponse(200, {
+        firstDate: "2026-11-04",
+        lastDate: "2026-11-10",
+        maxDates: 7,
+      }),
+    "GET /api/locations?query=Kaun": () =>
+      jsonResponse(200, {
+        locations: [
+          {
+            id: 598316,
+            name: "Kaunas",
+            area: "Kaunas County",
+            latitude: 54.90156,
+            longitude: 23.90909,
+          },
+        ],
+      }),
+  })
+  renderApp("/plan/setup")
+  await vi.waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+}
+
+describe("Plan setup page at 320 px", () => {
+  it("stacks the dates and the distance, and lets the date chips wrap", async () => {
+    await renderPlanSetupWithChip()
+
+    const fields = screen.getByRole("group", { name: "Dates" }).parentElement!
+    expect(fields).toHaveClass("plan-fields")
+    expect(getComputedStyle(fields).display).toBe("grid")
+    expect(getComputedStyle(fields).gridTemplateColumns).toBe("none")
+    const chips = screen
+      .getByRole("button", {
+        name: "Remove Sat 7 Nov 2026",
+      })
+      .closest("ul")!
+    expect(getComputedStyle(chips).display).toBe("flex")
+    expect(getComputedStyle(chips).flexWrap).toBe("wrap")
+  })
+
+  it("shows the compact step line and hides the list of steps visually only", async () => {
+    await renderPlanSetupWithChip()
+
+    const progress = screen.getByRole("navigation", { name: "Plan progress" })
+    const steps = within(progress).getByRole("list")
+    expect(getComputedStyle(steps).position).toBe("absolute")
+    expect(getComputedStyle(steps).clipPath).toBe("inset(50%)")
+    // Still in the accessibility tree, unlike display: none.
+    expect(getComputedStyle(steps).display).not.toBe("none")
+    const compact = within(progress).getByText("Step 1 of 4: Plan setup")
+    expect(getComputedStyle(compact).display).not.toBe("none")
+    expect(
+      compact.querySelectorAll(".plan-progress-segments span"),
+    ).toHaveLength(4)
+  })
+
+  it("makes Add date and Continue full width, and keeps Remove small", async () => {
+    await renderPlanSetupWithChip()
+
+    for (const name of ["Add date", "Continue"]) {
+      expect(getComputedStyle(screen.getByRole("button", { name })).width).toBe(
+        "100%",
+      )
+    }
+    const remove = screen.getByRole("button", { name: "Remove Sat 7 Nov 2026" })
+    expect(getComputedStyle(remove).width).toBe("auto")
+  })
+
+  it("makes every link, button and suggestion a 44 px target and uses 16 px input text", async () => {
+    await renderPlanSetupWithChip()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole("combobox", { name: "Location" }))
+    await user.paste("Kaun")
+    const option = await screen.findByRole("option")
+
+    for (const target of [
+      ...screen.getAllByRole("link"),
+      ...screen.getAllByRole("button"),
+    ]) {
+      expectTouchTarget(target)
+    }
+    expect(getComputedStyle(option).display).toBe("flex")
+    expect(px(getComputedStyle(option).minHeight)).toBeGreaterThanOrEqual(
+      minimumTarget,
+    )
+    for (const label of ["Location", "Date", "Maximum travel distance (km)"]) {
+      const style = getComputedStyle(screen.getByLabelText(label))
+      expect(px(style.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
+      expect(px(style.minHeight)).toBeGreaterThanOrEqual(minimumTarget)
+    }
+  })
+
+  it("shows the four steps, the fields side by side and the date picker in a row from 40em wide", () => {
+    const wide = styles.slice(styles.indexOf("@media (min-width: 40em)"))
+
+    expect(wide).toMatch(
+      /\.plan-progress ol \{[^}]*position: static;[^}]*display: flex;/,
+    )
+    expect(wide).toMatch(/\.plan-progress-compact \{\s*display: none;/)
+    expect(wide).toMatch(
+      /\.plan-fields \{\s*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 14rem\);/,
+    )
+    expect(wide).toMatch(/\.date-picker \{\s*flex-direction: row;/)
   })
 })
