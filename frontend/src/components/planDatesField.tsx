@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import { formatErrorMessage } from "../helpers/formatErrorMessage"
 import { formatPlanDate } from "../helpers/formatPlanDate"
-import { checkNewDate } from "../helpers/planDateRules"
+import { checkKeptDate, checkNewDate } from "../helpers/planDateRules"
 import { usePlanPeriodStore } from "../stores/usePlanPeriodStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 
@@ -116,7 +116,10 @@ export function PlanDatesField({
       <ul className="date-chips">
         {dates.map((date) => {
           const label = formatPlanDate(date)
-          const chipError = dateErrors[date]
+          // A server error wins; otherwise a kept date that has passed since is marked (spec FR-018).
+          const chipError =
+            dateErrors[date] ??
+            (status === "loaded" && period ? checkKeptDate(date, period) : null)
           const chipErrorId = `${dateInputId}-${date}-error`
           return (
             <li key={date} className="date-chip">

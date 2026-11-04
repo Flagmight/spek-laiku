@@ -28,6 +28,8 @@ afterEach(() => {
   usePlanSetupCheckStore.getState().reset()
   useLocationSearchStore.getState().reset()
   usePlanSetupStore.getState().clear()
+  // The plan setup store saves itself to sessionStorage; nothing may carry over to the next test.
+  sessionStorage.clear()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })

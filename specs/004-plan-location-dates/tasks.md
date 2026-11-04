@@ -498,12 +498,12 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Tests for User Story 5
 
-- [ ] T065 [P] [US5] Extend `frontend/src/tests/usePlanSetupStore.test.ts`. Cover:
+- [X] T065 [P] [US5] Extend `frontend/src/tests/usePlanSetupStore.test.ts`. Cover:
   - after actions, `sessionStorage["spek-laiku-plan-setup"]` holds the location, location text, dates, distance text and `checked`, with `version` 1;
   - a store recreated from that storage (call `usePlanSetupStore.persist.rehydrate()`) has the same values;
   - unreadable stored JSON or an unknown version starts from the initial state;
   - `clear()` empties the stored values.
-- [ ] T066 [P] [US5] Add `frontend/src/tests/planSetupSession.test.tsx`. Cover:
+- [X] T066 [P] [US5] Add `frontend/src/tests/planSetupSession.test.tsx`. Cover:
   - leaving Plan setup for Home and returning shows the same location, dates and distance;
   - a remount after rehydration (simulating a reload) shows them too;
   - a visitor who logs in through the Log in page in the same session still sees the setup on "Create plan";
@@ -514,13 +514,13 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Implementation for User Story 5
 
-- [ ] T067 [US5] In `frontend/src/stores/usePlanSetupStore.ts`, wrap the store in Zustand's `persist` middleware (from `zustand/middleware`, part of the existing package):
+- [X] T067 [US5] In `frontend/src/stores/usePlanSetupStore.ts`, wrap the store in Zustand's `persist` middleware (from `zustand/middleware`, part of the existing package):
   - `name: "spek-laiku-plan-setup"`, `version: 1`, `storage: createJSONStorage(() => sessionStorage)`;
   - `partialize` keeps only the five data fields;
   - a `migrate` that returns the initial state for any other version.
 
   Comment why `sessionStorage` is used (research section 7). In `frontend/src/tests/setup.ts`, call `sessionStorage.clear()` after each test.
-- [ ] T068 [US5] In `frontend/src/stores/useLogoutStore.ts`, after a successful logout, call `usePlanSetupStore.getState().clear()` next to `setSignedOut()`, with a comment citing spec FR-017. In `frontend/src/components/planDatesField.tsx`, once `usePlanPeriodStore` is `loaded`, mark each chip whose date fails `checkKeptDate(date, period)` with that message when no server error is shown for it (spec FR-018).
+- [X] T068 [US5] In `frontend/src/stores/useLogoutStore.ts`, after a successful logout, call `usePlanSetupStore.getState().clear()` next to `setSignedOut()`, with a comment citing spec FR-017. In `frontend/src/components/planDatesField.tsx`, once `usePlanPeriodStore` is `loaded`, mark each chip whose date fails `checkKeptDate(date, period)` with that message when no server error is shown for it (spec FR-018).
 
 **Checkpoint**: The setup behaves as a session-only plan.
 

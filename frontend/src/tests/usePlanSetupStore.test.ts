@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   initialPlanSetupState,
+  planSetupStorageKey,
   usePlanSetupStore,
 } from "../stores/usePlanSetupStore"
 import type { CheckedPlanSetup, PlanLocation } from "../types/planSetup"
@@ -118,5 +119,73 @@ describe("usePlanSetupStore", () => {
     store().clear()
 
     expect(store()).toMatchObject(initialPlanSetupState)
+  })
+})
+
+function stored() {
+  const text = sessionStorage.getItem(planSetupStorageKey)
+  return text === null
+    ? null
+    : (JSON.parse(text) as { state: unknown; version: number })
+}
+
+describe("usePlanSetupStore in the browser tab's session", () => {
+  it("saves the location, dates, distance and checked setup with version 1", () => {
+    checkedState()
+    store().setMaxTravelDistanceText("45")
+
+    expect(stored()).toEqual({
+      state: {
+        locationText: "Kaunas, Kaunas County",
+        location: kaunas,
+        dates: ["2026-11-07"],
+        maxTravelDistanceText: "45",
+        checked: null,
+      },
+      version: 1,
+    })
+  })
+
+  it("restores the saved setup, as after a reload", async () => {
+    checkedState()
+    const saved = sessionStorage.getItem(planSetupStorageKey)!
+    usePlanSetupStore.setState(initialPlanSetupState)
+    sessionStorage.setItem(planSetupStorageKey, saved)
+
+    await usePlanSetupStore.persist.rehydrate()
+
+    expect(store().location).toEqual(kaunas)
+    expect(store().dates).toEqual(["2026-11-07"])
+    expect(store().checked).toEqual(checkedSetup)
+  })
+
+  it("starts empty when the saved text cannot be read", async () => {
+    sessionStorage.setItem(planSetupStorageKey, "not json")
+
+    await usePlanSetupStore.persist.rehydrate()
+
+    expect(store()).toMatchObject(initialPlanSetupState)
+  })
+
+  it("starts empty when the saved setup has another version", async () => {
+    sessionStorage.setItem(
+      planSetupStorageKey,
+      JSON.stringify({
+        state: { ...initialPlanSetupState, dates: ["2026-11-07"] },
+        version: 0,
+      }),
+    )
+
+    await usePlanSetupStore.persist.rehydrate()
+
+    expect(store()).toMatchObject(initialPlanSetupState)
+  })
+
+  it("clear() also empties the saved setup", () => {
+    checkedState()
+
+    store().clear()
+
+    expect(stored()?.state).toEqual(initialPlanSetupState)
   })
 })
