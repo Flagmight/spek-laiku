@@ -293,7 +293,7 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ### Tests for User Story 2
 
-- [ ] T038 [P] [US2] Add `frontend/src/tests/planDateRules.test.ts`. With a server-style period `{ firstDate: "2026-11-04", lastDate: "2026-11-10", maxDates: 7 }`, `checkNewDate(date, existing, period)` returns the messages below. Add one test with `maxDates: 3` to show the limit comes from the period, not from a constant:
+- [X] T038 [P] [US2] Add `frontend/src/tests/planDateRules.test.ts`. With a server-style period `{ firstDate: "2026-11-04", lastDate: "2026-11-10", maxDates: 7 }`, `checkNewDate(date, existing, period)` returns the messages below. Add one test with `maxDates: 3` to show the limit comes from the period, not from a constant:
   - "Choose a date first." for `""` and an unreadable value;
   - "This date is already added." for a repeat;
   - "Dates cannot be in the past." for `firstDate - 1`;
@@ -302,7 +302,7 @@ description: "Task list for feature 004 Plan Location and Dates"
   - `null` for `firstDate` and `lastDate`.
 
   `checkKeptDate(date, period)` returns the past message for a passed date.
-- [ ] T039 [P] [US2] Extend `frontend/src/tests/PlanSetupPage.test.tsx` (dates part, with `GET /api/plan-setup/period` answering `{ "firstDate": "2026-11-04", "lastDate": "2026-11-10", "maxDates": 7 }`). Cover:
+- [X] T039 [P] [US2] Extend `frontend/src/tests/PlanSetupPage.test.tsx` (dates part, with `GET /api/plan-setup/period` answering `{ "firstDate": "2026-11-04", "lastDate": "2026-11-10", "maxDates": 7 }`). Cover:
   - while the period is loading, the date input and "Add date" are disabled and "Loading available dates…" is announced in `role="status"`, while Location still works;
   - a `500`, a network error or 10 s without an answer shows "Error: Available dates could not be loaded. Try again." in `role="alert"` with Retry, and Retry loads it again;
   - the date input has `min="2026-11-04"` and `max="2026-11-10"`, taken from the server's answer (a second test with a different answer gives different values, whatever the system time);
@@ -310,21 +310,21 @@ description: "Task list for feature 004 Plan Location and Dates"
   - each chip has a button named "Remove Sat 7 Nov 2026"; removing a chip focuses the date input and announces the removal;
   - each message from T038 appears next to the date input with the "Error: " prefix and nothing is added;
   - all 7 days can be added.
-- [ ] T040 [P] [US2] Add `backend/tests/SpekLaiku.IntegrationTests/PlanPeriodEndpointTests.cs` (collection `PostgreSqlCollection`; set `factory.Clock.UtcNow` in each test). Cover:
+- [X] T040 [P] [US2] Add `backend/tests/SpekLaiku.IntegrationTests/PlanPeriodEndpointTests.cs` (collection `PostgreSqlCollection`; set `factory.Clock.UtcNow` in each test). Cover:
   - `GET /api/plan-setup/period` as a Visitor at `2026-11-04T21:59:59Z` returns `200` with `{"firstDate":"2026-11-04","lastDate":"2026-11-10","maxDates":7}`, and at `2026-11-04T22:00:00Z` with `2026-11-05` to `2026-11-11`;
   - an Active Registered User gets `200`;
   - more requests than the request limit never give `429`, because the endpoint has `[DisableRateLimiting]`. Assert it on the low-limit host from the request-limit tests, or by checking the endpoint metadata.
 
 ### Implementation for User Story 2
 
-- [ ] T041 [US2] Create `backend/src/SpekLaiku.Api/DTOs/Responses/PlanPeriodResponse.cs` (`public sealed record PlanPeriodResponse(DateOnly FirstDate, DateOnly LastDate, int MaxDates)`) and `backend/src/SpekLaiku.Api/Controllers/PlanSetupController.cs`:
+- [X] T041 [US2] Create `backend/src/SpekLaiku.Api/DTOs/Responses/PlanPeriodResponse.cs` (`public sealed record PlanPeriodResponse(DateOnly FirstDate, DateOnly LastDate, int MaxDates)`) and `backend/src/SpekLaiku.Api/Controllers/PlanSetupController.cs`:
   - attributes: `[ApiController]`, `[Route("api/plan-setup")]`, `[Authorize(Policy = AuthorizationPolicies.PlanCreator)]`, `[EnableRateLimiting(RateLimitPolicies.PlanSetup)]` on the class;
   - `[HttpGet("period")]` with `[DisableRateLimiting]` returns `new PlanPeriodResponse(first, last, PlanSetupValidator.MaxDates)` from `ForecastPeriod.GetCurrent()`, and has `ProducesResponseType` for 200 and 403. No rules in the controller. US4 adds the check action.
-- [ ] T042 [P] [US2] Create `frontend/src/helpers/planDateRules.ts` with `checkNewDate(date, existing, period: PlanPeriod)` and `checkKeptDate(date, period: PlanPeriod)`, returning the messages from T038 without the "Error: " prefix, or `null`.
+- [X] T042 [P] [US2] Create `frontend/src/helpers/planDateRules.ts` with `checkNewDate(date, existing, period: PlanPeriod)` and `checkKeptDate(date, period: PlanPeriod)`, returning the messages from T038 without the "Error: " prefix, or `null`.
   - The functions only compare against `period.firstDate`, `period.lastDate` and `period.maxDates` from the server; they hold no limits or dates of their own (constitution I, research section 6).
   - `yyyy-MM-dd` strings compare correctly as text.
   - A date is "unreadable" when it does not match `^\d{4}-\d{2}-\d{2}$`.
-- [ ] T043 [US2] Create `frontend/src/components/planDatesField.tsx`, under about 200 lines.
+- [X] T043 [US2] Create `frontend/src/components/planDatesField.tsx`, under about 200 lines.
   - **Structure:** a `<fieldset>` with `<legend>` "Dates"; a labelled `<input type="date">` "Date" with `min`/`max` from `usePlanPeriodStore`'s `period`; an "Add date" button.
   - **Period states:** while the store is `loading`, the input and "Add date" are disabled and "Loading available dates…" is shown in `role="status"`. On `error`, they stay disabled and "Error: Available dates could not be loaded. Try again." is shown in `role="alert"` with a Retry button calling `load()`.
   - **Adding:** "Add date" runs `checkNewDate` and either shows the error under the input (`aria-describedby`, `aria-invalid`, "Error: " prefix) or calls `usePlanSetupStore.addDate`, then clears the input and the error.
