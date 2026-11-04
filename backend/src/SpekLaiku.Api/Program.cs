@@ -4,11 +4,14 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SpekLaiku.Api.Authorization;
+using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.Data;
 using SpekLaiku.Api.Entities;
 using SpekLaiku.Api.Errors;
 using SpekLaiku.Api.Mapping;
+using SpekLaiku.Api.RateLimiting;
 using SpekLaiku.Api.Services;
 
 namespace SpekLaiku.Api;
@@ -93,8 +96,23 @@ public class Program
         builder.Services.AddAuthorizationBuilder()
             .AddPolicy(AuthorizationPolicies.ActiveAdministrator, policy => policy
                 .RequireAuthenticatedUser()
-                .AddRequirements(new ActiveAdministratorRequirement()));
+                .AddRequirements(new ActiveAdministratorRequirement()))
+            // Visitors are allowed, so this policy does not require a signed-in user (research section 8).
+            .AddPolicy(AuthorizationPolicies.PlanCreator, policy => policy
+                .AddRequirements(new PlanCreatorRequirement()));
         builder.Services.AddScoped<IAuthorizationHandler, ActiveAdministratorHandler>();
+        builder.Services.AddScoped<IAuthorizationHandler, PlanCreatorHandler>();
+        builder.Services.AddPlanSetupRateLimit(builder.Configuration);
+        builder.Services.AddMemoryCache();
+        builder.Services.TryAddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<ForecastPeriod>();
+        builder.Services.AddHttpClient<IGeocodingClient, OpenMeteoGeocodingClient>(client =>
+            {
+                client.BaseAddress = OpenMeteoGeocodingClient.BaseAddress;
+                client.Timeout = OpenMeteoGeocodingClient.Timeout;
+            })
+            // The default client logging writes each request address, which holds the search text (spec FR-008).
+            .RemoveAllLoggers();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();
@@ -106,6 +124,9 @@ public class Program
         app.UseExceptionHandler();
         app.UseStatusCodePages();
         app.UseAuthentication();
+        // Before authorization, so a refused request never reaches the account lookup, the cache or the
+        // location search service (research section 14).
+        app.UseRateLimiter();
         app.UseAuthorization();
         app.MapControllers();
 

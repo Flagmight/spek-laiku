@@ -2,11 +2,15 @@ using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SpekLaiku.Api;
+using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.Data;
 using SpekLaiku.Api.Entities;
+using SpekLaiku.Api.Services;
 using Testcontainers.PostgreSql;
 
 namespace SpekLaiku.IntegrationTests;
@@ -34,6 +38,15 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
             localDatabase = new LocalPostgreSqlDatabase(localServer);
         }
     }
+
+    /// <summary>
+    /// The location search service the API sees. The API caches its answers and the cache is shared by
+    /// the collection, so every test scripts its own search texts and place ids (research section 5).
+    /// </summary>
+    public FakeGeocodingClient Geocoding { get; } = new();
+
+    /// <summary>The clock behind the forecast period only; tests set it before checking dates.</summary>
+    public FixedTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
 
     private string ConnectionString => localDatabase?.ConnectionString ?? container!.GetConnectionString();
 
@@ -126,7 +139,18 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:DefaultConnection", ConnectionString);
+        // Every test request comes from the same (missing) address and so shares one request-limit window;
+        // only the request-limit tests use a low limit, on their own host (research section 14).
+        builder.UseSetting("RateLimiting:PlanSetup:PermitLimit", "10000");
         builder.ConfigureServices(services => services.AddTransient<IStartupFilter, TestSignInStartupFilter>());
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IGeocodingClient>();
+            services.AddSingleton<IGeocodingClient>(Geocoding);
+            // Only the forecast period gets the fixed clock; cookies and Identity keep the real one.
+            services.RemoveAll<ForecastPeriod>();
+            services.AddSingleton(new ForecastPeriod(Clock));
+        });
     }
 }
 
