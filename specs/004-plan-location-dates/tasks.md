@@ -574,23 +574,23 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T073 [P] Update `README.md`:
+- [X] T073 [P] Update `README.md`:
   - a "Plan setup" section: the pages `/plan/setup` and `/plan/activities`, who can use them, and that the setup lives only in the browser tab (session storage) and is cleared on logout;
   - that the API needs outgoing HTTPS access to `geocoding-api.open-meteo.com` and that the tests never call it;
   - the `RateLimiting:PlanSetup` settings and how to change them with environment variables (`RateLimiting__PlanSetup__PermitLimit`);
   - in the deployment section, that the forwarded-headers middleware must be configured for a trusted reverse proxy, or all users share one limit (research section 14).
 
   No migration step is needed.
-- [ ] T074 [P] Check that `docs/requirements.md` (FR-046, FR-049), `docs/ux-design.md` (Plan Setup states and traceability) and `docs/architecture.md` (`Authorization/`, `RateLimiting/`, `Clients/`, `Errors/`), which were updated during planning, still match the implemented behaviour and file names. Fix any difference (constitution VI).
-- [ ] T075 [P] Check that every new or changed C# class is under 200 lines (constitution I), especially `OpenMeteoGeocodingClient.cs`, `LocationSearchService.cs`, `PlanSetupRateLimit.cs` and `Program.cs`. Check that every new React page or component is under about 200 lines, especially `PlanSetupPage.tsx`, `locationSearchField.tsx` and `planDatesField.tsx`. Split by responsibility if not.
-- [ ] T076 Run `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx` from the repository root. Run `npm run lint`, `npm run format:check`, `npm test` and `npm run build` from `frontend/`. Fix any failure without weakening tests or checks. Confirm no test calls the live Open-Meteo service: with the network disconnected, the tests still pass.
-- [ ] T077 Review `git diff main...HEAD`. Check that:
+- [X] T074 [P] Check that `docs/requirements.md` (FR-046, FR-049), `docs/ux-design.md` (Plan Setup states and traceability) and `docs/architecture.md` (`Authorization/`, `RateLimiting/`, `Clients/`, `Errors/`), which were updated during planning, still match the implemented behaviour and file names. Fix any difference (constitution VI).
+- [X] T075 [P] Check that every new or changed C# class is under 200 lines (constitution I), especially `OpenMeteoGeocodingClient.cs`, `LocationSearchService.cs`, `PlanSetupRateLimit.cs` and `Program.cs`. Check that every new React page or component is under about 200 lines, especially `PlanSetupPage.tsx`, `locationSearchField.tsx` and `planDatesField.tsx`. Split by responsibility if not.
+- [X] T076 Run `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx` from the repository root. Run `npm run lint`, `npm run format:check`, `npm test` and `npm run build` from `frontend/`. Fix any failure without weakening tests or checks. Confirm no test calls the live Open-Meteo service: with the network disconnected, the tests still pass.
+- [X] T077 Review `git diff main...HEAD`. Check that:
   - there are no unintended files (no `bin/`, `obj/`, `node_modules/`, local settings or debug code);
   - there is no migration and no new package;
   - `appsettings.Development.json` is unchanged.
 
   Then list the quickstart Manual Validation steps for the user to run before the Pull Request.
-- [ ] T078 Run a separate AI-assisted review of the branch (for example `/code-review` and `/security-review`) and apply or reject each finding with a short reason. Then prepare the Pull Request description for the user (constitution V, VII and Quality Gates). It must include:
+- [X] T078 Run a separate AI-assisted review of the branch (for example `/code-review` and `/security-review`) and apply or reject each finding with a short reason. Then prepare the Pull Request description for the user (constitution V, VII and Quality Gates). It must include:
   - a link to `specs/004-plan-location-dates/spec.md` and a summary of the change;
   - the tests and checks run (T076 and the manual quickstart steps), and "no migration";
   - screenshots of Plan setup (desktop and 320 px) with suggestions, with errors and with too many requests, and of the Activity selection step;

@@ -301,7 +301,7 @@ receives a clear validation message.
 |----|----|----|----|
 | Location | Yes | Must be picked from search results inside Lithuania, not free text | "Select a location in Lithuania from the list." |
 | Maximum travel distance (km) | No | Whole number 1 to 200, default 30 | "Enter a whole number between 1 and 200." |
-| Dates | Yes (at least 1) | Max 7 dates, not in the past, within the available forecast period. | "Add at least one date." / "Dates cannot be in the past." / "Forecast is not available that far ahead." / "This date is already added." |
+| Dates | Yes (at least 1) | Max 7 dates, not in the past, within the forecast period (today to today + 6 days, sent by the server). | "Add at least one date." / "Dates cannot be in the past." / "Forecast is not available that far ahead." / "This date is already added." / "You can add up to 7 dates." / "Choose a date first." (Add date with no date picked) |
 
 **Form 4: Activity settings**
 
