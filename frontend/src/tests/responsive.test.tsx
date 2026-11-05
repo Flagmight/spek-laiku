@@ -434,5 +434,7 @@ describe("Plan setup page at 320 px", () => {
       /\.plan-fields \{\s*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 14rem\);/,
     )
     expect(wide).toMatch(/\.date-picker \{\s*flex-direction: row;/)
+    // The Date label keeps its own line, so the input beside the button never squeezes it.
+    expect(wide).toMatch(/\.date-picker label \{\s*flex-basis: 100%;/)
   })
 })

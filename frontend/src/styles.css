@@ -493,6 +493,20 @@ form .date-chip button {
 
   .date-picker {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: flex-end;
+    gap: 4px 8px;
+  }
+
+  /* The label stays on its own line above the picker, like the other fields, so the full-width
+     input cannot squeeze it until the word breaks. */
+  .date-picker label {
+    flex-basis: 100%;
+    margin-bottom: 0;
+  }
+
+  .date-picker input {
+    flex: 1 1 12rem;
+    width: auto;
   }
 }
