@@ -14,7 +14,7 @@ describe("parseTravelDistance", () => {
     expect(parseTravelDistance("12.5")).toEqual({ kind: "number", value: 12.5 })
   })
 
-  it.each(["abc", "1e3", "12,5", "-", "-5", "4 5"])(
+  it.each(["abc", "1e3", "12,5", "-", "-5", "4 5", "9".repeat(30)])(
     "refuses %j, which cannot be sent as a number",
     (text) => {
       expect(parseTravelDistance(text)).toEqual({ kind: "invalid" })

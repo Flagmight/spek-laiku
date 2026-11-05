@@ -168,6 +168,33 @@ describe("usePlanSetupCheckStore", () => {
     expect(store().status).toBe("idle")
   })
 
+  it("drops an answer for values the user changed while the check ran", async () => {
+    const { pending } = stubPendingChecks()
+    usePlanSetupStore.getState().chooseLocation(checked.location)
+    usePlanSetupStore.getState().addDate("2026-11-07")
+
+    let submit: Promise<boolean> = Promise.resolve(false)
+    act(() => {
+      submit = store().submit(request)
+    })
+    act(() => {
+      usePlanSetupStore.getState().addDate("2026-11-08")
+      usePlanSetupStore.getState().setMaxTravelDistanceText("50")
+    })
+    await act(async () => {
+      pending[0].resolve(jsonResponse(200, checked))
+      await submit
+    })
+
+    expect(await submit).toBe(false)
+    expect(store().status).toBe("idle")
+    expect(usePlanSetupStore.getState()).toMatchObject({
+      checked: null,
+      dates: ["2026-11-07", "2026-11-08"],
+      maxTravelDistanceText: "50",
+    })
+  })
+
   it("reset() aborts a pending check and drops its result", async () => {
     const { pending } = stubPendingChecks()
 

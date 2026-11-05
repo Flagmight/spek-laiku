@@ -69,6 +69,18 @@ export const usePlanSetupCheckStore = create<PlanSetupCheckState>()(
         lastRequest: request,
         controller: abort,
       })
+      // The fields stay editable while the check runs. An answer for values the user has since
+      // changed must not be kept as checked or shown as errors for the new values.
+      let setupChanged = false
+      const stopWatching = usePlanSetupStore.subscribe((now, before) => {
+        if (
+          now.location !== before.location ||
+          now.dates !== before.dates ||
+          now.maxTravelDistanceText !== before.maxTravelDistanceText
+        ) {
+          setupChanged = true
+        }
+      })
       const timeout = setTimeout(() => abort.abort(), planSetupCheckTimeoutMs)
       let outcome: PlanSetupCheckOutcome | null = null
       try {
@@ -78,10 +90,16 @@ export const usePlanSetupCheckStore = create<PlanSetupCheckState>()(
         // server error.
       } finally {
         clearTimeout(timeout)
+        stopWatching()
       }
 
       // After reset() the check belongs to a closed page, so its result is dropped.
       if (get().controller !== abort) {
+        return false
+      }
+
+      if (setupChanged) {
+        set({ status: "idle", errors: {}, controller: null })
         return false
       }
 

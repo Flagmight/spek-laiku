@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { Navigate } from "react-router-dom"
+import { canCreatePlan } from "../helpers/canCreatePlan"
 import { AccessDeniedPage } from "../pages/AccessDeniedPage"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 
@@ -20,7 +21,8 @@ export function PlanCreatorOnly({ children }: { children: ReactNode }) {
     return <Navigate to="/account-suspended" replace />
   }
 
-  if (status === "signedIn" && user?.role !== "Registered User") {
+  // The same rule as Create plan in the navigation and on Home, so they cannot drift apart.
+  if (!canCreatePlan(status, user)) {
     return <AccessDeniedPage />
   }
 
