@@ -449,22 +449,22 @@ Controllers, Frontend.
 
 | \# | Feature (branch name) | User value | Requirements | Priority | Depends on |
 |----|----|----|----|----|----|
-| 001 | User Registration (001-user-registration) | A visitor creates an account. | FR-001, FR-002, FR-046 | Must | none |
-| 002 | User Login and Logout (002-user-login) | A user signs in and out and lands on the right page for their role. | FR-003, FR-004, FR-041 | Must | 001 |
+| 001 | User Registration (001-user-registration) | A visitor creates an account. | FR-001, FR-002, FR-045 | Must | none |
+| 002 | User Login and Logout (002-user-login) | A user signs in and out and lands on the right page for their role. | FR-003, FR-004, FR-040, FR-041 | Must | 001 |
 | 003 | Activity Category Management (003-activity-categories) | An administrator defines the categories and default weather limits. | FR-027, FR-028, FR-044 | Must | 002 |
-| 004 | Plan Location and Dates (004-plan-location-dates) | A user chooses a place in Lithuania and the days to plan. | FR-007, FR-046, FR-049 | Must | none |
-| 005 | Activity Selection and Limits (005-activity-selection) | A user picks activities and sets their weather limits and duration. | FR-006, FR-008, FR-011 to FR-014, FR-016, FR-038 | Must | 003, 004 |
-| 006 | Hourly Forecast (006-hourly-forecast) | A user sees which hours suit each activity. | FR-009, FR-015 | Must | 004, 005 |
-| 007 | Nearby Places (007-nearby-places) | A user sees places for each activity, and what to do when none is found. | FR-010, FR-037 | Must | 004, 005 |
-| 008 | Schedule Generation (008-schedule-generation) | A user gets a schedule that fits the weather, daylight and activity durations. | FR-017 to FR-019, FR-037, FR-048 | Must | 006, 007 |
-| 009 | Travel Distance Check (009-travel-distance) | The schedule respects the maximum distance between activities. | FR-037 | Must | 008 |
-| 010 | Save and View Plans (010-save-view-plans) | A user saves a plan, including a visitor's plan after login, and sees it later. | FR-020, FR-021, FR-025, FR-039 | Should | 002, 008 |
-| 011 | Plan Management (011-plan-management) | A user edits, duplicates and deletes their own plans. | FR-022 to FR-024, FR-032, FR-040 | Should | 010 |
-| 012 | Plan Problem Detection (012-plan-problems) | A user is told when a forecast change breaks a plan, with the reason. | FR-033, FR-035 | Must | 010 |
+| 004 | Plan Location and Dates (004-plan-location-dates) | A user chooses a place in Lithuania and the days to plan. | FR-007, FR-032, FR-035 (maximum travel distance setting), FR-038 (plan setup only), FR-046, FR-049 | Must | none |
+| 005 | Activity Selection and Limits (005-activity-selection) | A user picks activities and sets their weather limits and duration. | FR-006, FR-008, FR-037 | Must | 003, 004 |
+| 006 | Hourly Forecast (006-hourly-forecast) | A user sees which hours suit each activity. | FR-009, FR-011 to FR-015 | Must | 004, 005 |
+| 007 | Nearby Places (007-nearby-places) | A user sees places for each activity, and what to do when none is found. | FR-010, FR-036 (no place found) | Must | 004, 005 |
+| 008 | Schedule Generation (008-schedule-generation) | A user gets a schedule that fits the weather, daylight and activity durations. | FR-016 to FR-019, FR-036 (no suitable time), FR-047 | Must | 006, 007 |
+| 009 | Travel Distance Check (009-travel-distance) | The schedule respects the maximum distance between activities. | FR-035 | Must | 008 |
+| 010 | Save and View Plans (010-save-view-plans) | A user saves a plan, including a visitor's plan after login, and sees it later. | FR-020, FR-021, FR-025, FR-026, FR-038 | Should | 002, 008 |
+| 011 | Plan Management (011-plan-management) | A user edits, duplicates and deletes their own plans. | FR-022 to FR-024, FR-039 (plan deletion) | Should | 010 |
+| 012 | Plan Problem Detection (012-plan-problems) | A user is told when a forecast change breaks a plan, with the reason. | FR-033, FR-034 | Must | 010 |
 | 013 | Alternative Suggestions (013-alternatives) | A user gets alternatives for a problem and accepts or rejects them. | FR-048 | Should | 012 |
-| 014 | Administrator Account Access Management (014-admin-accounts) | An administrator manages user account status. The MVP supports suspending and reactivating accounts and blocking suspended users. Account deletion is a Should Have capability and may be implemented after the MVP. | FR-029, FR-041, FR-042 | Must | 002 |
+| 014 | Administrator Account Access Management (014-admin-accounts) | An administrator manages user account status. The MVP supports suspending and reactivating accounts and blocking suspended users. Account deletion is a Should Have capability and may be implemented after the MVP. | FR-029, FR-031, FR-039 (account suspension), FR-041, FR-042 | Must | 002 |
 | 015 | Service Status and Error Log (015-service-status) | An administrator checks the weather and map services and recent errors. | FR-030, FR-043 | Should | 006, 007 |
-| 016 | Account Deletion (016-account-deletion) | A user deletes their own account and plans. | FR-005 | Should | 002, 010 |
+| 016 | Account Deletion (016-account-deletion) | A user deletes their own account and plans. | FR-005, FR-039 (account deletion) | Should | 002, 010 |
 
 ## 7. Creating a Feature Specification with /speckit-specify
 
