@@ -2,7 +2,7 @@
 
 Activity planning application for families and groups in Lithuania. Users create a list of possible activities (kayaking, cycling, outdoor heritage visits, picnics, indoor activities) and set acceptable weather conditions. The system uses hourly forecasts from Open-Meteo and nearby places from the OpenStreetMap Overpass API to find suitable time slots, and recalculates the plan when the forecast changes.
 
-Status: in development. Implemented so far: user registration (feature `001-user-registration`), login and logout (feature `002-user-login`) and activity category management for administrators (feature `003-activity-categories`).
+Status: in development. Implemented so far: user registration (feature `001-user-registration`), login and logout (feature `002-user-login`), activity category management for administrators (feature `003-activity-categories`) and choosing a plan's location and dates (feature `004-plan-location-dates`).
 
 ## Technology
 
@@ -76,7 +76,7 @@ npm run build
    dotnet ef database update --project .\backend\src\SpekLaiku.Api
    ```
 
-   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories.
+   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Feature 004 adds no migration.
 
 3. Trust the ASP.NET Core development certificate once per machine. The sign-in cookie is `Secure`, so the API runs over https:
 
@@ -98,6 +98,8 @@ npm run build
    ```
 
    Open the address Vite prints (usually `http://localhost:5173`). The Vite dev server forwards every `/api` request to `https://localhost:7254`, so the browser sees one origin and the sign-in cookie works without CORS.
+
+The API needs outgoing HTTPS access to `geocoding-api.open-meteo.com` for the location search on Plan setup. The browser never calls it, and the automated tests never call it either: they use fake answers, so they pass without a network connection.
 
 ## Log in and log out
 
@@ -135,6 +137,27 @@ The application reads the role and status from the database on each page load, b
 - **Who can open it**: only a signed-in Active Administrator. A visitor is sent to Log in, a Registered User sees "Access denied", and a Suspended user opens the Account Suspended page. The API refuses everyone else with `401` or `403` and reads the account on every request, so a suspension applies at once.
 
 To try it, make an account an Administrator with the SQL in "Testing an Administrator or Suspended account" above, log in again and select **Categories**. The manual checks for a release are in `specs/003-activity-categories/quickstart.md`.
+
+## Plan setup
+
+- **Pages**: **Plan setup** (`/plan/setup`, "Create plan" in the navigation and on Home) is step 1 of a plan: choose a location in Lithuania from the search suggestions, add 1 to 7 dates from today to today plus 6 days (by the date in Lithuania), and set a maximum travel distance (a whole number from 1 to 200 km, 30 by default). **Continue** checks everything on the server and opens **Activity selection** (`/plan/activities`), which for now shows the checked setup and a Back button; feature 005 adds the activities.
+- **Who can use it**: visitors (no account needed) and Active Registered Users. An Administrator sees "Access denied" and a Suspended user opens the Account Suspended page; the API refuses both with `403`.
+- **Where the setup is kept**: only in the browser tab (session storage). It survives a reload and logging in or registering in the same tab, and is gone when the tab closes or the user logs out. Nothing is saved to an account yet.
+- **Request limit**: location searches and Continue checks together are limited to 30 per minute per network address; more get "Error: Too many requests. Wait a minute and try again." The settings are in `appsettings.json` under `RateLimiting:PlanSetup` (`PermitLimit`, `WindowSeconds`) and can be changed without a code change, for example for one terminal session:
+
+  ```powershell
+  $env:RateLimiting__PlanSetup__PermitLimit = "5"
+  ```
+
+  Remove it again with `Remove-Item Env:RateLimiting__PlanSetup__PermitLimit`, or close the terminal.
+
+The manual checks for a release are in `specs/004-plan-location-dates/quickstart.md`.
+
+## Deployment notes
+
+- **Behind a reverse proxy**: the plan setup request limit counts requests per client network address. Behind a reverse proxy every request arrives from the proxy's address, so all users would share one limit. Configure the ASP.NET Core forwarded-headers middleware for the trusted proxy before going live.
+- **Outgoing access**: the API host needs outgoing HTTPS access to `geocoding-api.open-meteo.com`.
+- **Time zone data**: the date limits use the `Europe/Vilnius` time zone, so the API host needs time zone data. Slim Linux container images need the `tzdata` package; Windows needs ICU, so do not turn on invariant globalization mode.
 
 ## Development workflow
 

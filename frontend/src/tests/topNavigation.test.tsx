@@ -33,18 +33,21 @@ describe("top navigation", () => {
       navigation()
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Home", "Log in", "Register"])
+    ).toEqual(["Home", "Create plan", "Log in", "Register"])
   })
 
-  it("shows only Home to a signed-in user", async () => {
+  it("shows Home and Create plan to a signed-in Active Registered User", async () => {
     const fetchMock = stubFetch(() => jsonResponse(200, signedInUser))
     renderApp("/")
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled())
     await screen.findByRole("heading", { level: 1 })
 
-    expect(navigation().getAllByRole("link")).toHaveLength(1)
-    expect(navigation().getByRole("link", { name: "Home" })).toBeInTheDocument()
+    expect(
+      navigation()
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Home", "Create plan"])
   })
 
   it("does not show Log in or Register while the signed-in state is loading", () => {
@@ -78,9 +81,12 @@ describe("top navigation", () => {
     await user.click(screen.getByRole("button", { name: "Log in" }))
 
     await vi.waitFor(() =>
-      expect(navigation().getAllByRole("link")).toHaveLength(1),
+      expect(navigation().getAllByRole("link")).toHaveLength(2),
     )
     expect(navigation().getByRole("link", { name: "Home" })).toBeInTheDocument()
+    expect(
+      navigation().getByRole("link", { name: "Create plan" }),
+    ).toBeInTheDocument()
   })
 
   it("marks the current page", async () => {
@@ -163,5 +169,59 @@ describe("top navigation for administrators", () => {
       ).not.toBeNull(),
     )
     expect(navigation().queryByRole("link", { name: "Categories" })).toBeNull()
+  })
+})
+
+describe("Create plan in the navigation", () => {
+  it("takes a visitor to the Plan setup page", async () => {
+    stubFetch(() => jsonResponse(401))
+    const user = userEvent.setup()
+    renderApp("/")
+
+    const createPlan = await navigation().findByRole("link", {
+      name: "Create plan",
+    })
+    expect(createPlan).toHaveAttribute("href", "/plan/setup")
+    await user.click(createPlan)
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Plan setup" }),
+    ).toBeInTheDocument()
+    expect(createPlan).toHaveAttribute("aria-current", "page")
+  })
+})
+
+describe("Create plan by role", () => {
+  it.each([
+    ["an Active Registered User", { ...signedInUser }, true],
+    [
+      "a Suspended Registered User",
+      { ...signedInUser, accountStatus: "Suspended" },
+      false,
+    ],
+    [
+      "an Active Administrator",
+      { ...signedInUser, role: "Administrator" },
+      false,
+    ],
+    [
+      "a Suspended Administrator",
+      { ...signedInUser, role: "Administrator", accountStatus: "Suspended" },
+      false,
+    ],
+  ])("is shown to %s: %s", async (_who, user, shown) => {
+    stubFetch(() => jsonResponse(200, user))
+    renderApp("/")
+
+    await navigation().findByRole("link", { name: "Home" })
+    await vi.waitFor(() =>
+      expect(
+        navigation().queryByRole("button", { name: "Log out" }),
+      ).not.toBeNull(),
+    )
+
+    expect(
+      navigation().queryByRole("link", { name: "Create plan" }) !== null,
+    ).toBe(shown)
   })
 })

@@ -53,7 +53,7 @@ SDK version 10.0.401. Preview versions are not used.
 | Object mapping | AutoMapper | Required by the project rules for DTO and entity mapping. |
 | Validation | Data annotations and checks in application services | The server validates all input (NFR-003). No extra validation library is needed. |
 | External services | Open-Meteo forecast API, Open-Meteo geocoding API, OpenStreetMap Overpass API, called through HttpClient created by IHttpClientFactory | Open-Meteo and Overpass are mandatory. The geocoding API provides the location search for plan setup. |
-| Caching and resilience | In-memory cache, plus timeouts on external calls | Reduces calls to public APIs and supports NFR-002, NFR-007 and NFR-008. |
+| Caching and resilience | In-memory cache, timeouts on external calls, and the built-in ASP.NET Core rate limiting middleware on endpoints that call public APIs | Reduces calls to public APIs, keeps one client from flooding them (FR-049), and supports NFR-002, NFR-007 and NFR-008. |
 | Logging | ILogger\<T\> with the built-in providers | Required by the project rules. Passwords and keys are never logged (NFR-006). |
 | Backend tests | xUnit and Microsoft.AspNetCore.Mvc.Testing | Standard for ASP.NET Core. API tests also verify authorization rules. |
 | Frontend tests | Vitest and React Testing Library | Works with Vite. Finding fields by label also checks accessibility (NFR-009). |
@@ -136,6 +136,7 @@ and specs/ contains feature specifications.
 <p>│ │ └── SpekLaiku.Api/</p>
 <p>│ │ ├── Controllers/</p>
 <p>│ │ ├── Authorization/</p>
+<p>│ │ ├── RateLimiting/</p>
 <p>│ │ ├── Errors/</p>
 <p>│ │ ├── Services/</p>
 <p>│ │ ├── Clients/</p>
@@ -181,10 +182,11 @@ and specs/ contains feature specifications.
 |----|----|
 | backend/src/SpekLaiku.Api/ | The ASP.NET Core Web API project. |
 | Controllers/ | Thin controllers: routes, HTTP status codes, authenticated user, calling services. No business rules. |
-| Authorization/ | Authorization policies, requirements and handlers, applied to controllers by policy name (first used by feature 003: `ActiveAdministrator`). |
-| Errors/ | The exception handler that logs unexpected failures and answers with a general `500` problem response. |
+| Authorization/ | Authorization policies, requirements and handlers, applied to controllers by policy name (`ActiveAdministrator` from feature 003; `PlanCreator` from feature 004, which allows Visitors and Active Registered Users). |
+| RateLimiting/ | Rate limiting policies of the built-in ASP.NET Core middleware, their options (bound from the `RateLimiting` configuration section) and their registration, applied to controllers by policy name (first used by feature 004: `PlanSetup`, 30 requests per minute per network address, FR-049). |
+| Errors/ | The exception handler that logs unexpected failures and answers with a general `500` problem response, and answers `503` when an external service (Open-Meteo, Overpass) fails. |
 | Services/ | Application services with the business logic (suitability, scheduling, plan checks, plans, categories, accounts, service status). |
-| Clients/ | HTTP clients for Open-Meteo (forecast and geocoding) and Overpass. Services use them through dependency injection. |
+| Clients/ | HTTP clients for Open-Meteo (forecast and geocoding) and Overpass, created through IHttpClientFactory, with timeouts and a shared exception type for service failures. Services use them through dependency injection, and tests replace them with fakes (the geocoding client is first, from feature 004). |
 | DTOs/Requests/, DTOs/Responses/ | Request and response objects at the API boundary. Entities are never returned directly. |
 | Mapping/ | AutoMapper profiles between entities and DTOs. They contain no business rules. |
 | Entities/ | Database entity classes. |
@@ -450,7 +452,7 @@ Controllers, Frontend.
 | 001 | User Registration (001-user-registration) | A visitor creates an account. | FR-001, FR-002, FR-046 | Must | none |
 | 002 | User Login and Logout (002-user-login) | A user signs in and out and lands on the right page for their role. | FR-003, FR-004, FR-041 | Must | 001 |
 | 003 | Activity Category Management (003-activity-categories) | An administrator defines the categories and default weather limits. | FR-027, FR-028, FR-044 | Must | 002 |
-| 004 | Plan Location and Dates (004-plan-location-dates) | A user chooses a place in Lithuania and the days to plan. | FR-007, FR-046 | Must | none |
+| 004 | Plan Location and Dates (004-plan-location-dates) | A user chooses a place in Lithuania and the days to plan. | FR-007, FR-046, FR-049 | Must | none |
 | 005 | Activity Selection and Limits (005-activity-selection) | A user picks activities and sets their weather limits and duration. | FR-006, FR-008, FR-011 to FR-014, FR-016, FR-038 | Must | 003, 004 |
 | 006 | Hourly Forecast (006-hourly-forecast) | A user sees which hours suit each activity. | FR-009, FR-015 | Must | 004, 005 |
 | 007 | Nearby Places (007-nearby-places) | A user sees places for each activity, and what to do when none is found. | FR-010, FR-037 | Must | 004, 005 |

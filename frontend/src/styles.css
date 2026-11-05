@@ -86,6 +86,16 @@ main a {
   padding: 0;
 }
 
+/* A link that starts a task, such as "Create plan" on Home, looks like the main button. */
+main a.button-link {
+  padding: 8px 16px;
+  border: 1px solid #1d4ed8;
+  border-radius: 4px;
+  background: #1d4ed8;
+  color: #ffffff;
+  text-decoration: none;
+}
+
 nav a[aria-current="page"] {
   font-weight: 700;
 }
@@ -314,6 +324,133 @@ fieldset.form-field legend {
   margin-top: 0;
 }
 
+/*
+  Plan steps (spec FR-020). On phones the compact "Step n of 4" line with four segments is shown and
+  the list of steps is hidden visually but still read by screen readers; it reappears while a link in
+  it has keyboard focus, so focus is never on something invisible.
+*/
+.plan-progress ol {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-progress ol:focus-within {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+}
+
+.plan-progress [aria-current="step"] {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.plan-progress-compact {
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+
+.plan-progress-segments {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.plan-progress-segments span {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #d9dee3;
+}
+
+.plan-progress-segments span.done {
+  background: #1d4ed8;
+}
+
+/* Location suggestions: under the input, in the page flow, so nothing is covered on a phone. */
+.location-options {
+  margin: 4px 0 0;
+  padding: 0;
+  border: 1px solid #9aa5b1;
+  border-radius: 4px;
+  list-style: none;
+}
+
+.location-options li {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+/* The highlighted suggestion has an outline and bold text, not only a colour. */
+.location-options li[aria-selected="true"] {
+  outline: 3px solid #1d4ed8;
+  outline-offset: -3px;
+  background: #eef2ff;
+  font-weight: 600;
+}
+
+/* Dates and distance: stacked on phones, side by side from 40em wide. */
+.plan-fields {
+  display: grid;
+  gap: 16px;
+}
+
+.date-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* One chip per date; the chips wrap onto new lines. */
+.date-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.date-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid #9aa5b1;
+  border-radius: 24px;
+}
+
+.date-chip .field-error {
+  flex-basis: 100%;
+  margin: 0 8px 4px 0;
+}
+
+/* Remove is a small secondary button inside the chip, even on phones. */
+form .date-chip button {
+  width: auto;
+  border-radius: 22px;
+  background: #ffffff;
+  color: #1d4ed8;
+}
+
+.plan-setup-summary {
+  font-weight: 600;
+}
+
 /* Wider screens: buttons are sized to their text. */
 @media (min-width: 40em) {
   form button {
@@ -328,5 +465,48 @@ fieldset.form-field legend {
   .categories-layout.with-form {
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     align-items: start;
+  }
+
+  /* The four labelled steps instead of the compact line. */
+  .plan-progress ol {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    margin: 0 0 16px;
+  }
+
+  .plan-progress-compact {
+    display: none;
+  }
+
+  /* The dates and the distance side by side, the date chips in a row. */
+  .plan-fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 14rem);
+    align-items: start;
+  }
+
+  .date-picker {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 4px 8px;
+  }
+
+  /* The label stays on its own line above the picker, like the other fields, so the full-width
+     input cannot squeeze it until the word breaks. */
+  .date-picker label {
+    flex-basis: 100%;
+    margin-bottom: 0;
+  }
+
+  .date-picker input {
+    flex: 1 1 12rem;
+    width: auto;
   }
 }

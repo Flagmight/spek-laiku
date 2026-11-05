@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { logout } from "../api/authApi"
 import { useCurrentUserStore } from "./useCurrentUserStore"
+import { usePlanSetupStore } from "./usePlanSetupStore"
 
 // After this long without an answer the request counts as a server error (FR-014).
 export const logoutTimeoutMs = 10_000
@@ -51,6 +52,8 @@ export const useLogoutStore = create<LogoutState>()((set, get) => ({
     if (succeeded) {
       // Signed out on purpose, so a protected page later says "Log in to continue.", not expired.
       useCurrentUserStore.getState().setSignedOut()
+      // The plan in progress belongs to the session that ended (feature 004, spec FR-017).
+      usePlanSetupStore.getState().clear()
     }
 
     set({ status: succeeded ? "idle" : "serverError", controller: null })

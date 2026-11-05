@@ -1,6 +1,7 @@
 import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import {
   jsonResponse,
   renderApp,
@@ -353,5 +354,145 @@ describe("Activity categories form accessibility", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Error: Activity categories could not be loaded.",
     )
+  })
+})
+
+const planPeriod = {
+  firstDate: "2026-11-04",
+  lastDate: "2026-11-10",
+  maxDates: 7,
+}
+
+const kaunasPlace = {
+  id: 598316,
+  name: "Kaunas",
+  area: "Kaunas County",
+  latitude: 54.90156,
+  longitude: 23.90909,
+}
+
+// A visitor on Plan setup; Continue is refused with an error for every field.
+function stubPlanSetup() {
+  routeFetch({
+    "GET /api/auth/me": () => jsonResponse(401),
+    "GET /api/plan-setup/period": () => jsonResponse(200, planPeriod),
+    "GET /api/locations?query=Kaun": () =>
+      jsonResponse(200, { locations: [kaunasPlace] }),
+  })
+}
+
+describe("Plan setup and Activity selection page structure", () => {
+  it.each([
+    ["/plan/setup", "Plan setup"],
+    ["/plan/activities", "Activity selection"],
+  ])(
+    "%s has exactly one h1 and the tab title '%s - Spėk laiku'",
+    async (page, heading) => {
+      usePlanSetupStore.getState().setChecked({
+        location: kaunasPlace,
+        dates: ["2026-11-07"],
+        maxTravelDistanceKm: 30,
+      })
+      stubPlanSetup()
+      document.title = ""
+      renderApp(page)
+
+      const headings = await screen.findAllByRole("heading", { level: 1 })
+      expect(headings).toHaveLength(1)
+      expect(headings[0]).toHaveTextContent(heading)
+      await vi.waitFor(() =>
+        expect(document.title).toBe(`${heading} - Spėk laiku`),
+      )
+    },
+  )
+})
+
+describe("Plan setup accessibility", () => {
+  it("gives every field a visible label tied to its input", async () => {
+    stubPlanSetup()
+    renderApp("/plan/setup")
+    await screen.findByRole("heading", { level: 1, name: "Plan setup" })
+
+    for (const label of ["Location", "Date", "Maximum travel distance (km)"]) {
+      const input = screen.getByLabelText(label)
+      const visibleLabel = document.querySelector(`label[for="${input.id}"]`)
+      expect(visibleLabel).toHaveTextContent(label)
+    }
+    expect(screen.getByRole("group", { name: "Dates" })).toBeInTheDocument()
+  })
+
+  it("makes Location a combobox that points at its list and the highlighted place", async () => {
+    stubPlanSetup()
+    const user = userEvent.setup()
+    renderApp("/plan/setup")
+    const location = await screen.findByRole("combobox", { name: "Location" })
+    expect(location).toHaveAttribute("aria-autocomplete", "list")
+    expect(location).toHaveAttribute("aria-expanded", "false")
+    expect(location).not.toHaveAttribute("aria-activedescendant")
+
+    await user.click(location)
+    await user.paste("Kaun")
+    const listbox = await screen.findByRole("listbox", {
+      name: "Location suggestions",
+    })
+    await user.keyboard("{ArrowDown}")
+
+    expect(location).toHaveAttribute("aria-expanded", "true")
+    expect(location).toHaveAttribute("aria-controls", listbox.id)
+    const option = screen.getByRole("option", { selected: true })
+    expect(location).toHaveAttribute("aria-activedescendant", option.id)
+  })
+
+  it("announces loading and counts in status regions", async () => {
+    let answer: (response: Response) => void = () => {}
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-setup/period": () =>
+        new Promise<Response>((resolve) => (answer = resolve)),
+    })
+    usePlanSetupStore.getState().addDate("2026-11-07")
+    renderApp("/plan/setup")
+
+    expect(await screen.findByText("Loading available dates…")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    answer(jsonResponse(200, planPeriod))
+    expect(await screen.findByText("1 date added")).toBeInTheDocument()
+    const dates = screen.getByRole("group", { name: "Dates" })
+    expect(descriptionsOf(within(dates).getByLabelText("Date"))).toContain(
+      "1 date added",
+    )
+  })
+
+  it("ties each error to its field, marks the field invalid and starts it with 'Error: '", async () => {
+    stubPlanSetup()
+    const user = userEvent.setup()
+    renderApp("/plan/setup")
+    await vi.waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+    await user.clear(screen.getByLabelText("Maximum travel distance (km)"))
+    await user.type(
+      screen.getByLabelText("Maximum travel distance (km)"),
+      "abc",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    const expectations: [string, string][] = [
+      ["Location", "Error: Select a location in Lithuania from the list."],
+      ["Date", "Error: Add at least one date."],
+      [
+        "Maximum travel distance (km)",
+        "Error: Enter a whole number between 1 and 200.",
+      ],
+    ]
+    for (const [label, message] of expectations) {
+      const field = screen.getByLabelText(label)
+      expect(field).toHaveAttribute("aria-invalid", "true")
+      expect(descriptionsOf(field)).toContain(message)
+    }
+    expect(
+      screen.getByRole("alert", { name: "Error summary" }),
+    ).toBeInTheDocument()
   })
 })

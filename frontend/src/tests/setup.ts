@@ -8,7 +8,11 @@ import {
   useCurrentUserStore,
 } from "../stores/useCurrentUserStore"
 import { useLoginStore } from "../stores/useLoginStore"
+import { useLocationSearchStore } from "../stores/useLocationSearchStore"
 import { useLogoutStore } from "../stores/useLogoutStore"
+import { usePlanPeriodStore } from "../stores/usePlanPeriodStore"
+import { usePlanSetupCheckStore } from "../stores/usePlanSetupCheckStore"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import { useRegistrationStore } from "../stores/useRegistrationStore"
 
 afterEach(() => {
@@ -20,6 +24,12 @@ afterEach(() => {
   useLogoutStore.getState().reset()
   useActivityCategoriesStore.getState().reset()
   useCategoryFormStore.getState().reset()
+  usePlanPeriodStore.getState().reset()
+  usePlanSetupCheckStore.getState().reset()
+  useLocationSearchStore.getState().reset()
+  usePlanSetupStore.getState().clear()
+  // The plan setup store saves itself to sessionStorage; nothing may carry over to the next test.
+  sessionStorage.clear()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
