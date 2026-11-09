@@ -25,7 +25,7 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 **Purpose**: Confirm the starting point. No new package, no migration and no new folder.
 
-- [ ] T001 From the repository root, run `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx`. From `frontend/`, run `npm run lint`, `npm test` and `npm run build`. This confirms the baseline after feature 004 passes before any change. Record any pre-existing failure instead of fixing it in this feature.
+- [X] T001 From the repository root, run `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx`. From `frontend/`, run `npm run lint`, `npm test` and `npm run build`. This confirms the baseline after feature 004 passes before any change. Record any pre-existing failure instead of fixing it in this feature. Result (2026-11-09): no failing test; backend 477 tests pass (303 unit, 174 integration) and frontend 497 tests in 46 files pass. One environment problem to note: the first `npm test`, run straight after the backend tests, exited 1 because 3 test files timed out starting a Vitest worker ("Failed to start forks worker"), so only 43 of 46 files ran; the unchanged re-run passed.
 
 ---
 
