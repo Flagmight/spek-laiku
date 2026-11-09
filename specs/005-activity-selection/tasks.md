@@ -303,12 +303,12 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T044 [P] [US6] Add `backend/tests/SpekLaiku.IntegrationTests/PlanActivitiesAuthorizationTests.cs`, a theory over both endpoints (`GET /api/plan-activities/categories` and `POST /api/plan-activities/check` with a valid body), following `PlanSetupAuthorizationTests.cs`. Cover every row of the authorization table in `contracts/plan-activities-api.md`: a Visitor and an Active Registered User get `200`; a Suspended Registered User, an Active and a Suspended Administrator, and a cookie whose account was deleted get `403`.
-- [ ] T045 [P] [US6] Extend `frontend/src/tests/planCreatorOnly.test.tsx` with `/plan/places`: an Active Administrator sees Access denied, a Suspended user goes to Account suspended, and nothing is shown while the signed-in state loads.
+- [X] T044 [P] [US6] Add `backend/tests/SpekLaiku.IntegrationTests/PlanActivitiesAuthorizationTests.cs`, a theory over both endpoints (`GET /api/plan-activities/categories` and `POST /api/plan-activities/check` with a valid body), following `PlanSetupAuthorizationTests.cs`. Cover every row of the authorization table in `contracts/plan-activities-api.md`: a Visitor and an Active Registered User get `200`; a Suspended Registered User, an Active and a Suspended Administrator, and a cookie whose account was deleted get `403`.
+- [X] T045 [P] [US6] Extend `frontend/src/tests/planCreatorOnly.test.tsx` with `/plan/places`: an Active Administrator sees Access denied, a Suspended user goes to Account suspended, and nothing is shown while the signed-in state loads.
 
 ### Implementation for User Story 6
 
-- [ ] T046 [US6] Make T044 and T045 pass. The policy is already on `PlanActivitiesController` (T018) and the route is inside `PlanCreatorOnly` (T040); fix only what the tests show.
+- [X] T046 [US6] Make T044 and T045 pass. The policy is already on `PlanActivitiesController` (T018) and the route is inside `PlanCreatorOnly` (T040); fix only what the tests show.
 
 **Checkpoint**: Access is enforced on the server and shown correctly in the browser.
 
