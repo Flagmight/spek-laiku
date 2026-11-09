@@ -10,6 +10,7 @@ interface PlanActivitySettingsProps {
   // "Cycling 2" when the category appears more than once.
   shownName: string
   errors: Partial<Record<PlanActivityField, string>>
+  onRemove: () => void
 }
 
 const limitChanges: Record<
@@ -27,6 +28,7 @@ export function PlanActivitySettings({
   activity,
   shownName,
   errors,
+  onRemove,
 }: PlanActivitySettingsProps) {
   const groupId = `activity-${activity.id}`
 
@@ -76,6 +78,13 @@ export function PlanActivitySettings({
           onChange={(field, value) => update(limitChanges[field](value))}
         />
       )}
+      <button
+        type="button"
+        aria-label={`Remove ${shownName}`}
+        onClick={onRemove}
+      >
+        Remove
+      </button>
     </fieldset>
   )
 }

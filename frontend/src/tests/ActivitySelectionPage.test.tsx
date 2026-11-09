@@ -300,6 +300,122 @@ describe("Activity selection categories and Add", () => {
   })
 })
 
+describe("Activity selection Remove", () => {
+  beforeEach(() => {
+    acceptSetup()
+  })
+
+  function addToPlan(...categories: PlanCategory[]) {
+    for (const category of categories) {
+      usePlanActivitiesStore.getState().add(category)
+    }
+  }
+
+  function removeButton(name: string) {
+    return screen.findByRole("button", { name: `Remove ${name}` })
+  }
+
+  it("removes the activity, announces it and moves focus to the next activity", async () => {
+    const user = userEvent.setup()
+    addToPlan(cycling, museum)
+    render()
+
+    await user.click(await removeButton("Cycling"))
+
+    expect(screen.queryByRole("group", { name: "Cycling" })).toBeNull()
+    expect(screen.getByRole("group", { name: "Museum" })).toBeInTheDocument()
+    expect(screen.getByText("Cycling removed.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Museum" }),
+    ).toHaveFocus()
+  })
+
+  it("moves focus to the previous activity when the last one is removed", async () => {
+    const user = userEvent.setup()
+    addToPlan(cycling, museum)
+    render()
+
+    await user.click(await removeButton("Museum"))
+
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Cycling" }),
+    ).toHaveFocus()
+  })
+
+  it("moves focus to the categories and shows the empty text when none is left", async () => {
+    const user = userEvent.setup()
+    addToPlan(museum)
+    render()
+
+    await user.click(await removeButton("Museum"))
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Activity categories" }),
+    ).toHaveFocus()
+    expect(
+      screen.getByText(
+        "No activities added yet. Select at least one category to continue.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("leaves the other copy with its own values, shown without a number", async () => {
+    const user = userEvent.setup()
+    addToPlan(cycling, cycling)
+    render()
+    await removeButton("Cycling 1")
+    const secondDuration =
+      activityGroup("Cycling 2").getByLabelText("Duration (h)")
+    await user.clear(secondDuration)
+    await user.type(secondDuration, "4.5")
+
+    await user.click(await removeButton("Cycling 1"))
+
+    expect(screen.getByText("Cycling 1 removed.")).toBeInTheDocument()
+    expect(activityGroup("Cycling").getByLabelText("Duration (h)")).toHaveValue(
+      "4.5",
+    )
+    expect(screen.queryByRole("group", { name: "Cycling 2" })).toBeNull()
+  })
+
+  it("starts an activity added again with the category defaults", async () => {
+    const user = userEvent.setup()
+    addToPlan(kayaking)
+    render()
+    await removeButton("Kayaking")
+    const duration = activityGroup("Kayaking").getByLabelText("Duration (h)")
+    await user.clear(duration)
+    await user.type(duration, "5")
+
+    await user.click(await removeButton("Kayaking"))
+    await user.click(screen.getByRole("button", { name: "Add Kayaking" }))
+
+    expect(
+      activityGroup("Kayaking").getByLabelText("Duration (h)"),
+    ).toHaveValue("2")
+  })
+
+  // A live region is only read out when its text changes, so the same message must clear in between.
+  it("clears each message after the opposite action, so the same one is announced again", async () => {
+    const user = userEvent.setup()
+    render()
+
+    await user.click(await screen.findByRole("button", { name: "Add Museum" }))
+    expect(screen.getByText("Museum added.")).toBeInTheDocument()
+
+    await user.click(await removeButton("Museum"))
+    expect(screen.queryByText("Museum added.")).toBeNull()
+    expect(screen.getByText("Museum removed.")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Add Museum" }))
+    expect(screen.queryByText("Museum removed.")).toBeNull()
+    expect(screen.getByText("Museum added.")).toBeInTheDocument()
+  })
+})
+
 describe("Activity selection page", () => {
   beforeEach(() => {
     document.title = ""

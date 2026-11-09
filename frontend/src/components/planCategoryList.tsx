@@ -14,14 +14,17 @@ export function PlanCategoryList() {
   const activityCount = usePlanActivitiesStore(
     (state) => state.activities.length,
   )
-  const [addedMessage, setAddedMessage] = useState("")
+  const [added, setAdded] = useState({ message: "", activityCount: 0 })
   const atLimit = maxActivities !== null && activityCount >= maxActivities
 
   function add(category: PlanCategory) {
     usePlanActivitiesStore.getState().add(category)
     const { activities } = usePlanActivitiesStore.getState()
-    const added = activities[activities.length - 1]
-    setAddedMessage(`${planActivityNames(activities)[added.id]} added.`)
+    const newest = activities[activities.length - 1]
+    setAdded({
+      message: `${planActivityNames(activities)[newest.id]} added.`,
+      activityCount: activities.length,
+    })
   }
 
   return (
@@ -69,8 +72,9 @@ export function PlanCategoryList() {
         </ul>
       )}
       {atLimit && <p>{`You can add up to ${maxActivities} activities.`}</p>}
+      {/* Empty again after a Remove: a live region is read out only when its text changes. */}
       <p role="status" className="loading-status">
-        {addedMessage}
+        {added.activityCount === activityCount ? added.message : ""}
       </p>
     </section>
   )
