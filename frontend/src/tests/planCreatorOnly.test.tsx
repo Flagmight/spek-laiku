@@ -28,7 +28,8 @@ function planRequests(requests: { path: string }[]) {
   return requests.filter(
     (request) =>
       request.path.startsWith("/api/locations") ||
-      request.path.startsWith("/api/plan-setup"),
+      request.path.startsWith("/api/plan-setup") ||
+      request.path.startsWith("/api/plan-activities"),
   )
 }
 
@@ -39,6 +40,8 @@ function stubUser(user: CurrentUser | null) {
     "GET /api/auth/me": () =>
       user ? jsonResponse(200, user) : jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, period),
+    "GET /api/plan-activities/categories": () =>
+      jsonResponse(200, { categories: [], maxActivities: 10 }),
   })
 }
 

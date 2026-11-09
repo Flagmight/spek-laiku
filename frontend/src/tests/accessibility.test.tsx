@@ -378,6 +378,8 @@ function stubPlanSetup() {
     "GET /api/plan-setup/period": () => jsonResponse(200, planPeriod),
     "GET /api/locations?query=Kaun": () =>
       jsonResponse(200, { locations: [kaunasPlace] }),
+    "GET /api/plan-activities/categories": () =>
+      jsonResponse(200, { categories: [], maxActivities: 10 }),
   })
 }
 

@@ -1,4 +1,3 @@
-import type { ActivityCategoryFieldErrors } from "../types/activityCategory"
 import { TextField } from "./textField"
 
 export interface WeatherLimitValues {
@@ -9,8 +8,10 @@ export interface WeatherLimitValues {
 }
 
 interface WeatherLimitFieldsProps {
+  // Field ids are <idPrefix>-<field>, so several sets of fields can be on one page.
+  idPrefix: string
   values: WeatherLimitValues
-  errors: ActivityCategoryFieldErrors
+  errors: Partial<Record<keyof WeatherLimitValues, string>>
   onChange: (field: keyof WeatherLimitValues, value: string) => void
 }
 
@@ -33,9 +34,10 @@ const fields: {
   },
 ]
 
-// The four weather limits of an Outdoor category, typed as text so the server gives the range
-// message for anything that is not a number (research section 6).
+// The four weather limits of an Outdoor category or plan activity, typed as text so the server gives
+// the range message for anything that is not a number (research section 6).
 export function WeatherLimitFields({
+  idPrefix,
   values,
   errors,
   onChange,
@@ -45,7 +47,7 @@ export function WeatherLimitFields({
       {fields.map(({ field, label, hint }) => (
         <TextField
           key={field}
-          id={`category-${field}`}
+          id={`${idPrefix}-${field}`}
           label={label}
           type="text"
           inputMode="decimal"

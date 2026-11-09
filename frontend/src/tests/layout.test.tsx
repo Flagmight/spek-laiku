@@ -136,6 +136,8 @@ describe.each([
           lastDate: "2026-11-10",
           maxDates: 7,
         }),
+      "GET /api/plan-activities/categories": () =>
+        jsonResponse(200, { categories: [], maxActivities: 10 }),
     })
     const user = userEvent.setup()
     renderApp(page)

@@ -441,6 +441,8 @@ async function renderReadySetup(
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, period),
     "GET /api/locations?query=Kaun": found([kaunas]),
+    "GET /api/plan-activities/categories": () =>
+      jsonResponse(200, { categories: [], maxActivities: 10 }),
     [checkRoute]: check,
   })
   renderApp("/plan/setup")

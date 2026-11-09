@@ -1,7 +1,9 @@
 import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
+import type { PlanCategory } from "../types/planActivity"
 import type { CheckedPlanSetup, PlanLocation } from "../types/planSetup"
 import { jsonResponse, renderAppWithLocation, routeFetch } from "./renderApp"
 
@@ -28,7 +30,54 @@ function acceptSetup() {
   store.setChecked(checked)
 }
 
-function render(entry = "/plan/activities") {
+const kayaking: PlanCategory = {
+  id: "category-kayaking",
+  name: "Kayaking",
+  type: "Outdoor",
+  defaultDurationHours: 2,
+  requiresDaylight: true,
+  maxWindMs: 8,
+  maxRainMmPerHour: 0.5,
+  minTemperatureC: 15,
+  maxTemperatureC: 35,
+}
+
+const museum: PlanCategory = {
+  id: "category-museum",
+  name: "Museum",
+  type: "Indoor",
+  defaultDurationHours: 2,
+  requiresDaylight: false,
+  maxWindMs: null,
+  maxRainMmPerHour: null,
+  minTemperatureC: null,
+  maxTemperatureC: null,
+}
+
+const cycling: PlanCategory = {
+  id: "category-cycling",
+  name: "Cycling",
+  type: "Outdoor",
+  defaultDurationHours: 3,
+  requiresDaylight: true,
+  maxWindMs: 10,
+  maxRainMmPerHour: 1,
+  minTemperatureC: 5,
+  maxTemperatureC: 30,
+}
+
+// Not alphabetical, so a test can see that the page keeps the server's order.
+const categoryList = {
+  categories: [kayaking, museum, cycling],
+  maxActivities: 10,
+}
+
+type CategoriesAnswer = () => Response | Promise<Response>
+
+function render(
+  entry = "/plan/activities",
+  categoriesAnswer: CategoriesAnswer = () => jsonResponse(200, categoryList),
+) {
   routeFetch({
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
@@ -37,11 +86,221 @@ function render(entry = "/plan/activities") {
         lastDate: "2026-11-10",
         maxDates: 7,
       }),
+    "GET /api/plan-activities/categories": categoriesAnswer,
   })
   return renderAppWithLocation(entry)
 }
 
-describe("Activity selection page (first version)", () => {
+function categoriesRegion() {
+  return screen.getByRole("region", { name: "Activity categories" })
+}
+
+function activityGroup(name: string) {
+  return within(screen.getByRole("group", { name }))
+}
+
+function addButtons() {
+  return within(categoriesRegion()).getAllByRole("button", { name: /^Add / })
+}
+
+describe("Activity selection categories and Add", () => {
+  beforeEach(() => {
+    acceptSetup()
+  })
+
+  it("shows and announces the loading text while the categories load", async () => {
+    render("/plan/activities", () => new Promise<Response>(() => {}))
+
+    expect(
+      await screen.findByText("Loading activity categories…"),
+    ).toHaveAttribute("role", "status")
+  })
+
+  it("lists the categories in the order sent, each with its type, duration and Add", async () => {
+    render()
+
+    await screen.findByRole("button", { name: "Add Kayaking" })
+    const items = within(categoriesRegion()).getAllByRole("listitem")
+    expect(items).toHaveLength(3)
+    expect(items[0]).toHaveTextContent("Kayaking")
+    expect(items[0]).toHaveTextContent("Outdoor")
+    expect(items[0]).toHaveTextContent("2 h")
+    expect(items[1]).toHaveTextContent("Museum")
+    expect(items[1]).toHaveTextContent("Indoor")
+    expect(items[2]).toHaveTextContent("Cycling")
+    expect(items[2]).toHaveTextContent("3 h")
+    expect(
+      addButtons().map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Add Kayaking", "Add Museum", "Add Cycling"])
+  })
+
+  it("says no activities are added yet before any Add", async () => {
+    render()
+
+    expect(
+      await screen.findByText(
+        "No activities added yet. Select at least one category to continue.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("adds Kayaking with its category defaults and keeps Add available", async () => {
+    const user = userEvent.setup()
+    render()
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add Kayaking" }),
+    )
+
+    const group = activityGroup("Kayaking")
+    expect(group.getByLabelText("Duration (h)")).toHaveValue("2")
+    expect(
+      group.getByRole("checkbox", { name: "Requires daylight" }),
+    ).toBeChecked()
+    expect(group.getByLabelText("Max wind (m/s)")).toHaveValue("8")
+    expect(group.getByLabelText("Max rain (mm/h)")).toHaveValue("0.5")
+    expect(group.getByLabelText("Min temperature (°C)")).toHaveValue("15")
+    expect(group.getByLabelText("Max temperature (°C)")).toHaveValue("35")
+    expect(screen.getByText("Kayaking added.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(screen.getByRole("button", { name: "Add Kayaking" })).toBeEnabled()
+    expect(
+      screen.queryByText(
+        "No activities added yet. Select at least one category to continue.",
+      ),
+    ).toBeNull()
+  })
+
+  it("shows only Duration and Requires daylight for an Indoor activity", async () => {
+    const user = userEvent.setup()
+    render()
+
+    await user.click(await screen.findByRole("button", { name: "Add Museum" }))
+
+    const group = activityGroup("Museum")
+    expect(group.getByLabelText("Duration (h)")).toHaveValue("2")
+    expect(
+      group.getByRole("checkbox", { name: "Requires daylight" }),
+    ).not.toBeChecked()
+    expect(group.getAllByRole("textbox")).toHaveLength(1)
+    expect(group.queryByLabelText("Max wind (m/s)")).toBeNull()
+  })
+
+  it("numbers a category added twice and keeps each copy's own values", async () => {
+    const user = userEvent.setup()
+    render()
+    const add = await screen.findByRole("button", { name: "Add Cycling" })
+
+    await user.click(add)
+    expect(screen.getByText("Cycling added.")).toBeInTheDocument()
+    expect(activityGroup("Cycling").getByLabelText("Duration (h)")).toHaveValue(
+      "3",
+    )
+
+    await user.click(add)
+    expect(screen.getByText("Cycling 2 added.")).toBeInTheDocument()
+
+    const firstDuration =
+      activityGroup("Cycling 1").getByLabelText("Duration (h)")
+    await user.clear(firstDuration)
+    await user.type(firstDuration, "4.5")
+
+    expect(firstDuration).toHaveValue("4.5")
+    expect(
+      activityGroup("Cycling 2").getByLabelText("Duration (h)"),
+    ).toHaveValue("3")
+  })
+
+  it("disables every Add and says so with 10 activities", async () => {
+    for (let count = 0; count < 10; count++) {
+      usePlanActivitiesStore.getState().add(kayaking)
+    }
+    render()
+
+    expect(
+      await screen.findByText("You can add up to 10 activities."),
+    ).toBeInTheDocument()
+    expect(addButtons()).toHaveLength(3)
+    for (const button of addButtons()) {
+      expect(button).toBeDisabled()
+    }
+  })
+
+  it("takes the limit from the server, not from a constant", async () => {
+    const user = userEvent.setup()
+    usePlanActivitiesStore.getState().add(kayaking)
+    usePlanActivitiesStore.getState().add(museum)
+    render("/plan/activities", () =>
+      jsonResponse(200, { ...categoryList, maxActivities: 3 }),
+    )
+    const add = await screen.findByRole("button", { name: "Add Cycling" })
+    expect(add).toBeEnabled()
+    expect(screen.queryByText(/You can add up to/)).toBeNull()
+
+    await user.click(add)
+
+    expect(
+      screen.getByText("You can add up to 3 activities."),
+    ).toBeInTheDocument()
+    for (const button of addButtons()) {
+      expect(button).toBeDisabled()
+    }
+  })
+
+  it("shows the error with Retry on a 500, keeps the activities, and Retry loads the list", async () => {
+    const user = userEvent.setup()
+    usePlanActivitiesStore.getState().add(museum)
+    let answer = jsonResponse(500)
+    render("/plan/activities", () => answer)
+
+    expect(
+      await screen.findByText(
+        "Error: Activity categories could not be loaded.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Museum" })).toBeInTheDocument()
+
+    answer = jsonResponse(200, categoryList)
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(
+      await screen.findByRole("button", { name: "Add Kayaking" }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("Error: Activity categories could not be loaded."),
+    ).toBeNull()
+    expect(screen.getByRole("group", { name: "Museum" })).toBeInTheDocument()
+  })
+
+  it("says so when there are no categories", async () => {
+    render("/plan/activities", () =>
+      jsonResponse(200, { categories: [], maxActivities: 10 }),
+    )
+
+    expect(
+      await screen.findByText("No activity categories are available yet."),
+    ).toBeInTheDocument()
+  })
+
+  it("still shows the setup summary and Back", async () => {
+    render()
+
+    await screen.findByRole("button", { name: "Add Kayaking" })
+    expect(
+      screen.getByText(
+        "Kaunas, Kaunas County · Sat 7 Nov 2026, Sun 8 Nov 2026 · Maximum travel distance: 30 km",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute(
+      "href",
+      "/plan/setup",
+    )
+  })
+})
+
+describe("Activity selection page", () => {
   beforeEach(() => {
     document.title = ""
   })

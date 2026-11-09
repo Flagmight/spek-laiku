@@ -389,6 +389,8 @@ function stubPlanSetup() {
     "GET /api/locations?query=Ka": found,
     "GET /api/locations?query=Kau": found,
     "GET /api/locations?query=Kaun": found,
+    "GET /api/plan-activities/categories": () =>
+      jsonResponse(200, { categories: [], maxActivities: 10 }),
     "POST /api/plan-setup/check": () =>
       jsonResponse(200, {
         location: kaunas,
