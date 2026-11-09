@@ -168,7 +168,7 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T026 [P] [US3] Extend `frontend/src/tests/ActivitySelectionPage.test.tsx` (Remove part). Cover:
+- [X] T026 [P] [US3] Extend `frontend/src/tests/ActivitySelectionPage.test.tsx` (Remove part). Cover:
   - "Remove Cycling" removes it, announces "Cycling removed." and moves focus to the next activity's heading (Picnic);
   - removing the last activity moves focus to the "Activity categories" heading and shows the empty text;
   - removing "Cycling 1" leaves the other with its own Duration, shown as "Cycling";
@@ -176,7 +176,7 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Add Remove:
+- [X] T027 [US3] Add Remove:
   - In `frontend/src/components/planActivitySettings.tsx`, add a "Remove" button with `aria-label` "Remove <shown name>" that calls an `onRemove` prop.
   - In `frontend/src/components/planActivitiesForm.tsx`, `onRemove` calls `usePlanActivitiesStore.getState().remove(id)`, announces "<shown name> removed." in a status region, and then focuses `activity-<next id>-heading` (the activity after it, or before it when it was last) or `plan-categories-heading` when none is left (spec FR-009).
 
