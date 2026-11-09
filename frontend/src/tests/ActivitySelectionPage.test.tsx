@@ -416,6 +416,318 @@ describe("Activity selection Remove", () => {
   })
 })
 
+const checkRoute = "POST /api/plan-activities/check"
+
+const checkedCycling = {
+  categoryId: cycling.id,
+  name: "Cycling",
+  type: "Outdoor",
+  durationHours: 3,
+  requiresDaylight: true,
+  maxWindMs: 10,
+  maxRainMmPerHour: 1,
+  minTemperatureC: 5,
+  maxTemperatureC: 30,
+}
+
+const checkedMuseum = {
+  categoryId: museum.id,
+  name: "Museum",
+  type: "Indoor",
+  durationHours: 2,
+  requiresDaylight: false,
+  maxWindMs: null,
+  maxRainMmPerHour: null,
+  minTemperatureC: null,
+  maxTemperatureC: null,
+}
+
+const acceptedPlan = { activities: [checkedCycling, checkedMuseum] }
+
+const continueButton = () => screen.getByRole("button", { name: "Continue" })
+
+describe("Activity selection Continue", () => {
+  beforeEach(() => {
+    acceptSetup()
+  })
+
+  function addCyclingAndMuseum() {
+    usePlanActivitiesStore.getState().add(cycling)
+    usePlanActivitiesStore.getState().add(museum)
+  }
+
+  function renderWithCheck(
+    check: () => Response | Promise<Response>,
+    categoriesAnswer: CategoriesAnswer = () => jsonResponse(200, categoryList),
+  ) {
+    const { requests } = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-activities/categories": categoriesAnswer,
+      [checkRoute]: check,
+    })
+    const { currentLocation } = renderAppWithLocation("/plan/activities")
+    return {
+      currentLocation,
+      checks: () => requests.filter((sent) => sent.method === "POST"),
+    }
+  }
+
+  it("asks for an activity and sends nothing when there are none", async () => {
+    const user = userEvent.setup()
+    const { checks } = renderWithCheck(() => jsonResponse(200, acceptedPlan))
+    await screen.findByRole("button", { name: "Add Museum" })
+
+    await user.click(continueButton())
+
+    expect(
+      screen.getByText("Error: Add at least one activity."),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Your activities" }),
+    ).toHaveFocus()
+    expect(checks()).toHaveLength(0)
+  })
+
+  it("removes the 'add an activity' error once an activity is added", async () => {
+    const user = userEvent.setup()
+    renderWithCheck(() => jsonResponse(200, acceptedPlan))
+    await user.click(await screen.findByRole("button", { name: "Add Museum" }))
+    await user.click(screen.getByRole("button", { name: "Remove Museum" }))
+    await user.click(continueButton())
+    expect(
+      screen.getByText("Error: Add at least one activity."),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Add Museum" }))
+    expect(screen.queryByText("Error: Add at least one activity.")).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Remove Museum" }))
+    expect(screen.queryByText("Error: Add at least one activity.")).toBeNull()
+  })
+
+  it("announces the check, disables Continue and sends the contract's body", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    const { checks } = renderWithCheck(() => new Promise<Response>(() => {}))
+    const duration = await waitFor(() =>
+      activityGroup("Cycling").getByLabelText("Duration (h)"),
+    )
+    await user.clear(duration)
+    await user.type(duration, "2,5")
+
+    await user.click(continueButton())
+
+    expect(screen.getByText("Checking your activities…")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(continueButton()).toBeDisabled()
+    expect(checks()[0].body).toEqual({
+      activities: [
+        {
+          categoryId: cycling.id,
+          type: "Outdoor",
+          durationHours: null,
+          requiresDaylight: true,
+          maxWindMs: 10,
+          maxRainMmPerHour: 1,
+          minTemperatureC: 5,
+          maxTemperatureC: 30,
+        },
+        {
+          categoryId: museum.id,
+          type: "Indoor",
+          durationHours: 2,
+          requiresDaylight: false,
+          maxWindMs: null,
+          maxRainMmPerHour: null,
+          minTemperatureC: null,
+          maxTemperatureC: null,
+        },
+      ],
+    })
+  })
+
+  it("opens step 3 on a 200", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    const { currentLocation } = renderWithCheck(() =>
+      jsonResponse(200, acceptedPlan),
+    )
+    await screen.findByRole("button", { name: "Add Museum" })
+
+    await user.click(continueButton())
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Places and forecast",
+      }),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe("/plan/places")
+  })
+
+  it("shows each message at its field, lists them all and focuses the first", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    renderWithCheck(() =>
+      jsonResponse(400, {
+        errors: {
+          "activities[0].durationHours": [
+            "Enter a duration between 0.5 and 12 hours.",
+          ],
+          "activities[0].minTemperatureC": [
+            "Enter a minimum temperature between -30 and 45 °C.",
+          ],
+          "activities[1].durationHours": [
+            "Enter a duration between 0.5 and 12 hours.",
+          ],
+        },
+      }),
+    )
+    await screen.findByRole("button", { name: "Add Museum" })
+
+    await user.click(continueButton())
+
+    const cyclingDuration = await waitFor(() => {
+      const field = activityGroup("Cycling").getByLabelText("Duration (h)")
+      expect(field).toHaveFocus()
+      return field
+    })
+    expect(cyclingDuration).toHaveAccessibleDescription(
+      "0.5 to 12 Error: Enter a duration between 0.5 and 12 hours.",
+    )
+    expect(
+      activityGroup("Museum").getByText(/^Error: Enter a duration/),
+    ).toBeInTheDocument()
+    expect(
+      activityGroup("Cycling").getByText(
+        "Error: Enter a minimum temperature between -30 and 45 °C.",
+      ),
+    ).toBeInTheDocument()
+
+    const summary = within(screen.getByRole("alert", { name: "Error summary" }))
+    expect(
+      summary.getAllByRole("link").map((link) => link.textContent),
+    ).toEqual([
+      "Error: Cycling: Enter a duration between 0.5 and 12 hours.",
+      "Error: Cycling: Enter a minimum temperature between -30 and 45 °C.",
+      "Error: Museum: Enter a duration between 0.5 and 12 hours.",
+    ])
+    await user.click(summary.getByRole("link", { name: /^Error: Museum/ }))
+    expect(activityGroup("Museum").getByLabelText("Duration (h)")).toHaveFocus()
+  })
+
+  it("shows an activity's own message at the top of its group and focuses the group", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    renderWithCheck(() =>
+      jsonResponse(400, {
+        errors: {
+          "activities[1]": [
+            "This activity's category has changed. Remove it and add it again.",
+          ],
+        },
+      }),
+    )
+    await screen.findByRole("button", { name: "Add Museum" })
+
+    await user.click(continueButton())
+
+    const group = await waitFor(() => {
+      const museumGroup = screen.getByRole("group", { name: "Museum" })
+      expect(museumGroup).toHaveFocus()
+      return museumGroup
+    })
+    expect(group).toHaveAccessibleDescription(
+      "Error: This activity's category has changed. Remove it and add it again.",
+    )
+    expect(
+      activityGroup("Cycling").queryByText(/category has changed/),
+    ).toBeNull()
+  })
+
+  it("keeps the second activity's errors on it after the first is removed", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    renderWithCheck(() =>
+      jsonResponse(400, {
+        errors: {
+          "activities[1].durationHours": [
+            "Enter a duration between 0.5 and 12 hours.",
+          ],
+        },
+      }),
+    )
+    await screen.findByRole("button", { name: "Add Museum" })
+    await user.click(continueButton())
+    await activityGroup("Museum").findByText(/^Error: Enter a duration/)
+
+    await user.click(screen.getByRole("button", { name: "Remove Cycling" }))
+
+    expect(
+      activityGroup("Museum").getByText(/^Error: Enter a duration/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Museum" }),
+    ).toHaveFocus()
+  })
+
+  it("offers Retry after a server error, which sends the same request", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    let answer = jsonResponse(500)
+    const { checks, currentLocation } = renderWithCheck(() => answer)
+    await screen.findByRole("button", { name: "Add Museum" })
+
+    await user.click(continueButton())
+    expect(
+      await screen.findByText("Error: Something went wrong. Try again."),
+    ).toBeInTheDocument()
+
+    answer = jsonResponse(200, acceptedPlan)
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+
+    await waitFor(() => expect(currentLocation()).toBe("/plan/places"))
+    expect(checks()).toHaveLength(2)
+    expect(checks()[1].body).toEqual(checks()[0].body)
+  })
+
+  it("takes Retry away after a change, so old values cannot be accepted", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    renderWithCheck(() => jsonResponse(500))
+    await screen.findByRole("button", { name: "Add Museum" })
+    await user.click(continueButton())
+    await screen.findByRole("button", { name: "Retry" })
+
+    await user.type(
+      activityGroup("Museum").getByLabelText("Duration (h)"),
+      ".5",
+    )
+
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
+    expect(
+      screen.queryByText("Error: Something went wrong. Try again."),
+    ).toBeNull()
+  })
+
+  it("still continues with earlier activities when the categories fail to load", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    const { checks, currentLocation } = renderWithCheck(
+      () => jsonResponse(200, acceptedPlan),
+      () => jsonResponse(500),
+    )
+    await screen.findByText("Error: Activity categories could not be loaded.")
+
+    await user.click(continueButton())
+
+    await waitFor(() => expect(currentLocation()).toBe("/plan/places"))
+    expect(checks()).toHaveLength(1)
+  })
+})
+
 describe("Activity selection page", () => {
   beforeEach(() => {
     document.title = ""

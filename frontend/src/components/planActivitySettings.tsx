@@ -1,3 +1,5 @@
+import { formatErrorMessage } from "../helpers/formatErrorMessage"
+import { activityFieldId } from "../helpers/planActivityFieldIds"
 import type { PlanActivityChanges } from "../stores/usePlanActivitiesStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import type { PlanActivity, PlanActivityField } from "../types/planActivity"
@@ -30,21 +32,33 @@ export function PlanActivitySettings({
   errors,
   onRemove,
 }: PlanActivitySettingsProps) {
-  const groupId = `activity-${activity.id}`
+  const groupId = activityFieldId(activity.id, "activity")
+  const errorId = `${groupId}-error`
 
   function update(changes: PlanActivityChanges) {
     usePlanActivitiesStore.getState().update(activity.id, changes)
   }
 
   return (
-    <fieldset id={groupId} className="form-field">
+    // tabIndex: the error summary and the first-error focus can move here for a whole-activity message.
+    <fieldset
+      id={groupId}
+      className="form-field"
+      tabIndex={-1}
+      aria-describedby={errors.activity ? errorId : undefined}
+    >
       <legend>
         <h3 id={`${groupId}-heading`} tabIndex={-1}>
           {shownName}
         </h3>
       </legend>
+      {errors.activity && (
+        <p id={errorId} className="field-error">
+          {formatErrorMessage(errors.activity)}
+        </p>
+      )}
       <TextField
-        id={`${groupId}-durationHours`}
+        id={activityFieldId(activity.id, "durationHours")}
         label="Duration (h)"
         type="text"
         inputMode="decimal"

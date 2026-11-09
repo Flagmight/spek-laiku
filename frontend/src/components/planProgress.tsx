@@ -8,7 +8,7 @@ interface PlanStep {
 
 const steps: PlanStep[] = [
   { name: "Plan setup", path: "/plan/setup" },
-  { name: "Activities" },
+  { name: "Activities", path: "/plan/activities" },
   { name: "Places and forecast" },
   { name: "Schedule" },
 ]
