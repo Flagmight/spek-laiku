@@ -132,6 +132,7 @@ export function CategoryForm({
         />
         {values.type === "Outdoor" && (
           <WeatherLimitFields
+            idPrefix="category"
             values={values}
             errors={errors}
             onChange={change}

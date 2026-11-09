@@ -4,6 +4,7 @@ import { ActivitySelectionPage } from "../pages/ActivitySelectionPage"
 import { ActivityCategoriesPage } from "../pages/ActivityCategoriesPage"
 import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
+import { PlacesAndForecastPage } from "../pages/PlacesAndForecastPage"
 import { PlanSetupPage } from "../pages/PlanSetupPage"
 import { RegisterPage } from "../pages/RegisterPage"
 import { AdministratorOnly } from "./administratorOnly"
@@ -47,6 +48,14 @@ export function AppRoutes() {
           element={
             <PlanCreatorOnly>
               <ActivitySelectionPage />
+            </PlanCreatorOnly>
+          }
+        />
+        <Route
+          path="plan/places"
+          element={
+            <PlanCreatorOnly>
+              <PlacesAndForecastPage />
             </PlanCreatorOnly>
           }
         />

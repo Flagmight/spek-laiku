@@ -1,6 +1,7 @@
 import { act } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import {
   initialPlanSetupCheckState,
   planSetupCheckTimeoutMs,
@@ -89,6 +90,42 @@ describe("usePlanSetupCheckStore", () => {
     expect(accepted).toBe(true)
     expect(store().status).toBe("idle")
     expect(usePlanSetupStore.getState().checked).toEqual(checked)
+  })
+
+  it("needs a new activity check after a setup is accepted, and keeps the activities", async () => {
+    routeFetch({ [checkRoute]: () => jsonResponse(200, checked) })
+    usePlanActivitiesStore.getState().add({
+      id: "category-museum",
+      name: "Museum",
+      type: "Indoor",
+      defaultDurationHours: 2,
+      requiresDaylight: false,
+      maxWindMs: null,
+      maxRainMmPerHour: null,
+      minTemperatureC: null,
+      maxTemperatureC: null,
+    })
+    usePlanActivitiesStore.getState().setChecked([])
+    const { activities } = usePlanActivitiesStore.getState()
+
+    await act(() => store().submit(request))
+
+    expect(usePlanActivitiesStore.getState().checked).toBeNull()
+    expect(usePlanActivitiesStore.getState().activities).toBe(activities)
+  })
+
+  it("keeps the activities as checked when the setup is refused", async () => {
+    routeFetch({
+      [checkRoute]: () =>
+        jsonResponse(400, {
+          errors: { "dates[0]": ["Dates cannot be in the past."] },
+        }),
+    })
+    usePlanActivitiesStore.getState().setChecked([])
+
+    await act(() => store().submit(request))
+
+    expect(usePlanActivitiesStore.getState().checked).toEqual([])
   })
 
   it("keeps the field errors when the setup is refused", async () => {

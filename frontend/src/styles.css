@@ -197,7 +197,8 @@ nav button,
 .success-banner button,
 .server-error button,
 .form-error button,
-.category-list button,
+.category-list button:not(:disabled),
+fieldset.plan-activity button,
 .form-actions button[type="button"] {
   background: #ffffff;
   color: #1d4ed8;
@@ -289,8 +290,10 @@ fieldset.form-field legend {
   gap: 8px;
 }
 
-/* Activity categories: one column on phones, the list first (docs/ux-design.md section 8). */
-.categories-layout {
+/* Activity categories and Activity selection: one column on phones, the list first
+   (docs/ux-design.md section 8). */
+.categories-layout,
+.activity-selection-layout {
   display: grid;
   gap: 24px;
   margin-top: 16px;
@@ -320,7 +323,8 @@ fieldset.form-field legend {
   color: #52606d;
 }
 
-.category-form h2 {
+.category-form h2,
+.activity-selection-layout h2 {
   margin-top: 0;
 }
 
@@ -451,6 +455,38 @@ form .date-chip button {
   font-weight: 600;
 }
 
+/* Add and Retry are outside the form, so the form's full-width rule does not reach them. */
+.activity-selection-layout button {
+  width: 100%;
+}
+
+/* min-width: a fieldset otherwise refuses to shrink below its content on a narrow screen. */
+fieldset.plan-activity {
+  min-width: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #d9dee3;
+}
+
+fieldset.plan-activity h3 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.plan-activities-summary {
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-activities-summary li {
+  padding: 8px 0;
+  border-bottom: 1px solid #d9dee3;
+}
+
+.plan-activities-summary p {
+  margin: 0;
+}
+
 /* Wider screens: buttons are sized to their text. */
 @media (min-width: 40em) {
   form button {
@@ -461,10 +497,15 @@ form .date-chip button {
     flex-direction: row;
   }
 
-  /* The list on the left and the open form on the right. */
+  /* The list on the left and the open form or the plan's activities on the right. */
+  .activity-selection-layout,
   .categories-layout.with-form {
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     align-items: start;
+  }
+
+  .activity-selection-layout button {
+    width: auto;
   }
 
   /* The four labelled steps instead of the compact line. */

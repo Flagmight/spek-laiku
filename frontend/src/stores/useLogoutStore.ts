@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { logout } from "../api/authApi"
 import { useCurrentUserStore } from "./useCurrentUserStore"
+import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
 import { usePlanSetupStore } from "./usePlanSetupStore"
 
 // After this long without an answer the request counts as a server error (FR-014).
@@ -54,6 +55,8 @@ export const useLogoutStore = create<LogoutState>()((set, get) => ({
       useCurrentUserStore.getState().setSignedOut()
       // The plan in progress belongs to the session that ended (feature 004, spec FR-017).
       usePlanSetupStore.getState().clear()
+      // The activities go with it (feature 005, spec FR-019).
+      usePlanActivitiesStore.getState().clear()
     }
 
     set({ status: succeeded ? "idle" : "serverError", controller: null })

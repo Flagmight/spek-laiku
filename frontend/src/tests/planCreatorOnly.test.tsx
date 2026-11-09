@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CurrentUser } from "../types/currentUser"
 import type { PlanLocation } from "../types/planSetup"
@@ -22,13 +23,14 @@ const kaunas: PlanLocation = {
   longitude: 23.90909,
 }
 
-const pages = ["/plan/setup", "/plan/activities"]
+const pages = ["/plan/setup", "/plan/activities", "/plan/places"]
 
 function planRequests(requests: { path: string }[]) {
   return requests.filter(
     (request) =>
       request.path.startsWith("/api/locations") ||
-      request.path.startsWith("/api/plan-setup"),
+      request.path.startsWith("/api/plan-setup") ||
+      request.path.startsWith("/api/plan-activities"),
   )
 }
 
@@ -39,10 +41,13 @@ function stubUser(user: CurrentUser | null) {
     "GET /api/auth/me": () =>
       user ? jsonResponse(200, user) : jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, period),
+    "GET /api/plan-activities/categories": () =>
+      jsonResponse(200, { categories: [], maxActivities: 10 }),
   })
 }
 
-// A setup the server accepted, so /plan/activities shows its page instead of going back to step 1.
+// A setup and activities the server accepted, so /plan/activities and /plan/places show their pages
+// instead of going back a step.
 function acceptSetup() {
   const store = usePlanSetupStore.getState()
   store.chooseLocation(kaunas)
@@ -52,12 +57,14 @@ function acceptSetup() {
     dates: ["2026-11-07"],
     maxTravelDistanceKm: 30,
   })
+  usePlanActivitiesStore.getState().setChecked([])
 }
 
 describe("plan pages access", () => {
   it.each(pages)(
     "shows nothing at %s while the signed-in state loads",
     (page) => {
+      acceptSetup()
       vi.stubGlobal(
         "fetch",
         vi.fn(() => new Promise<Response>(() => {})),
@@ -71,6 +78,7 @@ describe("plan pages access", () => {
   it.each([
     ["/plan/setup", "Plan setup"],
     ["/plan/activities", "Activity selection"],
+    ["/plan/places", "Places and forecast"],
   ])("opens %s for a visitor", async (page, heading) => {
     acceptSetup()
     stubUser(null)
@@ -84,6 +92,7 @@ describe("plan pages access", () => {
   it.each([
     ["/plan/setup", "Plan setup"],
     ["/plan/activities", "Activity selection"],
+    ["/plan/places", "Places and forecast"],
   ])("opens %s for an Active Registered User", async (page, heading) => {
     acceptSetup()
     stubUser(signedInUser("Registered User"))
@@ -114,6 +123,8 @@ describe("plan pages access", () => {
     ["/plan/setup", "Administrator"],
     ["/plan/activities", "Registered User"],
     ["/plan/activities", "Administrator"],
+    ["/plan/places", "Registered User"],
+    ["/plan/places", "Administrator"],
   ])(
     "sends a Suspended %s at %s to the Account suspended page",
     async (page, role) => {
@@ -125,6 +136,28 @@ describe("plan pages access", () => {
       expect(planRequests(requests)).toHaveLength(0)
     },
   )
+
+  it("shows Access denied after the categories are answered with 403 once the user is read again", async () => {
+    acceptSetup()
+    let administrator = false
+    routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(
+          200,
+          signedInUser(administrator ? "Administrator" : "Registered User"),
+        ),
+      "GET /api/plan-activities/categories": () => {
+        // The account was made an Administrator in the meantime.
+        administrator = true
+        return jsonResponse(403)
+      },
+    })
+    renderApp("/plan/activities")
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Access denied" }),
+    ).toBeInTheDocument()
+  })
 
   it("shows Access denied after a Continue answered with 403 once the user is read again", async () => {
     let administrator = false

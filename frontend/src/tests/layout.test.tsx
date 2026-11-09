@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import {
   jsonResponse,
@@ -115,8 +116,10 @@ describe.each([
 describe.each([
   ["/plan/setup", "Plan setup"],
   ["/plan/activities", "Activity selection"],
+  ["/plan/places", "Places and forecast"],
 ])("skip link on %s", (page, heading) => {
   it(`makes 'Skip to main content' the first focusable item on the ${heading} page`, async () => {
+    usePlanActivitiesStore.getState().setChecked([])
     usePlanSetupStore.getState().setChecked({
       location: {
         id: 598316,
@@ -136,6 +139,8 @@ describe.each([
           lastDate: "2026-11-10",
           maxDates: 7,
         }),
+      "GET /api/plan-activities/categories": () =>
+        jsonResponse(200, { categories: [], maxActivities: 10 }),
     })
     const user = userEvent.setup()
     renderApp(page)

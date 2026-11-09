@@ -1,7 +1,9 @@
 import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
+import type { PlanCategory } from "../types/planActivity"
 import {
   jsonResponse,
   renderApp,
@@ -378,6 +380,8 @@ function stubPlanSetup() {
     "GET /api/plan-setup/period": () => jsonResponse(200, planPeriod),
     "GET /api/locations?query=Kaun": () =>
       jsonResponse(200, { locations: [kaunasPlace] }),
+    "GET /api/plan-activities/categories": () =>
+      jsonResponse(200, { categories: [], maxActivities: 10 }),
   })
 }
 
@@ -385,9 +389,11 @@ describe("Plan setup and Activity selection page structure", () => {
   it.each([
     ["/plan/setup", "Plan setup"],
     ["/plan/activities", "Activity selection"],
+    ["/plan/places", "Places and forecast"],
   ])(
     "%s has exactly one h1 and the tab title '%s - Spėk laiku'",
     async (page, heading) => {
+      usePlanActivitiesStore.getState().setChecked([])
       usePlanSetupStore.getState().setChecked({
         location: kaunasPlace,
         dates: ["2026-11-07"],
@@ -405,6 +411,206 @@ describe("Plan setup and Activity selection page structure", () => {
       )
     },
   )
+})
+
+const kayakingCategory: PlanCategory = {
+  id: "category-kayaking",
+  name: "Kayaking",
+  type: "Outdoor",
+  defaultDurationHours: 2,
+  requiresDaylight: true,
+  maxWindMs: 8,
+  maxRainMmPerHour: 0.5,
+  minTemperatureC: 15,
+  maxTemperatureC: 35,
+}
+
+const museumCategory: PlanCategory = {
+  id: "category-museum",
+  name: "Museum",
+  type: "Indoor",
+  defaultDurationHours: 2,
+  requiresDaylight: false,
+  maxWindMs: null,
+  maxRainMmPerHour: null,
+  minTemperatureC: null,
+  maxTemperatureC: null,
+}
+
+const categoryAnswer = {
+  categories: [kayakingCategory, museumCategory],
+  maxActivities: 10,
+}
+
+type Answer = () => Response | Promise<Response>
+
+describe("Activity selection accessibility", () => {
+  function renderActivities(
+    categories: Answer = () => jsonResponse(200, categoryAnswer),
+    check: Answer = () => new Promise<Response>(() => {}),
+  ) {
+    usePlanSetupStore.getState().setChecked({
+      location: kaunasPlace,
+      dates: ["2026-11-07"],
+      maxTravelDistanceKm: 30,
+    })
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-activities/categories": categories,
+      "POST /api/plan-activities/check": check,
+    })
+    renderApp("/plan/activities")
+  }
+
+  function addBoth() {
+    usePlanActivitiesStore.getState().add(kayakingCategory)
+    usePlanActivitiesStore.getState().add(museumCategory)
+  }
+
+  it("makes every activity a group named after it", async () => {
+    addBoth()
+    usePlanActivitiesStore.getState().add(museumCategory)
+    renderActivities()
+
+    expect(
+      await screen.findByRole("group", { name: "Kayaking" }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Museum 1" })).toBeInTheDocument()
+    expect(screen.getByRole("group", { name: "Museum 2" })).toBeInTheDocument()
+  })
+
+  it("gives every field a visible label tied to its input", async () => {
+    addBoth()
+    renderActivities()
+    const group = within(await screen.findByRole("group", { name: "Kayaking" }))
+
+    for (const label of [
+      "Duration (h)",
+      "Requires daylight",
+      "Max wind (m/s)",
+      "Max rain (mm/h)",
+      "Min temperature (°C)",
+      "Max temperature (°C)",
+    ]) {
+      const input = group.getByLabelText(label)
+      expect(
+        document.querySelector(`label[for="${input.id}"]`),
+      ).toHaveTextContent(label)
+    }
+  })
+
+  it("names the activity in every Add and Remove button", async () => {
+    addBoth()
+    renderActivities()
+    await screen.findByRole("button", { name: "Add Kayaking" })
+
+    for (const name of [
+      "Add Kayaking",
+      "Add Museum",
+      "Remove Kayaking",
+      "Remove Museum",
+    ]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument()
+    }
+  })
+
+  it("announces loading in a status region", async () => {
+    renderActivities(() => new Promise<Response>(() => {}))
+
+    expect(
+      await screen.findByText("Loading activity categories…"),
+    ).toHaveAttribute("role", "status")
+  })
+
+  it("announces added, removed and checking in status regions", async () => {
+    const user = userEvent.setup()
+    renderActivities()
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add Kayaking" }),
+    )
+    expect(screen.getByText("Kayaking added.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Remove Kayaking" }))
+    expect(screen.getByText("Kayaking removed.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Add Museum" }))
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    expect(screen.getByText("Checking your activities…")).toHaveAttribute(
+      "role",
+      "status",
+    )
+  })
+
+  it("announces the category and server errors in alerts", async () => {
+    addBoth()
+    const user = userEvent.setup()
+    renderActivities(
+      () => jsonResponse(500),
+      () => jsonResponse(500),
+    )
+
+    const categoriesError = await screen.findByText(
+      "Error: Activity categories could not be loaded.",
+    )
+    expect(categoriesError).toHaveAttribute("role", "alert")
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    const serverError = await screen.findByText(
+      "Error: Something went wrong. Try again.",
+    )
+    expect(serverError.closest('[role="alert"]')).not.toBeNull()
+  })
+
+  it("announces an empty plan in an alert", async () => {
+    const user = userEvent.setup()
+    renderActivities()
+    await screen.findByRole("button", { name: "Add Kayaking" })
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    expect(
+      screen.getByText("Error: Add at least one activity."),
+    ).toHaveAttribute("role", "alert")
+  })
+
+  it("shows a refused value with words as well as colour", async () => {
+    addBoth()
+    const user = userEvent.setup()
+    renderActivities(
+      () => jsonResponse(200, categoryAnswer),
+      () =>
+        jsonResponse(400, {
+          errors: {
+            "activities[0].durationHours": ["Enter a duration."],
+            "activities[1]": ["This activity is no longer available."],
+          },
+        }),
+    )
+    await screen.findByRole("button", { name: "Add Kayaking" })
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+
+    const summary = await screen.findByRole("alert", { name: "Error summary" })
+    expect(within(summary).getAllByRole("link")).toHaveLength(2)
+    const kayaking = within(screen.getByRole("group", { name: "Kayaking" }))
+    expect(kayaking.getByText("Error: Enter a duration.")).toBeInTheDocument()
+    expect(kayaking.getByLabelText("Duration (h)")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    )
+    expect(
+      within(screen.getByRole("group", { name: "Museum" })).getByText(
+        "Error: This activity is no longer available.",
+      ),
+    ).toBeInTheDocument()
+  })
 })
 
 describe("Plan setup accessibility", () => {

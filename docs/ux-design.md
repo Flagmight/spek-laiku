@@ -378,9 +378,13 @@ area.
 | Activity Selection | Loading | "Loading activity categories…" |
 |  | Empty | "No activities added yet. Select at least one category to continue." |
 |  | Server error | "Error: Activity categories could not be loaded." with Retry. |
+|  | No categories | "No activity categories are available yet." |
+|  | Limit reached | "You can add up to 10 activities." and every **Add** is disabled. |
+|  | Checking | "Checking your activities…" and **Continue** is disabled. |
 | Places and Forecast | Loading | "Getting the forecast and nearby places…" and **Generate schedule** is disabled. |
 |  | Empty (per activity) | "No place found" row with **Remove** and **Change activity**. |
 |  | Service unavailable | The matching service message, **Generate schedule** disabled, Retry available. |
+|  | First version (feature 005) | Only the checked setup, the checked activities and **Back**. Features 006 and 007 add the forecast and places. |
 | Schedule Overview | Loading | "Generating your schedule…" |
 |  | Partial | An activity without a suitable time shows "No suitable time found" and is flagged. |
 |  | Empty | "No suitable time found for any activity. Change the dates or the weather limits." with **Back**. |
@@ -632,9 +636,9 @@ Work 1 as new requirements before implementation.
 | Home | FR-006, FR-021 |
 | Plan Details / Edit | FR-022, FR-034 |
 | Plan Setup | FR-035, FR-046, FR-007, FR-049 |
-| Activity Selection | FR-006, FR-008, FR-011 to FR-014, FR-016, FR-037 |
+| Activity Selection | FR-006, FR-008, FR-037 |
 | Places and Forecast | FR-009 to FR-015, FR-036 |
-| Schedule Overview | FR-017 to FR-019, FR-034 to FR-036, FR-047 |
+| Schedule Overview | FR-016 to FR-019, FR-034 to FR-036, FR-047 |
 | Plan Problems and Alternatives | FR-033, FR-048 |
 | My Plans | FR-020, FR-021, FR-023, FR-024, FR-025 |
 | Admin: Activity Categories | FR-027, FR-028, FR-044 |
