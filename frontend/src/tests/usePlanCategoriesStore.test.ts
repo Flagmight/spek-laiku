@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import {
   initialPlanCategoriesState,
   planCategoriesTimeoutMs,
@@ -85,6 +86,31 @@ describe("usePlanCategoriesStore", () => {
     expect(result.current.status).toBe("error")
     expect(result.current.categories).toEqual([])
     expect(result.current.maxActivities).toBeNull()
+  })
+
+  it("reads the signed-in user again on a 403", async () => {
+    routeFetch({ [listRoute]: () => jsonResponse(403) })
+    const refresh = vi
+      .spyOn(useCurrentUserStore.getState(), "refresh")
+      .mockResolvedValue()
+    const { result } = renderHook(() => usePlanCategoriesStore())
+
+    await act(() => result.current.load())
+
+    expect(refresh).toHaveBeenCalled()
+    expect(result.current.status).toBe("error")
+  })
+
+  it("does not read the user again on a 500", async () => {
+    routeFetch({ [listRoute]: () => jsonResponse(500) })
+    const refresh = vi
+      .spyOn(useCurrentUserStore.getState(), "refresh")
+      .mockResolvedValue()
+    const { result } = renderHook(() => usePlanCategoriesStore())
+
+    await act(() => result.current.load())
+
+    expect(refresh).not.toHaveBeenCalled()
   })
 
   it("reports an error when the network fails", async () => {

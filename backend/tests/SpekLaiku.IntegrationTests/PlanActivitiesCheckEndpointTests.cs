@@ -150,6 +150,29 @@ public class PlanActivitiesCheckEndpointTests(PostgreSqlApiFactory factory)
         Assert.Equal("The request is invalid.", Message(errors, "request"));
     }
 
+    // The page sends numbers up to 7.9e28 in JavaScript's own form; each must reach the field's check
+    // instead of failing the whole request.
+    [Theory]
+    [InlineData("1e+21")]
+    [InlineData("7.8e+28")]
+    [InlineData("-7.8e+28")]
+    [InlineData("1e-35")]
+    public async Task VeryLargeOrSmallNumbers_GetTheFieldMessage(string number)
+    {
+        using var client = factory.CreateHttpsClient();
+        var json = $$"""
+            { "activities": [ { "categoryId": "{{StarterCategories.MuseumId}}", "type": "Indoor", "durationHours": {{number}} } ] }
+            """;
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        using var response = await client.PostAsync(Path, content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var errors = (await ReadJsonAsync(response)).GetProperty("errors");
+        Assert.Equal(["activities[0].durationHours"], Keys(errors));
+        Assert.Equal(Duration, Message(errors, "activities[0].durationHours"));
+    }
+
     [Fact]
     public async Task NullItemInTheList_GivesTheActivityMessage()
     {

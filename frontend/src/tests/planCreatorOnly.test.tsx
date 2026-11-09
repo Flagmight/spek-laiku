@@ -137,6 +137,28 @@ describe("plan pages access", () => {
     },
   )
 
+  it("shows Access denied after the categories are answered with 403 once the user is read again", async () => {
+    acceptSetup()
+    let administrator = false
+    routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(
+          200,
+          signedInUser(administrator ? "Administrator" : "Registered User"),
+        ),
+      "GET /api/plan-activities/categories": () => {
+        // The account was made an Administrator in the meantime.
+        administrator = true
+        return jsonResponse(403)
+      },
+    })
+    renderApp("/plan/activities")
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Access denied" }),
+    ).toBeInTheDocument()
+  })
+
   it("shows Access denied after a Continue answered with 403 once the user is read again", async () => {
     let administrator = false
     routeFetch({

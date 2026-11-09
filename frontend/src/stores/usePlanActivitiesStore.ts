@@ -31,6 +31,8 @@ export interface PlanActivitiesState {
   remove: (id: string) => void
   update: (id: string, changes: PlanActivityChanges) => void
   setChecked: (checked: CheckedPlanActivity[]) => void
+  // Asks for a new check without touching the activities, after step 1 accepts a new setup.
+  clearChecked: () => void
   clear: () => void
 }
 
@@ -92,6 +94,7 @@ export const usePlanActivitiesStore = create<PlanActivitiesState>()(
           checked: null,
         })),
       setChecked: (checked) => set({ checked }),
+      clearChecked: () => set({ checked: null }),
       clear: () => set(initialPlanActivitiesState),
     }),
     {

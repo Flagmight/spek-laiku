@@ -25,6 +25,10 @@ export function PlanCategoryList() {
       message: `${planActivityNames(activities)[newest.id]} added.`,
       activityCount: activities.length,
     })
+    // Every Add is about to be disabled, which would leave keyboard focus nowhere.
+    if (maxActivities !== null && activities.length >= maxActivities) {
+      document.getElementById("plan-categories-heading")?.focus()
+    }
   }
 
   return (

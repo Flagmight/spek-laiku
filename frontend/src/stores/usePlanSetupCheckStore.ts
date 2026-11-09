@@ -6,6 +6,7 @@ import type {
   PlanSetupFieldErrors,
 } from "../types/planSetup"
 import { useCurrentUserStore } from "./useCurrentUserStore"
+import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
 import { usePlanSetupStore } from "./usePlanSetupStore"
 
 // After this long without an answer the check counts as a server error (spec FR-014).
@@ -38,6 +39,8 @@ function toResult(outcome: PlanSetupCheckOutcome | null): CheckResult {
   switch (outcome?.kind) {
     case "checked":
       usePlanSetupStore.getState().setChecked(outcome.setup)
+      // The activities stay, but the user has to continue from step 2 again (feature 005, US5 scenario 3).
+      usePlanActivitiesStore.getState().clearChecked()
       return { status: "idle", errors: {} }
     case "invalid":
       return { status: "invalid", errors: outcome.errors }

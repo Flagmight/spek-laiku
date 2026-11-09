@@ -1,6 +1,8 @@
 import { create } from "zustand"
+import { ApiError } from "../api/apiClient"
 import { listPlanCategories } from "../api/planActivitiesApi"
 import type { PlanCategory } from "../types/planActivity"
+import { useCurrentUserStore } from "./useCurrentUserStore"
 
 // After this long without an answer the categories count as not loaded (spec FR-004).
 export const planCategoriesTimeoutMs = 10_000
@@ -45,7 +47,12 @@ export const usePlanCategoriesStore = create<PlanCategoriesState>()(
           status: "loaded",
           ...(await listPlanCategories(abort.signal)),
         }
-      } catch {
+      } catch (error) {
+        // The role or status changed: reading the user again lets the page guard show the right page.
+        if (error instanceof ApiError && error.status === 403) {
+          void useCurrentUserStore.getState().refresh()
+        }
+
         // A 5xx, a network error or the timeout. Technical details are never shown.
         loaded = { status: "error", categories: [], maxActivities: null }
       } finally {

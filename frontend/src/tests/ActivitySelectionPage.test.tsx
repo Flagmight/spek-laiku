@@ -274,6 +274,30 @@ describe("Activity selection categories and Add", () => {
     expect(screen.getByRole("group", { name: "Museum" })).toBeInTheDocument()
   })
 
+  it("moves focus to the categories heading when Add reaches the limit", async () => {
+    const user = userEvent.setup()
+    render("/plan/activities", () =>
+      jsonResponse(200, { ...categoryList, maxActivities: 1 }),
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Add Museum" }))
+
+    expect(screen.getByRole("button", { name: "Add Museum" })).toBeDisabled()
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Activity categories" }),
+    ).toHaveFocus()
+  })
+
+  it("leaves focus on Add below the limit", async () => {
+    const user = userEvent.setup()
+    render()
+    const add = await screen.findByRole("button", { name: "Add Museum" })
+
+    await user.click(add)
+
+    expect(add).toHaveFocus()
+  })
+
   it("says so when there are no categories", async () => {
     render("/plan/activities", () =>
       jsonResponse(200, { categories: [], maxActivities: 10 }),
@@ -396,6 +420,21 @@ describe("Activity selection Remove", () => {
     expect(
       activityGroup("Kayaking").getByLabelText("Duration (h)"),
     ).toHaveValue("2")
+  })
+
+  it("changes the message when renumbering makes two removals read the same", async () => {
+    const user = userEvent.setup()
+    addToPlan(cycling, cycling, cycling)
+    render()
+
+    await user.click(await removeButton("Cycling 1"))
+    const status = screen.getByText("Cycling 1 removed.")
+    const firstText = status.textContent
+
+    await user.click(await removeButton("Cycling 1"))
+
+    expect(screen.getByText("Cycling 1 removed.")).toBe(status)
+    expect(status.textContent).not.toBe(firstText)
   })
 
   // A live region is only read out when its text changes, so the same message must clear in between.
@@ -691,6 +730,43 @@ describe("Activity selection Continue", () => {
     await waitFor(() => expect(currentLocation()).toBe("/plan/places"))
     expect(checks()).toHaveLength(2)
     expect(checks()[1].body).toEqual(checks()[0].body)
+  })
+
+  it("moves focus to the heading after a server error, because Continue was disabled", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    renderWithCheck(() => jsonResponse(500))
+    await screen.findByRole("button", { name: "Add Museum" })
+
+    await user.click(continueButton())
+    await screen.findByRole("button", { name: "Retry" })
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 2, name: "Your activities" }),
+      ).toHaveFocus(),
+    )
+  })
+
+  it("leaves focus alone after a server error when the user moved on to a field", async () => {
+    const user = userEvent.setup()
+    addCyclingAndMuseum()
+    let answer: (response: Response) => void = () => {}
+    renderWithCheck(
+      () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+    )
+    await screen.findByRole("button", { name: "Add Museum" })
+    await user.click(continueButton())
+    const field = activityGroup("Museum").getByLabelText("Duration (h)")
+    field.focus()
+
+    answer(jsonResponse(500))
+
+    await screen.findByRole("button", { name: "Retry" })
+    expect(field).toHaveFocus()
   })
 
   it("takes Retry away after a change, so old values cannot be accepted", async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { formatErrorMessage } from "../helpers/formatErrorMessage"
@@ -26,6 +26,7 @@ export function PlanActivitiesForm() {
   const lastRequest = usePlanActivitiesCheckStore((state) => state.lastRequest)
   const [removed, setRemoved] = useState({ message: "", activityCount: 0 })
   const [continuedEmpty, setContinuedEmpty] = useState(false)
+  const continueButton = useRef<HTMLButtonElement>(null)
   const names = planActivityNames(activities)
 
   const errors = status === "invalid" ? serverErrors : noErrors
@@ -43,10 +44,13 @@ export function PlanActivitiesForm() {
     const neighbour = activities[index + 1] ?? activities[index - 1]
     usePlanActivitiesStore.getState().remove(id)
     setContinuedEmpty(false)
-    setRemoved({
-      message: `${names[id]} removed.`,
+    const message = `${names[id]} removed.`
+    // Renumbering can make two removals in a row read the same. A live region is read out only when
+    // its text changes, so a repeat differs by an invisible space.
+    setRemoved((current) => ({
+      message: current.message === message ? `${message} ` : message,
       activityCount: activities.length - 1,
-    })
+    }))
     // Both targets stay on the page while the removed activity goes, so focus can move straight away.
     document
       .getElementById(
@@ -74,6 +78,17 @@ export function PlanActivitiesForm() {
     )
     if (result === "invalid" && first) {
       document.getElementById(first.fieldId)?.focus()
+      return
+    }
+
+    // Continue was disabled and Retry goes away during a check, so a keyboard user may be left with
+    // focus nowhere. Someone who moved on to a field stays there.
+    const focused = document.activeElement
+    if (
+      result === "serverError" &&
+      (focused === document.body || focused === continueButton.current)
+    ) {
+      document.getElementById(planActivitiesHeadingId)?.focus()
     }
   }
 
@@ -142,7 +157,11 @@ export function PlanActivitiesForm() {
             </button>
           </div>
         )}
-        <button type="submit" disabled={status === "pending"}>
+        <button
+          ref={continueButton}
+          type="submit"
+          disabled={status === "pending"}
+        >
           Continue
         </button>
       </form>
