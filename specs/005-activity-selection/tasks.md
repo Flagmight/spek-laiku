@@ -375,7 +375,7 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T055 [P] Update `README.md` with an "Activity selection" section:
+- [X] T055 [P] Update `README.md` with an "Activity selection" section:
   - the steps `/plan/activities` and `/plan/places`;
   - adding a category more than once;
   - up to 10 activities;
@@ -384,12 +384,12 @@ description: "Task list for feature 005 Activity Selection and Limits"
   - who can use it.
   
   Add to the status line that feature 005 is implemented. No migration step is needed.
-- [ ] T056 [P] Update `docs/ux-design.md`:
+- [X] T056 [P] Update `docs/ux-design.md`:
   - add the Activity Selection states "No activity categories are available yet.", "Checking your activities…" and "You can add up to 10 activities." and the first Places and Forecast state (setup and activities summary only, feature 006 and 007 add the rest);
   - check that the traceability rows for Activity Selection list FR-006, FR-008 and FR-037 as in `docs/architecture.md`, and fix any difference (constitution VI).
-- [ ] T057 [P] Check that every new or changed C# class is under 200 lines (constitution I), especially `PlanActivityValidator.cs`, `PlanActivityService.cs` and `PlanActivitiesController.cs`. Check that every new React page or component is under about 200 lines, especially `planActivitiesForm.tsx`, `planActivitySettings.tsx` and `planCategoryList.tsx`. Split by responsibility if not.
-- [ ] T058 Run `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx` from the repository root. Run `npm run lint`, `npm run format:check`, `npm test` and `npm run build` from `frontend/` (run the frontend tests on their own, not at the same time as the backend tests). Fix any failure without weakening tests or checks.
-- [ ] T059 Review `git diff main...HEAD`. Check that:
+- [X] T057 [P] Check that every new or changed C# class is under 200 lines (constitution I), especially `PlanActivityValidator.cs`, `PlanActivityService.cs` and `PlanActivitiesController.cs`. Check that every new React page or component is under about 200 lines, especially `planActivitiesForm.tsx`, `planActivitySettings.tsx` and `planCategoryList.tsx`. Split by responsibility if not.
+- [X] T058 Run `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx` from the repository root. Run `npm run lint`, `npm run format:check`, `npm test` and `npm run build` from `frontend/` (run the frontend tests on their own, not at the same time as the backend tests). Fix any failure without weakening tests or checks.
+- [X] T059 Review `git diff main...HEAD`. Check that:
   - there are no unintended files (no `bin/`, `obj/`, `node_modules/`, local settings or debug code);
   - there is no migration and no new package;
   - `appsettings.Development.json` is unchanged.
