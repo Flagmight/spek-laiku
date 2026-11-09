@@ -105,16 +105,16 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T014 [P] [US1] Add `backend/tests/SpekLaiku.IntegrationTests/PlanCategoriesEndpointTests.cs` (collection `PostgreSqlCollection`). The shared database holds the starter categories and categories added by other tests, so add your own with `PostgreSqlApiFactory.UniqueCategoryName` and check only those. As a Visitor, cover:
+- [X] T014 [P] [US1] Add `backend/tests/SpekLaiku.IntegrationTests/PlanCategoriesEndpointTests.cs` (collection `PostgreSqlCollection`). The shared database holds the starter categories and categories added by other tests, so add your own with `PostgreSqlApiFactory.UniqueCategoryName` and check only those. As a Visitor, cover:
   - `GET /api/plan-activities/categories` gives `200` with `categories`, containing an added Outdoor category with every value and an added Indoor category with `null` limits, and `maxActivities` equal to `PlanActivityValidator.MaxActivities` (10);
   - two added categories come in name order;
   - the raw JSON of a category has exactly the keys `id`, `name`, `type`, `defaultDurationHours`, `requiresDaylight`, `maxWindMs`, `maxRainMmPerHour`, `minTemperatureC`, `maxTemperatureC` (no `placeTags`, no `version`).
-- [ ] T015 [P] [US1] Add `frontend/src/tests/planActivitiesApi.test.ts` (list part) and `frontend/src/tests/usePlanCategoriesStore.test.ts` (fake timers, `routeFetch`). Cover:
+- [X] T015 [P] [US1] Add `frontend/src/tests/planActivitiesApi.test.ts` (list part) and `frontend/src/tests/usePlanCategoriesStore.test.ts` (fake timers, `routeFetch`). Cover:
   - `200` returns `{ categories, maxActivities }`, and any other status throws `ApiError(status)`;
   - the store goes `loading` → `loaded` with the categories and `maxActivities`, or `error` on `500`, a network error and no answer within 10 s;
   - `load()` again after an error retries;
   - `reset()` aborts a pending load and drops its result.
-- [ ] T016 [P] [US1] Extend `frontend/src/tests/ActivitySelectionPage.test.tsx` (categories and Add part), with `renderApp("/plan/activities")`, a checked setup in `usePlanSetupStore` and `routeFetch` answering `GET /api/plan-activities/categories`. The route answers `{ "categories": [...], "maxActivities": 10 }`. Replace the feature 004 test that the step contains nothing else (spec FR-020 supersedes feature 004 FR-024), and say so in the commit message so the review does not read it as a deleted test. Cover:
+- [X] T016 [P] [US1] Extend `frontend/src/tests/ActivitySelectionPage.test.tsx` (categories and Add part), with `renderApp("/plan/activities")`, a checked setup in `usePlanSetupStore` and `routeFetch` answering `GET /api/plan-activities/categories`. The route answers `{ "categories": [...], "maxActivities": 10 }`. Replace the feature 004 test that the step contains nothing else (spec FR-020 supersedes feature 004 FR-024), and say so in the commit message so the review does not read it as a deleted test. Cover:
   - "Loading activity categories…" while loading;
   - the categories in the order sent, each with its name, type and duration (for example "Kayaking", "Outdoor", "2 h") and a button named "Add Kayaking";
   - "No activities added yet. Select at least one category to continue." before any Add;
@@ -129,12 +129,12 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Create `Api/Services/PlanActivityService.cs` (`ApplicationDbContext`, `ActivityCategoryService`) with `ListCategoriesAsync(CancellationToken)` returning `ActivityCategoryService.ListAsync`, so the order rule stays in one place. Register it with `AddScoped<PlanActivityService>()` in `Api/Program.cs`, next to the plan setup services.
-- [ ] T018 [US1] Create `Api/Controllers/PlanActivitiesController.cs`: `[ApiController]`, `[Route("api/plan-activities")]`, `[Authorize(Policy = AuthorizationPolicies.PlanCreator)]`, `[ProducesResponseType(StatusCodes.Status403Forbidden)]`, with no rate limiting attribute and a comment why (research section 8). `GET categories` returns `200` with `new PlanCategoriesResponse(mapper.Map<PlanCategoryResponse[]>(categories), PlanActivityValidator.MaxActivities)`.
-- [ ] T019 [P] [US1] Create `frontend/src/api/planActivitiesApi.ts` with `listPlanCategories(signal?: AbortSignal): Promise<{ categories: PlanCategory[]; maxActivities: number }>` using `apiFetch("/api/plan-activities/categories", { signal })`. `200` returns the body; any other status throws `ApiError(status)`.
-- [ ] T020 [US1] Create `frontend/src/stores/usePlanCategoriesStore.ts` following `usePlanPeriodStore.ts`: `status: "loading" | "loaded" | "error"`, `categories`, `maxActivities: number | null` (`null` until loaded), `load()` with a 10 s timeout and the latest load winning, `reset()`, and an exported initial state. Reset it in `frontend/src/tests/setup.ts`.
-- [ ] T021 [P] [US1] In `frontend/src/components/weatherLimitFields.tsx`, add an `idPrefix: string` prop (ids become `${idPrefix}-${field}`) and change `errors` to `Partial<Record<keyof WeatherLimitValues, string>>`. In `frontend/src/components/categoryForm.tsx`, pass `idPrefix="category"`. The category form's ids and tests stay unchanged (research section 9).
-- [ ] T022 [US1] Create `frontend/src/components/planCategoryList.tsx`, under about 200 lines:
+- [X] T017 [US1] Create `Api/Services/PlanActivityService.cs` (`ApplicationDbContext`, `ActivityCategoryService`) with `ListCategoriesAsync(CancellationToken)` returning `ActivityCategoryService.ListAsync`, so the order rule stays in one place. Register it with `AddScoped<PlanActivityService>()` in `Api/Program.cs`, next to the plan setup services.
+- [X] T018 [US1] Create `Api/Controllers/PlanActivitiesController.cs`: `[ApiController]`, `[Route("api/plan-activities")]`, `[Authorize(Policy = AuthorizationPolicies.PlanCreator)]`, `[ProducesResponseType(StatusCodes.Status403Forbidden)]`, with no rate limiting attribute and a comment why (research section 8). `GET categories` returns `200` with `new PlanCategoriesResponse(mapper.Map<PlanCategoryResponse[]>(categories), PlanActivityValidator.MaxActivities)`.
+- [X] T019 [P] [US1] Create `frontend/src/api/planActivitiesApi.ts` with `listPlanCategories(signal?: AbortSignal): Promise<{ categories: PlanCategory[]; maxActivities: number }>` using `apiFetch("/api/plan-activities/categories", { signal })`. `200` returns the body; any other status throws `ApiError(status)`.
+- [X] T020 [US1] Create `frontend/src/stores/usePlanCategoriesStore.ts` following `usePlanPeriodStore.ts`: `status: "loading" | "loaded" | "error"`, `categories`, `maxActivities: number | null` (`null` until loaded), `load()` with a 10 s timeout and the latest load winning, `reset()`, and an exported initial state. Reset it in `frontend/src/tests/setup.ts`.
+- [X] T021 [P] [US1] In `frontend/src/components/weatherLimitFields.tsx`, add an `idPrefix: string` prop (ids become `${idPrefix}-${field}`) and change `errors` to `Partial<Record<keyof WeatherLimitValues, string>>`. In `frontend/src/components/categoryForm.tsx`, pass `idPrefix="category"`. The category form's ids and tests stay unchanged (research section 9).
+- [X] T022 [US1] Create `frontend/src/components/planCategoryList.tsx`, under about 200 lines:
   - a section with `<h2 id="plan-categories-heading" tabIndex={-1}>` "Activity categories";
   - "Loading activity categories…" in a status region while loading;
   - "Error: Activity categories could not be loaded." with Retry (calls `usePlanCategoriesStore.getState().load()`) on error;
@@ -142,15 +142,15 @@ description: "Task list for feature 005 Activity Selection and Limits"
   - otherwise a list with each category's name, type and "<duration> h", and a button "Add" with `aria-label` "Add <name>" that calls `usePlanActivitiesStore.getState().add(category)`;
   - every Add disabled and "You can add up to <maxActivities> activities." shown when the plan has `maxActivities` activities, using only the value from `usePlanCategoriesStore` (no constant in the browser);
   - after Add, "<shown name> added." in a status region, using `planActivityNames` for the new activity.
-- [ ] T023 [US1] Create `frontend/src/components/planActivitySettings.tsx`, under about 200 lines. For one `PlanActivity` and its shown name, it renders:
+- [X] T023 [US1] Create `frontend/src/components/planActivitySettings.tsx`, under about 200 lines. For one `PlanActivity` and its shown name, it renders:
   - `<fieldset id="activity-<id>">` with a `<legend>` that contains `<h3 id="activity-<id>-heading" tabIndex={-1}>` with the shown name;
   - Duration (h) as a `TextField` (`id="activity-<id>-durationHours"`, `inputMode="decimal"`, hint "0.5 to 12");
   - a "Requires daylight" checkbox;
   - for Outdoor, `WeatherLimitFields` with `idPrefix="activity-<id>"`.
   - Each change calls `usePlanActivitiesStore.getState().update(id, ...)`.
   - It takes an `errors` prop (`Partial<Record<PlanActivityField, string>>`, empty for now) and passes field errors on.
-- [ ] T024 [US1] Create `frontend/src/components/planActivitiesForm.tsx` (first version): a section with `<h2>` "Your activities", "No activities added yet. Select at least one category to continue." when there are none, and one `PlanActivitySettings` per activity with its name from `planActivityNames`. Continue comes in US4.
-- [ ] T025 [US1] Change `frontend/src/pages/ActivitySelectionPage.tsx`:
+- [X] T024 [US1] Create `frontend/src/components/planActivitiesForm.tsx` (first version): a section with `<h2>` "Your activities", "No activities added yet. Select at least one category to continue." when there are none, and one `PlanActivitySettings` per activity with its name from `planActivityNames`. Continue comes in US4.
+- [X] T025 [US1] Change `frontend/src/pages/ActivitySelectionPage.tsx`:
   - keep the title, `<h1>`, `PlanProgress current={2}`, `PlanSetupSummary`, Back and the redirect without a checked setup;
   - add `<div className="activity-selection-layout">` with `PlanCategoryList` and `PlanActivitiesForm`;
   - on mount, call `usePlanCategoriesStore.getState().load()`; on unmount, reset it (not `usePlanActivitiesStore`);
