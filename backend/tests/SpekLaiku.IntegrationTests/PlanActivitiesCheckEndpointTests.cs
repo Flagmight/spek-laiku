@@ -188,6 +188,125 @@ public class PlanActivitiesCheckEndpointTests(PostgreSqlApiFactory factory)
         Assert.Equal(newName, after.GetProperty("activities")[0].GetProperty("name").GetString());
     }
 
+    [Fact]
+    public async Task PlansOwnValues_LeaveTheCategoryUnchanged()
+    {
+        var id = await AddOutdoorCategoryAsync(PostgreSqlApiFactory.UniqueCategoryName("Check unchanged"));
+        using var administrator = await factory.CreateSignedInClientAsync("Administrator");
+        var before = await ReadCategoryAsync(administrator, id);
+
+        var (status, _) = await PostAsync(new
+        {
+            activities = new[]
+            {
+                new
+                {
+                    categoryId = id,
+                    type = "Outdoor",
+                    durationHours = 6.5,
+                    requiresDaylight = false,
+                    maxWindMs = 3,
+                    maxRainMmPerHour = 7,
+                    minTemperatureC = 1,
+                    maxTemperatureC = 2
+                }
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        var after = await ReadCategoryAsync(administrator, id);
+        Assert.Equal(before.DefaultDurationHours, after.DefaultDurationHours);
+        Assert.Equal(before.RequiresDaylight, after.RequiresDaylight);
+        Assert.Equal(before.MaxWindMs, after.MaxWindMs);
+        Assert.Equal(before.MaxRainMmPerHour, after.MaxRainMmPerHour);
+        Assert.Equal(before.MinTemperatureC, after.MinTemperatureC);
+        Assert.Equal(before.MaxTemperatureC, after.MaxTemperatureC);
+        Assert.Equal(before.Version, after.Version);
+    }
+
+    [Fact]
+    public async Task BoundaryValues_AreAccepted()
+    {
+        var id = await AddOutdoorCategoryAsync(PostgreSqlApiFactory.UniqueCategoryName("Check accepted"));
+
+        var (status, _) = await PostAsync(new
+        {
+            activities = new[]
+            {
+                Limits(id, durationHours: 0.5, maxWindMs: 0, maxRainMmPerHour: 0, minTemperatureC: -30, maxTemperatureC: 45),
+                Limits(id, durationHours: 12, maxWindMs: 30, maxRainMmPerHour: 20, minTemperatureC: 44.9, maxTemperatureC: 45)
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, status);
+    }
+
+    [Fact]
+    public async Task ValuesJustOutsideTheBoundaries_AreRefusedAtTheirFields()
+    {
+        var id = await AddOutdoorCategoryAsync(PostgreSqlApiFactory.UniqueCategoryName("Check refused"));
+
+        var (status, body) = await PostAsync(new
+        {
+            activities = new[]
+            {
+                Limits(id, durationHours: 0.25, maxWindMs: 1.25, maxRainMmPerHour: 20.5, minTemperatureC: 20, maxTemperatureC: 20),
+                Limits(id, durationHours: 12.5, maxWindMs: 8, maxRainMmPerHour: 0.5, minTemperatureC: -30.5, maxTemperatureC: 45.5)
+            }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        var errors = body.GetProperty("errors");
+        Assert.Equal(
+            [
+                "activities[0].durationHours",
+                "activities[0].maxWindMs",
+                "activities[0].maxRainMmPerHour",
+                "activities[0].minTemperatureC",
+                "activities[1].durationHours",
+                "activities[1].minTemperatureC",
+                "activities[1].maxTemperatureC"
+            ],
+            Keys(errors));
+        Assert.Equal(Duration, Message(errors, "activities[0].durationHours"));
+        Assert.Equal("Enter a wind limit between 0 and 30 m/s.", Message(errors, "activities[0].maxWindMs"));
+        Assert.Equal("Enter a rain limit between 0 and 20 mm/h.", Message(errors, "activities[0].maxRainMmPerHour"));
+        Assert.Equal(
+            "Minimum temperature must be lower than maximum temperature.",
+            Message(errors, "activities[0].minTemperatureC"));
+        Assert.Equal(
+            "Enter a minimum temperature between -30 and 45 °C.",
+            Message(errors, "activities[1].minTemperatureC"));
+        Assert.Equal(
+            "Enter a maximum temperature between -30 and 45 °C.",
+            Message(errors, "activities[1].maxTemperatureC"));
+    }
+
+    private static object Limits(
+        Guid categoryId,
+        double durationHours,
+        double maxWindMs,
+        double maxRainMmPerHour,
+        double minTemperatureC,
+        double maxTemperatureC) => new
+        {
+            categoryId,
+            type = "Outdoor",
+            durationHours,
+            requiresDaylight = true,
+            maxWindMs,
+            maxRainMmPerHour,
+            minTemperatureC,
+            maxTemperatureC
+        };
+
+    private static async Task<ActivityCategoryResponse> ReadCategoryAsync(HttpClient administrator, Guid id)
+    {
+        using var response = await administrator.GetAsync($"/api/admin/categories/{id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<ActivityCategoryResponse>())!;
+    }
+
     private static object OutdoorActivity(
         Guid categoryId,
         double durationHours = 2,

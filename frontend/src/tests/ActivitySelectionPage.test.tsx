@@ -728,6 +728,232 @@ describe("Activity selection Continue", () => {
   })
 })
 
+interface SentActivity {
+  [field: string]: unknown
+}
+
+function sentActivities(body: unknown) {
+  return (body as { activities: SentActivity[] }).activities
+}
+
+describe("Activity selection settings", () => {
+  beforeEach(() => {
+    acceptSetup()
+    usePlanActivitiesStore.getState().add(cycling)
+  })
+
+  // The server echoes what it was sent, so step 3 shows the values that really were sent.
+  function renderEchoingServer() {
+    const { requests } = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, {
+          firstDate: "2026-11-04",
+          lastDate: "2026-11-10",
+          maxDates: 7,
+        }),
+      "POST /api/plan-setup/check": () => jsonResponse(200, checked),
+      "GET /api/plan-activities/categories": () =>
+        jsonResponse(200, categoryList),
+      [checkRoute]: (request) =>
+        jsonResponse(200, {
+          activities: sentActivities(request.body).map((sent) => ({
+            ...sent,
+            name: "Cycling",
+          })),
+        }),
+    })
+    const { currentLocation } = renderAppWithLocation("/plan/activities")
+    return {
+      currentLocation,
+      lastCheck: () =>
+        sentActivities(
+          requests.filter(
+            (sent) => sent.path === "/api/plan-activities/check",
+          )[0].body,
+        )[0],
+    }
+  }
+
+  async function replaceText(label: string, text: string) {
+    const user = userEvent.setup()
+    const field = activityGroup("Cycling").getByLabelText(label)
+    await user.clear(field)
+    if (text) {
+      await user.type(field, text)
+    }
+    return field
+  }
+
+  it("sends the changed values and shows them on step 3", async () => {
+    const user = userEvent.setup()
+    const { lastCheck } = renderEchoingServer()
+    await screen.findByRole("button", { name: "Add Cycling" })
+    await replaceText("Duration (h)", "2.5")
+    await replaceText("Min temperature (°C)", "18")
+
+    await user.click(continueButton())
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Places and forecast",
+    })
+    expect(lastCheck()).toMatchObject({
+      durationHours: 2.5,
+      minTemperatureC: 18,
+    })
+    const [item] = within(
+      screen.getByRole("list", { name: "Plan activities" }),
+    ).getAllByRole("listitem")
+    expect(item).toHaveTextContent("2.5 h")
+    expect(item).toHaveTextContent("18 to 30 °C")
+  })
+
+  it("keeps the values after going to step 1 and back", async () => {
+    const user = userEvent.setup()
+    renderEchoingServer()
+    await screen.findByRole("button", { name: "Add Cycling" })
+    await replaceText("Max wind (m/s)", "6.5")
+
+    await user.click(screen.getByRole("link", { name: "Back" }))
+    await screen.findByRole("heading", { level: 1, name: "Plan setup" })
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Activity selection",
+    })
+
+    expect(
+      activityGroup("Cycling").getByLabelText("Max wind (m/s)"),
+    ).toHaveValue("6.5")
+  })
+
+  it("sends false after Requires daylight is cleared", async () => {
+    const user = userEvent.setup()
+    const { lastCheck } = renderEchoingServer()
+    await screen.findByRole("button", { name: "Add Cycling" })
+
+    await user.click(
+      activityGroup("Cycling").getByRole("checkbox", {
+        name: "Requires daylight",
+      }),
+    )
+    await user.click(continueButton())
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Places and forecast",
+    })
+    expect(lastCheck().requiresDaylight).toBe(false)
+  })
+
+  it.each([
+    ["Duration (h)", "0.5 to 12"],
+    ["Max wind (m/s)", "0 to 30"],
+    ["Max rain (mm/h)", "0 to 20"],
+    ["Min temperature (°C)", "-30 to 45"],
+    ["Max temperature (°C)", "-30 to 45"],
+  ])("shows the range next to %s", async (label, hint) => {
+    renderEchoingServer()
+    await screen.findByRole("button", { name: "Add Cycling" })
+
+    expect(
+      activityGroup("Cycling").getByLabelText(label),
+    ).toHaveAccessibleDescription(hint)
+  })
+
+  const fieldMessages = [
+    [
+      "Duration (h)",
+      "durationHours",
+      "0.5 to 12",
+      "Enter a duration between 0.5 and 12 hours.",
+    ],
+    [
+      "Max wind (m/s)",
+      "maxWindMs",
+      "0 to 30",
+      "Enter a wind limit between 0 and 30 m/s.",
+    ],
+    [
+      "Max rain (mm/h)",
+      "maxRainMmPerHour",
+      "0 to 20",
+      "Enter a rain limit between 0 and 20 mm/h.",
+    ],
+    [
+      "Min temperature (°C)",
+      "minTemperatureC",
+      "-30 to 45",
+      "Enter a minimum temperature between -30 and 45 °C.",
+    ],
+    [
+      "Max temperature (°C)",
+      "maxTemperatureC",
+      "-30 to 45",
+      "Enter a maximum temperature between -30 and 45 °C.",
+    ],
+  ]
+
+  describe.each(["", "2,5"])("with the text %j", (text) => {
+    it.each(fieldMessages)(
+      "sends null for %s and shows the server's message at that field",
+      async (label, key, hint, message) => {
+        const user = userEvent.setup()
+        const { requests } = routeFetch({
+          "GET /api/auth/me": () => jsonResponse(401),
+          "GET /api/plan-activities/categories": () =>
+            jsonResponse(200, categoryList),
+          [checkRoute]: () =>
+            jsonResponse(400, {
+              errors: { [`activities[0].${key}`]: [message] },
+            }),
+        })
+        renderAppWithLocation("/plan/activities")
+        await screen.findByRole("button", { name: "Add Cycling" })
+        const field = await replaceText(label, text)
+
+        await user.click(continueButton())
+
+        await waitFor(() => expect(field).toHaveFocus())
+        const check = requests.find((sent) => sent.method === "POST")!
+        expect(sentActivities(check.body)[0][key]).toBeNull()
+        expect(field).toHaveAttribute("aria-invalid", "true")
+        expect(field).toHaveAccessibleDescription(`${hint} Error: ${message}`)
+        expect(document.getElementById(`${field.id}-error`)).toHaveTextContent(
+          `Error: ${message}`,
+        )
+        expect(field).toHaveValue(text)
+      },
+    )
+  })
+
+  it("shows the temperature order message at the minimum field", async () => {
+    const user = userEvent.setup()
+    const message =
+      "Minimum temperature must be lower than maximum temperature."
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-activities/categories": () =>
+        jsonResponse(200, categoryList),
+      [checkRoute]: () =>
+        jsonResponse(400, {
+          errors: { "activities[0].minTemperatureC": [message] },
+        }),
+    })
+    renderAppWithLocation("/plan/activities")
+    await screen.findByRole("button", { name: "Add Cycling" })
+    const minimum = await replaceText("Min temperature (°C)", "30")
+    const maximum = await replaceText("Max temperature (°C)", "20")
+
+    await user.click(continueButton())
+
+    await waitFor(() => expect(minimum).toHaveFocus())
+    expect(minimum).toHaveAccessibleDescription(`-30 to 45 Error: ${message}`)
+    expect(maximum).toHaveAccessibleDescription("-30 to 45")
+  })
+})
+
 describe("Activity selection page", () => {
   beforeEach(() => {
     document.title = ""
