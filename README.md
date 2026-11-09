@@ -2,7 +2,7 @@
 
 Activity planning application for families and groups in Lithuania. Users create a list of possible activities (kayaking, cycling, outdoor heritage visits, picnics, indoor activities) and set acceptable weather conditions. The system uses hourly forecasts from Open-Meteo and nearby places from the OpenStreetMap Overpass API to find suitable time slots, and recalculates the plan when the forecast changes.
 
-Status: in development. Implemented so far: user registration (feature `001-user-registration`), login and logout (feature `002-user-login`), activity category management for administrators (feature `003-activity-categories`) and choosing a plan's location and dates (feature `004-plan-location-dates`).
+Status: in development. Implemented so far: user registration (feature `001-user-registration`), login and logout (feature `002-user-login`), activity category management for administrators (feature `003-activity-categories`), choosing a plan's location and dates (feature `004-plan-location-dates`) and choosing a plan's activities (feature `005-activity-selection`).
 
 ## Technology
 
@@ -76,7 +76,7 @@ npm run build
    dotnet ef database update --project .\backend\src\SpekLaiku.Api
    ```
 
-   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Feature 004 adds no migration.
+   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Features 004 and 005 add no migration.
 
 3. Trust the ASP.NET Core development certificate once per machine. The sign-in cookie is `Secure`, so the API runs over https:
 
@@ -140,7 +140,7 @@ To try it, make an account an Administrator with the SQL in "Testing an Administ
 
 ## Plan setup
 
-- **Pages**: **Plan setup** (`/plan/setup`, "Create plan" in the navigation and on Home) is step 1 of a plan: choose a location in Lithuania from the search suggestions, add 1 to 7 dates from today to today plus 6 days (by the date in Lithuania), and set a maximum travel distance (a whole number from 1 to 200 km, 30 by default). **Continue** checks everything on the server and opens **Activity selection** (`/plan/activities`), which for now shows the checked setup and a Back button; feature 005 adds the activities.
+- **Pages**: **Plan setup** (`/plan/setup`, "Create plan" in the navigation and on Home) is step 1 of a plan: choose a location in Lithuania from the search suggestions, add 1 to 7 dates from today to today plus 6 days (by the date in Lithuania), and set a maximum travel distance (a whole number from 1 to 200 km, 30 by default). **Continue** checks everything on the server and opens **Activity selection** (`/plan/activities`).
 - **Who can use it**: visitors (no account needed) and Active Registered Users. An Administrator sees "Access denied" and a Suspended user opens the Account Suspended page; the API refuses both with `403`.
 - **Where the setup is kept**: only in the browser tab (session storage). It survives a reload and logging in or registering in the same tab, and is gone when the tab closes or the user logs out. Nothing is saved to an account yet.
 - **Request limit**: location searches and Continue checks together are limited to 30 per minute per network address; more get "Error: Too many requests. Wait a minute and try again." The settings are in `appsettings.json` under `RateLimiting:PlanSetup` (`PermitLimit`, `WindowSeconds`) and can be changed without a code change, for example for one terminal session:
@@ -152,6 +152,16 @@ To try it, make an account an Administrator with the SQL in "Testing an Administ
   Remove it again with `Remove-Item Env:RateLimiting__PlanSetup__PermitLimit`, or close the terminal.
 
 The manual checks for a release are in `specs/004-plan-location-dates/quickstart.md`.
+
+## Activity selection
+
+- **Pages**: **Activity selection** (`/plan/activities`) is step 2 of a plan: pick activities from the categories and adjust each one's settings. **Continue** checks every activity on the server and opens **Places and forecast** (`/plan/places`), step 3, which for now shows the checked setup and activities with a Back button; later features add the forecast and places.
+- **Adding activities**: a plan can have up to 10 activities, and a category can be added more than once. Copies of one category are shown as "Cycling 1" and "Cycling 2", each with its own settings.
+- **Settings**: duration and "Requires daylight" for every activity, plus maximum wind, maximum rain and minimum and maximum temperature for Outdoor activities. They start from the category's defaults, and changes apply only to this plan, never to the category.
+- **Where the activities are kept**: only in the browser tab (session storage), next to the plan setup. They survive a reload and logging in or registering in the same tab, stay when the setup changes, and are gone when the tab closes or the user logs out. Nothing is saved to an account yet.
+- **Who can use it**: visitors (no account needed) and Active Registered Users. An Administrator sees "Access denied" and a Suspended user opens the Account Suspended page; the API refuses both with `403`.
+
+This feature needs no migration. The manual checks for a release are in `specs/005-activity-selection/quickstart.md`.
 
 ## Deployment notes
 
