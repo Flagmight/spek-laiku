@@ -322,19 +322,19 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T047 [P] [US5] Extend `frontend/src/tests/usePlanActivitiesStore.test.ts`. Cover:
+- [X] T047 [P] [US5] Extend `frontend/src/tests/usePlanActivitiesStore.test.ts`. Cover:
   - the data is written to `sessionStorage` under `spek-laiku-plan-activities` and read back after `persist.rehydrate()`;
   - actions are not stored;
   - a stored value of another version is dropped.
-- [ ] T048 [P] [US5] Extend `frontend/src/tests/planSetupSession.test.tsx`. Cover:
+- [X] T048 [P] [US5] Extend `frontend/src/tests/planSetupSession.test.tsx`. Cover:
   - activities and a changed setting are kept after a re-render of the app from `sessionStorage`, after logging in and after registering in the same tab;
   - they are cleared after a successful logout;
   - changing a date on Plan setup keeps them.
 
 ### Implementation for User Story 5
 
-- [ ] T049 [US5] In `frontend/src/stores/usePlanActivitiesStore.ts`, wrap the store in `persist` as in `usePlanSetupStore.ts`: `name: "spek-laiku-plan-activities"` (exported as `planActivitiesStorageKey`), `version: 1`, `createJSONStorage(() => sessionStorage)`, `partialize` storing only `activities` and `checked`, and `migrate: () => initialPlanActivitiesState`. Comment the reason (research section 2).
-- [ ] T050 [US5] In `frontend/src/stores/useLogoutStore.ts`, after a successful logout call `usePlanActivitiesStore.getState().clear()` next to the plan setup clear, with a comment citing spec FR-019.
+- [X] T049 [US5] In `frontend/src/stores/usePlanActivitiesStore.ts`, wrap the store in `persist` as in `usePlanSetupStore.ts`: `name: "spek-laiku-plan-activities"` (exported as `planActivitiesStorageKey`), `version: 1`, `createJSONStorage(() => sessionStorage)`, `partialize` storing only `activities` and `checked`, and `migrate: () => initialPlanActivitiesState`. Comment the reason (research section 2).
+- [X] T050 [US5] In `frontend/src/stores/useLogoutStore.ts`, after a successful logout call `usePlanActivitiesStore.getState().clear()` next to the plan setup clear, with a comment citing spec FR-019.
 
 **Checkpoint**: The whole current plan lives for the tab session.
 
