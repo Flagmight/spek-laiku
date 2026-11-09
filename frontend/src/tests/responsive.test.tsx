@@ -1,8 +1,10 @@
 import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import styles from "../styles.css?inline"
+import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
 
 // jsdom applies stylesheet rules but does no layout, so these tests check the CSS rules
@@ -436,5 +438,197 @@ describe("Plan setup page at 320 px", () => {
     expect(wide).toMatch(/\.date-picker \{\s*flex-direction: row;/)
     // The Date label keeps its own line, so the input beside the button never squeezes it.
     expect(wide).toMatch(/\.date-picker label \{\s*flex-basis: 100%;/)
+  })
+})
+
+const kayaking: PlanCategory = {
+  id: "category-kayaking",
+  name: "Kayaking",
+  type: "Outdoor",
+  defaultDurationHours: 2,
+  requiresDaylight: true,
+  maxWindMs: 8,
+  maxRainMmPerHour: 0.5,
+  minTemperatureC: 15,
+  maxTemperatureC: 35,
+}
+
+function acceptPlanSetup() {
+  usePlanSetupStore.getState().setChecked({
+    location: {
+      id: 598316,
+      name: "Kaunas",
+      area: "Kaunas County",
+      latitude: 54.90156,
+      longitude: 23.90909,
+    },
+    dates: ["2026-11-07"],
+    maxTravelDistanceKm: 30,
+  })
+}
+
+async function renderActivitySelection(
+  categories: () => Response = () =>
+    jsonResponse(200, { categories: [kayaking], maxActivities: 10 }),
+) {
+  acceptPlanSetup()
+  usePlanActivitiesStore.getState().add(kayaking)
+  routeFetch({
+    "GET /api/auth/me": () => jsonResponse(401),
+    "GET /api/plan-activities/categories": categories,
+  })
+  renderApp("/plan/activities")
+  return screen.findByRole("group", { name: "Kayaking" })
+}
+
+describe("Activity selection at 320 px", () => {
+  it("shows the categories first and then the activities, in one column", async () => {
+    const group = await renderActivitySelection()
+    const categories = screen.getByRole("region", {
+      name: "Activity categories",
+    })
+    const layout = group.closest(".activity-selection-layout")!
+
+    expect(getComputedStyle(layout).display).toBe("grid")
+    expect(getComputedStyle(layout).gridTemplateColumns).toBe("none")
+    expect(
+      categories.compareDocumentPosition(group) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it("puts each setting on its own row", async () => {
+    const group = await renderActivitySelection()
+
+    for (const field of within(group).getAllByRole("textbox")) {
+      expect(getComputedStyle(field.closest(".form-field")!).display).toBe(
+        "block",
+      )
+      expect(getComputedStyle(field).width).toBe("100%")
+      expect(px(getComputedStyle(field).fontSize)).toBeGreaterThanOrEqual(
+        minimumInputText,
+      )
+    }
+  })
+
+  it("lets an activity group shrink to the screen", async () => {
+    const group = await renderActivitySelection()
+
+    expect(getComputedStyle(group).minWidth).toBe("0px")
+  })
+
+  it("makes Add, Remove and Continue full width", async () => {
+    await renderActivitySelection()
+    await screen.findByRole("button", { name: "Add Kayaking" })
+
+    for (const name of ["Add Kayaking", "Remove Kayaking", "Continue"]) {
+      const button = screen.getByRole("button", { name })
+      expect(getComputedStyle(button).width).toBe("100%")
+    }
+  })
+
+  it("makes Retry full width when the categories fail", async () => {
+    await renderActivitySelection(() => jsonResponse(500))
+
+    const retry = await screen.findByRole("button", { name: "Retry" })
+    expect(getComputedStyle(retry).width).toBe("100%")
+    expectTouchTarget(retry)
+  })
+
+  it("makes every link and button a 44 × 44 px target", async () => {
+    await renderActivitySelection()
+    await screen.findByRole("button", { name: "Add Kayaking" })
+
+    for (const target of [
+      ...screen.getAllByRole("link"),
+      ...screen.getAllByRole("button"),
+    ]) {
+      expectTouchTarget(target)
+    }
+  })
+
+  it("keeps a disabled Add looking disabled", async () => {
+    await renderActivitySelection(() =>
+      jsonResponse(200, { categories: [kayaking], maxActivities: 1 }),
+    )
+
+    const add = await screen.findByRole("button", { name: "Add Kayaking" })
+    await vi.waitFor(() => expect(add).toBeDisabled())
+    expect(getComputedStyle(add).backgroundColor).toBe("rgb(154, 165, 177)")
+  })
+
+  it("shows the compact step line for step 2", async () => {
+    await renderActivitySelection()
+
+    const progress = screen.getByRole("navigation", { name: "Plan progress" })
+    const compact = within(progress).getByText("Step 2 of 4: Activities")
+    expect(
+      compact.querySelectorAll(".plan-progress-segments span"),
+    ).toHaveLength(4)
+    expect(compact.querySelectorAll(".done")).toHaveLength(2)
+  })
+
+  it("shows the categories and the activities side by side from 40em wide", () => {
+    const wide = styles.slice(styles.indexOf("@media (min-width: 40em)"))
+
+    expect(wide).toMatch(
+      /\.activity-selection-layout,[^{]*\{\s*grid-template-columns: minmax\(0, 2fr\) minmax\(0, 3fr\);\s*align-items: start;/,
+    )
+    expect(wide).toMatch(/\.activity-selection-layout button \{\s*width: auto;/)
+  })
+})
+
+describe("Places and forecast at 320 px", () => {
+  async function renderPlaces() {
+    acceptPlanSetup()
+    usePlanActivitiesStore.getState().setChecked([
+      {
+        id: "a",
+        categoryId: kayaking.id,
+        name: "Kayaking",
+        type: "Outdoor",
+        durationHours: 2,
+        requiresDaylight: true,
+        maxWindMs: 8,
+        maxRainMmPerHour: 0.5,
+        minTemperatureC: 15,
+        maxTemperatureC: 35,
+      },
+    ])
+    routeFetch({ "GET /api/auth/me": () => jsonResponse(401) })
+    renderApp("/plan/places")
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Places and forecast",
+    })
+  }
+
+  it("shows the compact step line for step 3", async () => {
+    await renderPlaces()
+
+    const progress = screen.getByRole("navigation", { name: "Plan progress" })
+    const compact = within(progress).getByText(
+      "Step 3 of 4: Places and forecast",
+    )
+    expect(compact.querySelectorAll(".done")).toHaveLength(3)
+  })
+
+  it("makes every link a 44 × 44 px target", async () => {
+    await renderPlaces()
+
+    for (const target of screen.getAllByRole("link")) {
+      expectTouchTarget(target)
+    }
+  })
+
+  it("shows the activities as a plain list", async () => {
+    await renderPlaces()
+
+    const list = screen.getByRole("list", { name: "Plan activities" })
+    expect(list).toHaveClass("plan-activities-summary")
+    // jsdom does not expand the list-style shorthand, so the rule itself is checked.
+    expect(styles).toMatch(
+      /\.plan-activities-summary \{[^}]*padding: 0;[^}]*list-style: none;/,
+    )
   })
 })

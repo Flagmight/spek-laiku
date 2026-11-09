@@ -53,12 +53,12 @@ export function PlanCategoryList() {
         <p>No activity categories are available yet.</p>
       )}
       {categories.length > 0 && (
-        <ul className="plan-category-list">
+        <ul className="category-list">
           {categories.map((category) => (
             <li key={category.id}>
-              <span>{category.name}</span>
-              <span>{category.type}</span>
-              <span>{`${category.defaultDurationHours} h`}</span>
+              <span className="category-name">{category.name}</span>
+              <span className="category-type">{category.type}</span>
+              <span className="category-type">{`${category.defaultDurationHours} h`}</span>
               <button
                 type="button"
                 aria-label={`Add ${category.name}`}

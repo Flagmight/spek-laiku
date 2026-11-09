@@ -1,7 +1,9 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
+import type { PlanCategory } from "../types/planActivity"
 import {
   jsonResponse,
   renderApp,
@@ -467,5 +469,156 @@ describe("keyboard use of the Plan setup page", () => {
         name: "Activity selection",
       }),
     ).toBeInTheDocument()
+  })
+})
+
+const kayaking: PlanCategory = {
+  id: "category-kayaking",
+  name: "Kayaking",
+  type: "Outdoor",
+  defaultDurationHours: 2,
+  requiresDaylight: true,
+  maxWindMs: 8,
+  maxRainMmPerHour: 0.5,
+  minTemperatureC: 15,
+  maxTemperatureC: 35,
+}
+
+const museum: PlanCategory = {
+  id: "category-museum",
+  name: "Museum",
+  type: "Indoor",
+  defaultDurationHours: 2,
+  requiresDaylight: false,
+  maxWindMs: null,
+  maxRainMmPerHour: null,
+  minTemperatureC: null,
+  maxTemperatureC: null,
+}
+
+describe("keyboard use of the Activity selection page", () => {
+  function renderActivitySelection() {
+    usePlanSetupStore.getState().setChecked({
+      location: kaunas,
+      dates: ["2026-11-07"],
+      maxTravelDistanceKm: 30,
+    })
+    const fetch = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-activities/categories": () =>
+        jsonResponse(200, {
+          categories: [kayaking, museum],
+          maxActivities: 10,
+        }),
+      "POST /api/plan-activities/check": () =>
+        jsonResponse(200, {
+          activities: [
+            {
+              categoryId: kayaking.id,
+              name: "Kayaking",
+              type: "Outdoor",
+              durationHours: 3,
+              requiresDaylight: true,
+              maxWindMs: 8,
+              maxRainMmPerHour: 0.5,
+              minTemperatureC: 15,
+              maxTemperatureC: 35,
+            },
+          ],
+        }),
+    })
+    renderApp("/plan/activities")
+    return fetch
+  }
+
+  it("reaches the page in the documented order", async () => {
+    usePlanActivitiesStore.getState().add(kayaking)
+    usePlanActivitiesStore.getState().add(museum)
+    renderActivitySelection()
+    await screen.findByRole("button", { name: "Add Kayaking" })
+    const kayakingGroup = within(
+      screen.getByRole("group", { name: "Kayaking" }),
+    )
+    const museumGroup = within(screen.getByRole("group", { name: "Museum" }))
+    const user = userEvent.setup()
+
+    const expected = [
+      screen.getByRole("link", { name: "Skip to main content" }),
+      screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Create plan" }),
+      screen.getByRole("link", { name: "Log in" }),
+      screen.getByRole("link", { name: "Register" }),
+      screen.getByRole("link", { name: "Plan setup" }),
+      screen.getByRole("link", { name: "Back" }),
+      screen.getByRole("button", { name: "Add Kayaking" }),
+      screen.getByRole("button", { name: "Add Museum" }),
+      kayakingGroup.getByLabelText("Duration (h)"),
+      kayakingGroup.getByRole("checkbox", { name: "Requires daylight" }),
+      kayakingGroup.getByLabelText("Max wind (m/s)"),
+      kayakingGroup.getByLabelText("Max rain (mm/h)"),
+      kayakingGroup.getByLabelText("Min temperature (°C)"),
+      kayakingGroup.getByLabelText("Max temperature (°C)"),
+      screen.getByRole("button", { name: "Remove Kayaking" }),
+      museumGroup.getByLabelText("Duration (h)"),
+      museumGroup.getByRole("checkbox", { name: "Requires daylight" }),
+      screen.getByRole("button", { name: "Remove Museum" }),
+      screen.getByRole("button", { name: "Continue" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+  })
+
+  it("adds, edits, removes and continues with the keyboard only", async () => {
+    const { requests } = renderActivitySelection()
+    const addKayaking = await screen.findByRole("button", {
+      name: "Add Kayaking",
+    })
+    const user = userEvent.setup()
+
+    addKayaking.focus()
+    await user.keyboard("{Enter}")
+    expect(addKayaking).toHaveFocus()
+    await user.tab()
+    await user.keyboard(" ")
+    expect(screen.getByRole("group", { name: "Museum" })).toBeInTheDocument()
+
+    await user.tab()
+    const duration = within(
+      screen.getByRole("group", { name: "Kayaking" }),
+    ).getByLabelText("Duration (h)")
+    expect(duration).toHaveFocus()
+    await user.keyboard("3")
+    expect(duration).toHaveValue("3")
+
+    // Requires daylight, the four limits and Remove Kayaking, then Museum's two fields.
+    for (let press = 0; press < 8; press++) {
+      await user.tab()
+    }
+    const removeMuseum = screen.getByRole("button", { name: "Remove Museum" })
+    await user.tab()
+    expect(removeMuseum).toHaveFocus()
+    await user.keyboard("{Enter}")
+    expect(screen.queryByRole("group", { name: "Museum" })).toBeNull()
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Kayaking" }),
+    ).toHaveFocus()
+
+    // From the heading: Duration, Requires daylight, the four limits and Remove Kayaking.
+    for (let press = 0; press < 7; press++) {
+      await user.tab()
+    }
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Continue" })).toHaveFocus()
+    await user.keyboard("{Enter}")
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Places and forecast",
+      }),
+    ).toBeInTheDocument()
+    expect(requests.filter((sent) => sent.method === "POST")).toHaveLength(1)
   })
 })

@@ -43,7 +43,7 @@ export function PlanActivitySettings({
     // tabIndex: the error summary and the first-error focus can move here for a whole-activity message.
     <fieldset
       id={groupId}
-      className="form-field"
+      className="plan-activity form-field"
       tabIndex={-1}
       aria-describedby={errors.activity ? errorId : undefined}
     >
