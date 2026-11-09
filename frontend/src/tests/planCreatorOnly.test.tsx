@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CurrentUser } from "../types/currentUser"
 import type { PlanLocation } from "../types/planSetup"
@@ -22,7 +23,7 @@ const kaunas: PlanLocation = {
   longitude: 23.90909,
 }
 
-const pages = ["/plan/setup", "/plan/activities"]
+const pages = ["/plan/setup", "/plan/activities", "/plan/places"]
 
 function planRequests(requests: { path: string }[]) {
   return requests.filter(
@@ -45,7 +46,8 @@ function stubUser(user: CurrentUser | null) {
   })
 }
 
-// A setup the server accepted, so /plan/activities shows its page instead of going back to step 1.
+// A setup and activities the server accepted, so /plan/activities and /plan/places show their pages
+// instead of going back a step.
 function acceptSetup() {
   const store = usePlanSetupStore.getState()
   store.chooseLocation(kaunas)
@@ -55,12 +57,14 @@ function acceptSetup() {
     dates: ["2026-11-07"],
     maxTravelDistanceKm: 30,
   })
+  usePlanActivitiesStore.getState().setChecked([])
 }
 
 describe("plan pages access", () => {
   it.each(pages)(
     "shows nothing at %s while the signed-in state loads",
     (page) => {
+      acceptSetup()
       vi.stubGlobal(
         "fetch",
         vi.fn(() => new Promise<Response>(() => {})),
@@ -74,6 +78,7 @@ describe("plan pages access", () => {
   it.each([
     ["/plan/setup", "Plan setup"],
     ["/plan/activities", "Activity selection"],
+    ["/plan/places", "Places and forecast"],
   ])("opens %s for a visitor", async (page, heading) => {
     acceptSetup()
     stubUser(null)
@@ -87,6 +92,7 @@ describe("plan pages access", () => {
   it.each([
     ["/plan/setup", "Plan setup"],
     ["/plan/activities", "Activity selection"],
+    ["/plan/places", "Places and forecast"],
   ])("opens %s for an Active Registered User", async (page, heading) => {
     acceptSetup()
     stubUser(signedInUser("Registered User"))
@@ -117,6 +123,8 @@ describe("plan pages access", () => {
     ["/plan/setup", "Administrator"],
     ["/plan/activities", "Registered User"],
     ["/plan/activities", "Administrator"],
+    ["/plan/places", "Registered User"],
+    ["/plan/places", "Administrator"],
   ])(
     "sends a Suspended %s at %s to the Account suspended page",
     async (page, role) => {
