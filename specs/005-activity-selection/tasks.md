@@ -271,19 +271,19 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T041 [P] [US2] Extend `frontend/src/tests/ActivitySelectionPage.test.tsx` (settings part). Cover:
+- [X] T041 [P] [US2] Extend `frontend/src/tests/ActivitySelectionPage.test.tsx` (settings part). Cover:
   - changed Duration and Min temperature are sent and shown on step 3;
   - values are kept after going to step 1 and back;
   - clearing "Requires daylight" sends `false`;
   - each Form 4 message from a `400` (duration, wind, rain, minimum, maximum, temperature order) appears next to its own field with "Error: ", for an empty field and for "2,5";
   - each field shows its range hint ("0.5 to 12", "0 to 30", "0 to 20", "-30 to 45").
-- [ ] T042 [P] [US2] Extend `backend/tests/SpekLaiku.IntegrationTests/PlanActivitiesCheckEndpointTests.cs`. Cover:
+- [X] T042 [P] [US2] Extend `backend/tests/SpekLaiku.IntegrationTests/PlanActivitiesCheckEndpointTests.cs`. Cover:
   - a check with values different from the category's defaults leaves the category unchanged when read again through `GET /api/admin/categories/{id}` as an Active Administrator;
   - the boundary values from T005 through the endpoint (one accepted and one refused request).
 
 ### Implementation for User Story 2
 
-- [ ] T043 [US2] Complete the settings in `frontend/src/components/planActivitySettings.tsx` so T041 and T042 pass:
+- [X] T043 [US2] Complete the settings in `frontend/src/components/planActivitySettings.tsx` so T041 and T042 pass:
   - each field shows its range hint ("0.5 to 12" for Duration; the weather hints come from `WeatherLimitFields`);
   - each field's error has the id `<field id>-error` and is linked from the input with `aria-describedby`, next to the hint;
   - the "Requires daylight" checkbox calls `update(id, { requiresDaylight })`, and `planActivitiesRequest` sends it;
