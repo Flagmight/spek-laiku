@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   initialPlanActivitiesState,
+  planActivitiesStorageKey,
   usePlanActivitiesStore,
 } from "../stores/usePlanActivitiesStore"
 import type { CheckedPlanActivity, PlanCategory } from "../types/planActivity"
@@ -152,5 +153,75 @@ describe("usePlanActivitiesStore", () => {
     store().clear()
 
     expect(store()).toMatchObject(initialPlanActivitiesState)
+  })
+})
+
+function stored() {
+  const text = sessionStorage.getItem("spek-laiku-plan-activities")
+  return text === null
+    ? null
+    : (JSON.parse(text) as { state: Record<string, unknown>; version: number })
+}
+
+describe("usePlanActivitiesStore in the browser tab's session", () => {
+  it("uses the documented storage key", () => {
+    expect(planActivitiesStorageKey).toBe("spek-laiku-plan-activities")
+  })
+
+  it("saves only the activities and the checked list, with version 1", () => {
+    checkedActivities()
+
+    expect(stored()).toEqual({
+      state: {
+        activities: store().activities,
+        checked: [checkedKayaking],
+      },
+      version: 1,
+    })
+  })
+
+  it("restores the saved activities, as after a reload", async () => {
+    const { first, second } = checkedActivities()
+    const saved = sessionStorage.getItem(planActivitiesStorageKey)!
+    usePlanActivitiesStore.setState(initialPlanActivitiesState)
+    sessionStorage.setItem(planActivitiesStorageKey, saved)
+
+    await usePlanActivitiesStore.persist.rehydrate()
+
+    expect(store().activities).toEqual([first, second])
+    expect(store().checked).toEqual([checkedKayaking])
+  })
+
+  it("starts empty when the saved text cannot be read", async () => {
+    sessionStorage.setItem(planActivitiesStorageKey, "not json")
+
+    await usePlanActivitiesStore.persist.rehydrate()
+
+    expect(store()).toMatchObject(initialPlanActivitiesState)
+  })
+
+  it("starts empty when the saved value has another version", async () => {
+    store().add(kayaking)
+    const activities = store().activities
+    usePlanActivitiesStore.setState(initialPlanActivitiesState)
+    sessionStorage.setItem(
+      planActivitiesStorageKey,
+      JSON.stringify({
+        state: { activities, checked: null },
+        version: 0,
+      }),
+    )
+
+    await usePlanActivitiesStore.persist.rehydrate()
+
+    expect(store()).toMatchObject(initialPlanActivitiesState)
+  })
+
+  it("clear() also empties the saved activities", () => {
+    checkedActivities()
+
+    store().clear()
+
+    expect(stored()?.state).toEqual(initialPlanActivitiesState)
   })
 })

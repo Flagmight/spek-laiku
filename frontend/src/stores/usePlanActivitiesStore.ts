@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { createJSONStorage, persist } from "zustand/middleware"
 import type {
   CheckedPlanActivity,
   PlanActivity,
@@ -61,25 +62,49 @@ function activityFrom(category: PlanCategory): PlanActivity {
   }
 }
 
-export const usePlanActivitiesStore = create<PlanActivitiesState>()((set) => ({
-  ...initialPlanActivitiesState,
-  add: (category) =>
-    set((state) => ({
-      activities: [...state.activities, activityFrom(category)],
-      checked: null,
-    })),
-  remove: (id) =>
-    set((state) => ({
-      activities: state.activities.filter((activity) => activity.id !== id),
-      checked: null,
-    })),
-  update: (id, changes) =>
-    set((state) => ({
-      activities: state.activities.map((activity) =>
-        activity.id === id ? { ...activity, ...changes } : activity,
-      ),
-      checked: null,
-    })),
-  setChecked: (checked) => set({ checked }),
-  clear: () => set(initialPlanActivitiesState),
-}))
+// Where the activities are kept between pages and reloads, next to the plan setup but in their own
+// store, so changing the setup leaves them alone (research section 2). sessionStorage survives a
+// reload and a login in the same tab and is gone when the tab closes; logging out clears it
+// explicitly (useLogoutStore, spec FR-019).
+export const planActivitiesStorageKey = "spek-laiku-plan-activities"
+
+type PlanActivitiesData = typeof initialPlanActivitiesState
+
+export const usePlanActivitiesStore = create<PlanActivitiesState>()(
+  persist(
+    (set) => ({
+      ...initialPlanActivitiesState,
+      add: (category) =>
+        set((state) => ({
+          activities: [...state.activities, activityFrom(category)],
+          checked: null,
+        })),
+      remove: (id) =>
+        set((state) => ({
+          activities: state.activities.filter((activity) => activity.id !== id),
+          checked: null,
+        })),
+      update: (id, changes) =>
+        set((state) => ({
+          activities: state.activities.map((activity) =>
+            activity.id === id ? { ...activity, ...changes } : activity,
+          ),
+          checked: null,
+        })),
+      setChecked: (checked) => set({ checked }),
+      clear: () => set(initialPlanActivitiesState),
+    }),
+    {
+      name: planActivitiesStorageKey,
+      version: 1,
+      storage: createJSONStorage(() => sessionStorage),
+      // Only the data is stored, never the actions.
+      partialize: (state): PlanActivitiesData => ({
+        activities: state.activities,
+        checked: state.checked,
+      }),
+      // Activities stored in any other shape are dropped; the user starts again.
+      migrate: () => initialPlanActivitiesState,
+    },
+  ),
+)
