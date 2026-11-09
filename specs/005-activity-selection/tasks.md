@@ -348,22 +348,22 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T051 [P] [US7] Extend `frontend/src/tests/keyboard.test.tsx` with tests that on Activity selection the tab order is: skip link, navigation, progress links, Back, each "Add <name>" in list order, then per activity Duration, Requires daylight, the weather fields and "Remove <name>", then Continue. Also cover completing Add, edit, Remove and Continue with the keyboard only.
-- [ ] T052 [P] [US7] Extend `frontend/src/tests/accessibility.test.tsx` and `frontend/src/tests/layout.test.tsx`. Cover, for Activity selection and Places and forecast:
+- [X] T051 [P] [US7] Extend `frontend/src/tests/keyboard.test.tsx` with tests that on Activity selection the tab order is: skip link, navigation, progress links, Back, each "Add <name>" in list order, then per activity Duration, Requires daylight, the weather fields and "Remove <name>", then Continue. Also cover completing Add, edit, Remove and Continue with the keyboard only.
+- [X] T052 [P] [US7] Extend `frontend/src/tests/accessibility.test.tsx` and `frontend/src/tests/layout.test.tsx`. Cover, for Activity selection and Places and forecast:
   - one `<h1>`, the page titles and the skip link;
   - every activity group is a `group` named after the activity;
   - every field has a label;
   - Add and Remove buttons name their activity;
   - loading, added, removed, checking and error messages are in live regions;
   - errors are text, not colour alone.
-- [ ] T053 [P] [US7] Extend `frontend/src/tests/responsive.test.tsx`. Check that from 40em `.activity-selection-layout` has two columns (categories, then activities). Below 40em, check that:
+- [X] T053 [P] [US7] Extend `frontend/src/tests/responsive.test.tsx`. Check that from 40em `.activity-selection-layout` has two columns (categories, then activities). Below 40em, check that:
   - it is one column with each setting on its own row;
   - buttons are full width with 44 × 44 px targets and 16 px input text;
   - the compact progress shows "Step 2 of 4: Activities" and "Step 3 of 4: Places and forecast".
 
 ### Implementation for User Story 7
 
-- [ ] T054 [US7] In `frontend/src/styles.css`, add the Activity selection and Places and forecast styles, reusing the existing form, fieldset, button and breakpoint rules instead of copying them:
+- [X] T054 [US7] In `frontend/src/styles.css`, add the Activity selection and Places and forecast styles, reusing the existing form, fieldset, button and breakpoint rules instead of copying them:
   - `.activity-selection-layout` as one column, and from 40em `grid-template-columns: minmax(0, 2fr) minmax(0, 3fr)` with `align-items: start`;
   - the category list rows with name, type and duration and the Add button;
   - activity fieldsets with spacing between them;
