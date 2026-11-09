@@ -192,19 +192,19 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T028 [P] [US4] Add `backend/tests/SpekLaiku.UnitTests/PlanActivityServiceTests.cs` with the EF Core in-memory database, following `ActivityCategoryServiceTests.cs`. Cover:
+- [X] T028 [P] [US4] Add `backend/tests/SpekLaiku.UnitTests/PlanActivityServiceTests.cs` with the EF Core in-memory database, following `ActivityCategoryServiceTests.cs`. Cover:
   - `ListCategoriesAsync` returns the stored categories in name order;
   - `CheckAsync` with two stored categories, one used twice, returns three results in request order with the stored names;
   - an unknown id gives the `activities[i]` message;
   - a request with 0 or 11 activities returns only the `activities` message without a query (pass a context that was already disposed: the call must not throw);
   - after a check with changed values, the stored category's values are unchanged.
-- [ ] T029 [P] [US4] Add `backend/tests/SpekLaiku.IntegrationTests/PlanActivitiesCheckEndpointTests.cs` (collection `PostgreSqlCollection`, own categories with unique names). As a Visitor, cover:
+- [X] T029 [P] [US4] Add `backend/tests/SpekLaiku.IntegrationTests/PlanActivitiesCheckEndpointTests.cs` (collection `PostgreSqlCollection`, own categories with unique names). As a Visitor, cover:
   - `200` with the contract body in request order, including one category twice with different settings and an Indoor activity sent with limits (returned as `null`);
   - `400` with keys and messages in contract order for one invalid duration, an unknown category id (a new `Guid`) and a changed type in one request;
   - `400` `activities` for an empty list and for 11 activities;
   - `400` `request` for a string where a number belongs and for a `categoryId` that is not a GUID;
   - the response uses the category's current name after it is renamed in the database between two checks.
-- [ ] T030 [P] [US4] Extend `frontend/src/tests/planActivitiesApi.test.ts` (check part) and add `frontend/src/tests/usePlanActivitiesCheckStore.test.ts` (fake timers, `routeFetch`, following `usePlanSetupCheckStore.test.ts`). Cover:
+- [X] T030 [P] [US4] Extend `frontend/src/tests/planActivitiesApi.test.ts` (check part) and add `frontend/src/tests/usePlanActivitiesCheckStore.test.ts` (fake timers, `routeFetch`, following `usePlanSetupCheckStore.test.ts`). Cover:
   - `checkPlanActivities` maps `200` to `checked`, `400` to `invalid` with every `activities` key, a `400` without such keys throws, `403` to `forbidden`, and other statuses throw `ApiError`;
   - the store is `pending` and ignores a second submit;
   - on `checked` it calls `usePlanActivitiesStore.getState().setChecked` with the server's activities matched to the sent ids;
@@ -213,7 +213,7 @@ description: "Task list for feature 005 Activity Selection and Limits"
   - `403` refreshes the current user;
   - an answer for activities changed while the check ran is dropped (status `idle`, nothing checked);
   - `reset()` aborts a pending check.
-- [ ] T031 [P] [US4] Extend `frontend/src/tests/ActivitySelectionPage.test.tsx` (Continue part). Cover:
+- [X] T031 [P] [US4] Extend `frontend/src/tests/ActivitySelectionPage.test.tsx` (Continue part). Cover:
   - Continue with no activities shows "Error: Add at least one activity." and sends no request;
   - Continue with activities shows "Checking your activities…", disables Continue and sends the request body from `contracts/plan-activities-api.md` (text such as "2,5" sent as `null`);
   - on `200`, `/plan/places` opens;
@@ -222,7 +222,7 @@ description: "Task list for feature 005 Activity Selection and Limits"
   - after removing the first activity, errors for the second activity stay on it;
   - a `500` shows "Error: Something went wrong. Try again." with Retry, which sends the same request;
   - when the categories fail to load (`500`) but the plan already has activities from earlier in the session, Continue still sends them and opens `/plan/places` (spec edge case).
-- [ ] T032 [P] [US4] Add `frontend/src/tests/PlacesAndForecastPage.test.tsx`. Cover:
+- [X] T032 [P] [US4] Add `frontend/src/tests/PlacesAndForecastPage.test.tsx`. Cover:
   - with a checked setup and checked activities: the `<h1>` "Places and forecast", the title "Places and forecast - Spėk laiku", the progress bar with "Places and forecast" current and links for "Plan setup" and "Activities", the setup summary, and each activity with name, type, duration, daylight and Outdoor limits;
   - Back opens Activity selection with every activity kept;
   - without checked activities it redirects to `/plan/activities`, and without a checked setup to `/plan/setup`;
@@ -230,20 +230,20 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Implementation for User Story 4
 
-- [ ] T033 [US4] In `Api/Services/PlanActivityService.cs`, add `CheckAsync(PlanActivitiesCheckRequest, CancellationToken)`:
+- [X] T033 [US4] In `Api/Services/PlanActivityService.cs`, add `CheckAsync(PlanActivitiesCheckRequest, CancellationToken)`:
   1. `PlanActivityValidator.HasValidCount`; on failure return `PlanActivitiesResult.Invalid` with that error and no query.
   2. Otherwise collect the distinct non-null ids, read them in one `AsNoTracking` query into a dictionary (research section 5), and return `PlanActivityValidator.Validate(request, categories)`.
   - Keep the class under 200 lines.
-- [ ] T034 [US4] In `Api/Controllers/PlanActivitiesController.cs`, add `POST check`: `200` with `new CheckedPlanActivitiesResponse(mapper.Map<CheckedPlanActivityResponse[]>(result.Activities))`, or `400` with `ValidationProblemDetails` (title "One or more request fields are invalid.", keys in result order), the same as `PlanSetupController.Check`.
-- [ ] T035 [P] [US4] Create the request and field helpers, with tests:
+- [X] T034 [US4] In `Api/Controllers/PlanActivitiesController.cs`, add `POST check`: `200` with `new CheckedPlanActivitiesResponse(mapper.Map<CheckedPlanActivityResponse[]>(result.Activities))`, or `400` with `ValidationProblemDetails` (title "One or more request fields are invalid.", keys in result order), the same as `PlanSetupController.Check`.
+- [X] T035 [P] [US4] Create the request and field helpers, with tests:
   - `frontend/src/helpers/planActivityRequest.ts`: `planActivitiesRequest(activities): PlanActivitiesCheckRequest`. It uses `parseDecimal` for each number, sends `null` limits for Indoor, and passes `type` and `requiresDaylight` through.
   - `frontend/src/helpers/planActivityFieldIds.ts`:
     - `activityFieldId(id, field)` gives `activity-<id>-<field>`, with `activity-<id>` for `"activity"`;
     - `planActivitySummaryErrors(errors, activities, names)` returns `{ fieldId, message }[]` in page order: the `list` message (field id `plan-activities-heading`), then per activity `activity`, `durationHours`, `maxWindMs`, `maxRainMmPerHour`, `minTemperatureC`, `maxTemperatureC`. Each message is prefixed with the shown name, for example "Cycling 2: Enter a duration between 0.5 and 12 hours.".
   - Add `frontend/src/tests/planActivityRequest.test.ts` and `frontend/src/tests/planActivityFieldIds.test.ts`.
-- [ ] T036 [US4] Add `checkPlanActivities(request, signal)` to `frontend/src/api/planActivitiesApi.ts`, returning `{ kind: "checked"; activities } | { kind: "invalid"; errors: Record<string, string> } | { kind: "forbidden" }`. A `400` keeps the first message of every key starting with `activities`; a `400` without such keys throws. Other statuses throw `ApiError`, following `planSetupApi.ts`.
-- [ ] T037 [US4] Create `frontend/src/stores/usePlanActivitiesCheckStore.ts` following `usePlanSetupCheckStore.ts` (research section 6): status, errors, `lastRequest` (the sent activities with ids), `submit(activities)`, `retry()`, `reset()`, a 10 s timeout, and a subscription to `usePlanActivitiesStore` that drops the answer when `activities` changed while the check ran. Turn `activities[i]` and `activities[i].<field>` keys into `byActivity[<sent id>]`, and `activities` into `list`. Reset it in `frontend/src/tests/setup.ts`.
-- [ ] T038 [US4] Extend `frontend/src/components/planActivitiesForm.tsx` with Continue:
+- [X] T036 [US4] Add `checkPlanActivities(request, signal)` to `frontend/src/api/planActivitiesApi.ts`, returning `{ kind: "checked"; activities } | { kind: "invalid"; errors: Record<string, string> } | { kind: "forbidden" }`. A `400` keeps the first message of every key starting with `activities`; a `400` without such keys throws. Other statuses throw `ApiError`, following `planSetupApi.ts`.
+- [X] T037 [US4] Create `frontend/src/stores/usePlanActivitiesCheckStore.ts` following `usePlanSetupCheckStore.ts` (research section 6): status, errors, `lastRequest` (the sent activities with ids), `submit(activities)`, `retry()`, `reset()`, a 10 s timeout, and a subscription to `usePlanActivitiesStore` that drops the answer when `activities` changed while the check ran. Turn `activities[i]` and `activities[i].<field>` keys into `byActivity[<sent id>]`, and `activities` into `list`. Reset it in `frontend/src/tests/setup.ts`.
+- [X] T038 [US4] Extend `frontend/src/components/planActivitiesForm.tsx` with Continue:
   - a `<form noValidate>` with `ErrorSummary` from `planActivitySummaryErrors`;
   - `<h2 id="plan-activities-heading" tabIndex={-1}>`;
   - with no activities, Continue shows "Error: Add at least one activity." under the heading without a request;
@@ -253,8 +253,8 @@ description: "Task list for feature 005 Activity Selection and Limits"
   - after a failed check, focus moves to the first summary field;
   - pass each activity's errors to `PlanActivitySettings`, which shows the `activity` message under the legend (`id="activity-<id>-error"`, linked with `aria-describedby`), with "Error: " added by `formatErrorMessage`.
   - On unmount, reset the check store. Split helpers out if the file passes about 200 lines.
-- [ ] T039 [P] [US4] Create `frontend/src/components/planActivitiesSummary.tsx`: from `CheckedPlanActivity[]`, with shown names from `planActivityNames(checked)` (so repeated categories appear as "Cycling 1" and "Cycling 2" on step 3 too), a list where each item shows the name, the type, "<n> h", "Requires daylight" or "No daylight needed", and for Outdoor "Wind up to <n> m/s · Rain up to <n> mm/h · <min> to <max> °C".
-- [ ] T040 [US4] Create `frontend/src/pages/PlacesAndForecastPage.tsx` (research section 7):
+- [X] T039 [P] [US4] Create `frontend/src/components/planActivitiesSummary.tsx`: from `CheckedPlanActivity[]`, with shown names from `planActivityNames(checked)` (so repeated categories appear as "Cycling 1" and "Cycling 2" on step 3 too), a list where each item shows the name, the type, "<n> h", "Requires daylight" or "No daylight needed", and for Outdoor "Wind up to <n> m/s · Rain up to <n> mm/h · <min> to <max> °C".
+- [X] T040 [US4] Create `frontend/src/pages/PlacesAndForecastPage.tsx` (research section 7):
   - `usePageTitle("Places and forecast")`, `<h1>` "Places and forecast", `<PlanProgress current={3} />`, `PlanSetupSummary`, `PlanActivitiesSummary` and a Back link to `/plan/activities`;
   - `<Navigate to="/plan/setup" replace />` without `usePlanSetupStore` `checked`, and `<Navigate to="/plan/activities" replace />` without `usePlanActivitiesStore` `checked`.
   - In `frontend/src/components/appRoutes.tsx` add `plan/places` inside `PlanCreatorOnly`. In `frontend/src/components/planProgress.tsx` give "Activities" the path `/plan/activities`.
