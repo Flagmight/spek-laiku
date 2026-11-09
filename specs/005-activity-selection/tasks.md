@@ -37,14 +37,14 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Backend
 
-- [ ] T002 [P] Create the request DTOs in `Api/DTOs/Requests/`:
+- [X] T002 [P] Create the request DTOs in `Api/DTOs/Requests/`:
   - `PlanActivitiesCheckRequest.cs`: `public sealed record PlanActivitiesCheckRequest(List<PlanActivityRequest>? Activities)`.
   - `PlanActivityRequest.cs`: `public sealed record PlanActivityRequest(Guid? CategoryId, string? Type, decimal? DurationHours, bool RequiresDaylight, decimal? MaxWindMs, decimal? MaxRainMmPerHour, decimal? MinTemperatureC, decimal? MaxTemperatureC)`.
   - Comment that the numbers are `decimal?` so a missing value gets the field message instead of a request error, and that `Type` is the type the activity was added with (research section 4).
-- [ ] T003 [P] Create the service records in `Api/Services/` (see `data-model.md`):
+- [X] T003 [P] Create the service records in `Api/Services/` (see `data-model.md`):
   - `CheckedPlanActivity.cs`: `public sealed record CheckedPlanActivity(Guid CategoryId, string Name, ActivityType Type, decimal DurationHours, bool RequiresDaylight, decimal? MaxWindMs, decimal? MaxRainMmPerHour, decimal? MinTemperatureC, decimal? MaxTemperatureC)`.
   - `PlanActivitiesResult.cs`: `Succeeded`, `Activities` (`IReadOnlyList<CheckedPlanActivity>`) and `Errors` (`IReadOnlyList<KeyValuePair<string, string>>`), with `Success(...)` and `Invalid(...)` factories, following `PlanSetupResult.cs`.
-- [ ] T004 Create `Api/Services/PlanActivityValidator.cs`, a static class (research section 4, `data-model.md` Validation rules).
+- [X] T004 Create `Api/Services/PlanActivityValidator.cs`, a static class (research section 4, `data-model.md` Validation rules).
   - Constants: `MaxActivities = 10` and the messages `"Add at least one activity."`, `"You can add up to 10 activities."`, `"This activity is no longer available. Remove it."`, `"This activity's category has changed. Remove it and add it again."`.
   - `public static bool HasValidCount(PlanActivitiesCheckRequest request, out KeyValuePair<string, string>? error)`: missing or empty list gives `activities` "Add at least one activity."; more than 10 gives `activities` "You can add up to 10 activities.".
   - `public static PlanActivitiesResult Validate(PlanActivitiesCheckRequest request, IReadOnlyDictionary<Guid, ActivityCategory> categories)`. It assumes a valid count and goes through the activities by position `i`:
@@ -54,7 +54,7 @@ description: "Task list for feature 005 Activity Selection and Limits"
   - Errors are reported together, in position order and within an activity in the order `activity`, `durationHours`, `maxWindMs`, `maxRainMmPerHour`, `minTemperatureC`, `maxTemperatureC`.
   - On success it returns a `CheckedPlanActivity` per activity in request order, with the stored `Name` and `Type` and the request's values. For Indoor the four limits are `null`, whatever the request contains.
   - Do not copy any range or message from `ActivityLimitRules`. Keep the class under 200 lines.
-- [ ] T005 Add `backend/tests/SpekLaiku.UnitTests/PlanActivityValidatorTests.cs`, covering every row of `data-model.md` (Validation rules) and these cases:
+- [X] T005 Add `backend/tests/SpekLaiku.UnitTests/PlanActivityValidatorTests.cs`, covering every row of `data-model.md` (Validation rules) and these cases:
   - `HasValidCount`: null list, empty list and 11 activities each give only the `activities` message; 1 and 10 are valid.
   - Boundaries accepted: 0.5 and 12 h, 0 and 30 m/s, 0 and 20 mm/h, -30 and 45 °C. Refused: 0.25 h, 12.5 h, 1.25 m/s, min = max, and each limit missing for Outdoor.
   - An unknown category id and a changed type each give only the `activities[i]` message for that activity, while another invalid activity still gets its field messages.
@@ -63,13 +63,13 @@ description: "Task list for feature 005 Activity Selection and Limits"
   - An Indoor activity with limits in the request is accepted, with the limits returned as `null`.
   - The name and type come from the dictionary, not the request.
   - The keys come in the documented order.
-- [ ] T006 [P] Create the response DTOs in `Api/DTOs/Responses/` (`contracts/plan-activities-api.md`):
+- [X] T006 [P] Create the response DTOs in `Api/DTOs/Responses/` (`contracts/plan-activities-api.md`):
   - `PlanCategoryResponse.cs`: `(Guid Id, string Name, string Type, decimal DefaultDurationHours, bool RequiresDaylight, decimal? MaxWindMs, decimal? MaxRainMmPerHour, decimal? MinTemperatureC, decimal? MaxTemperatureC)`. Comment that it has no place tags or version on purpose (research section 1).
   - `PlanCategoriesResponse.cs`: `(IReadOnlyList<PlanCategoryResponse> Categories, int MaxActivities)`. Comment that `MaxActivities` is sent so the page holds no copy of the limit (constitution I).
   - `CheckedPlanActivityResponse.cs`: `(Guid CategoryId, string Name, string Type, decimal DurationHours, bool RequiresDaylight, decimal? MaxWindMs, decimal? MaxRainMmPerHour, decimal? MinTemperatureC, decimal? MaxTemperatureC)`.
   - `CheckedPlanActivitiesResponse.cs`: `(IReadOnlyList<CheckedPlanActivityResponse> Activities)`.
-- [ ] T007 Create `Api/Mapping/PlanActivityMappingProfile.cs`: `ActivityCategory` → `PlanCategoryResponse` and `CheckedPlanActivity` → `CheckedPlanActivityResponse`, each with `Type` mapped from `source.Type.ToString()`, following `ActivityCategoryMappingProfile`. No rules.
-- [ ] T008 Add `backend/tests/SpekLaiku.UnitTests/PlanActivityMappingTests.cs`, following `ActivityCategoryMappingTests.cs`:
+- [X] T007 Create `Api/Mapping/PlanActivityMappingProfile.cs`: `ActivityCategory` → `PlanCategoryResponse` and `CheckedPlanActivity` → `CheckedPlanActivityResponse`, each with `Type` mapped from `source.Type.ToString()`, following `ActivityCategoryMappingProfile`. No rules.
+- [X] T008 Add `backend/tests/SpekLaiku.UnitTests/PlanActivityMappingTests.cs`, following `ActivityCategoryMappingTests.cs`:
   - the configuration is valid;
   - an Outdoor and an Indoor category map with `"Outdoor"` and `"Indoor"` and `null` limits for Indoor;
   - a `CheckedPlanActivity` maps every field;
@@ -77,21 +77,21 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ### Frontend
 
-- [ ] T009 [P] Create `frontend/src/types/planActivity.ts` with `PlanCategory`, `PlanActivity`, `CheckedPlanActivity`, `PlanActivityField` and `PlanActivityErrors` exactly as in `data-model.md` (Frontend types). Import `ActivityType` from `types/activityCategory.ts`. Add `PlanActivityRequest` and `PlanActivitiesCheckRequest` matching the contract's request.
-- [ ] T010 Create `frontend/src/stores/usePlanActivitiesStore.ts`, a Zustand store **without persistence yet** (persistence comes in US5), with the fields and actions in `data-model.md` (Plan activities store):
+- [X] T009 [P] Create `frontend/src/types/planActivity.ts` with `PlanCategory`, `PlanActivity`, `CheckedPlanActivity`, `PlanActivityField` and `PlanActivityErrors` exactly as in `data-model.md` (Frontend types). Import `ActivityType` from `types/activityCategory.ts`. Add `PlanActivityRequest` and `PlanActivitiesCheckRequest` matching the contract's request.
+- [X] T010 Create `frontend/src/stores/usePlanActivitiesStore.ts`, a Zustand store **without persistence yet** (persistence comes in US5), with the fields and actions in `data-model.md` (Plan activities store):
   - `add(category)` appends `{ id: crypto.randomUUID(), categoryId, name, type, durationText: String(defaultDurationHours), requiresDaylight, ... }`, writing each Outdoor limit with `String(value)` and Indoor limits as `""`. It holds **no** activity limit: the category list disables Add at the server's `maxActivities`, and the server refuses more on Continue (constitution I).
   - `remove(id)` and `update(id, changes)` set `checked` to `null`.
   - `setChecked` does not count as a change.
   - `clear()` returns to the initial state.
   - Export `initialPlanActivitiesState`.
-- [ ] T011 Add `frontend/src/tests/usePlanActivitiesStore.test.ts`. Cover:
+- [X] T011 Add `frontend/src/tests/usePlanActivitiesStore.test.ts`. Cover:
   - `add` copies the Outdoor defaults as text, and an Indoor category gets empty limits;
   - two adds of the same category give two activities with different ids;
   - `remove` and `update` change only the named activity and clear `checked`;
   - `setChecked` keeps the activities;
   - `clear` empties everything.
-- [ ] T012 [P] Create `frontend/src/helpers/planActivityNames.ts`: `planActivityNames(activities: { id: string; categoryId: string; name: string }[]): Record<string, string>`, so it names both `PlanActivity` (step 2) and `CheckedPlanActivity` (step 3). The name is `name` when its `categoryId` appears once, otherwise `"<name> <n>"` with `n` counting from 1 in list order among activities with that `categoryId` (research section 3). Add `frontend/src/tests/planActivityNames.test.ts`: one Cycling gives "Cycling"; Cycling, Picnic, Cycling gives "Cycling 1", "Picnic", "Cycling 2"; after removing the first Cycling the other is "Cycling" again; two categories with the same name but different ids are numbered separately by id.
-- [ ] T013 In `frontend/src/tests/setup.ts`, reset `usePlanActivitiesStore` to `initialPlanActivitiesState` after each test, next to the existing plan store resets.
+- [X] T012 [P] Create `frontend/src/helpers/planActivityNames.ts`: `planActivityNames(activities: { id: string; categoryId: string; name: string }[]): Record<string, string>`, so it names both `PlanActivity` (step 2) and `CheckedPlanActivity` (step 3). The name is `name` when its `categoryId` appears once, otherwise `"<name> <n>"` with `n` counting from 1 in list order among activities with that `categoryId` (research section 3). Add `frontend/src/tests/planActivityNames.test.ts`: one Cycling gives "Cycling"; Cycling, Picnic, Cycling gives "Cycling 1", "Picnic", "Cycling 2"; after removing the first Cycling the other is "Cycling" again; two categories with the same name but different ids are numbered separately by id.
+- [X] T013 In `frontend/src/tests/setup.ts`, reset `usePlanActivitiesStore` to `initialPlanActivitiesState` after each test, next to the existing plan store resets.
 
 **Checkpoint**: The rules, shapes, mapping, store and names exist and are tested.
 
