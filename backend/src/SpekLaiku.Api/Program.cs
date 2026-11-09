@@ -115,6 +115,7 @@ public class Program
             .RemoveAllLoggers();
         builder.Services.AddScoped<LocationSearchService>();
         builder.Services.AddScoped<PlanSetupService>();
+        builder.Services.AddScoped<PlanActivityService>();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();
