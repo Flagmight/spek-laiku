@@ -113,6 +113,17 @@ public class Program
             })
             // The default client logging writes each request address, which holds the search text (spec FR-008).
             .RemoveAllLoggers();
+        builder.Services.AddOptions<ForecastOptions>()
+            .Bind(builder.Configuration.GetSection(ForecastOptions.SectionName))
+            .Validate(ForecastOptions.IsValid, ForecastOptions.InvalidMessage)
+            .ValidateOnStart();
+        builder.Services.AddHttpClient<IForecastClient, OpenMeteoForecastClient>(client =>
+            {
+                client.BaseAddress = OpenMeteoForecastClient.BaseAddress;
+                client.Timeout = OpenMeteoForecastClient.Timeout;
+            })
+            // The request address holds the plan's position and dates; only the client's own warning is logged.
+            .RemoveAllLoggers();
         builder.Services.AddScoped<LocationSearchService>();
         builder.Services.AddScoped<PlanSetupService>();
         builder.Services.AddScoped<PlanActivityService>();
