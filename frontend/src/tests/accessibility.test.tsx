@@ -11,6 +11,7 @@ import {
   signedInUser,
   stubFetch,
 } from "./renderApp"
+import { forecastRoutes } from "./forecastFixtures"
 
 function stubRegistration(answer: () => Promise<Response>) {
   vi.stubGlobal(
@@ -256,6 +257,7 @@ describe("Activity categories and Access denied page structure", () => {
     "for a %s has exactly one h1 and the tab title '%s - Spėk laiku'",
     async (role, heading) => {
       routeFetch({
+        ...forecastRoutes,
         "GET /api/auth/me": () => jsonResponse(200, signedInUser(role)),
         "GET /api/admin/categories": () => jsonResponse(200, []),
       })
@@ -275,6 +277,7 @@ describe("Activity categories and Access denied page structure", () => {
 describe("Activity categories form accessibility", () => {
   async function openOutdoorForm(save: () => Promise<Response>) {
     routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(200, signedInUser("Administrator")),
       "GET /api/admin/categories": () => jsonResponse(200, []),
@@ -342,6 +345,7 @@ describe("Activity categories form accessibility", () => {
   it("announces the list loading in a status region and a load error as an alert", async () => {
     let respond: (response: Response) => void = () => {}
     routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(200, signedInUser("Administrator")),
       "GET /api/admin/categories": () =>
@@ -376,6 +380,7 @@ const kaunasPlace = {
 // A visitor on Plan setup; Continue is refused with an error for every field.
 function stubPlanSetup() {
   routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, planPeriod),
     "GET /api/locations?query=Kaun": () =>
@@ -455,6 +460,7 @@ describe("Activity selection accessibility", () => {
       maxTravelDistanceKm: 30,
     })
     routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": categories,
       "POST /api/plan-activities/check": check,
@@ -652,6 +658,7 @@ describe("Plan setup accessibility", () => {
   it("announces loading and counts in status regions", async () => {
     let answer: (response: Response) => void = () => {}
     routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
         new Promise<Response>((resolve) => (answer = resolve)),

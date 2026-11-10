@@ -10,6 +10,7 @@ import {
   routeFetch,
   signedInUser as routeSignedInUser,
 } from "./renderApp"
+import { forecastRoutes } from "./forecastFixtures"
 
 // The visitor is signed out; every registration request gets the given answer.
 function stubApi(answer: () => Response) {
@@ -268,6 +269,7 @@ describe("keyboard use of the Activity categories page", () => {
 
   function stubAdministrator() {
     return routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(200, routeSignedInUser("Administrator")),
       "GET /api/admin/categories": () => jsonResponse(200, [kayaking, museum]),
@@ -381,6 +383,7 @@ const kaunas = {
 function stubPlanSetup() {
   const found = () => jsonResponse(200, { locations: [kaunas] })
   return routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -504,6 +507,7 @@ describe("keyboard use of the Activity selection page", () => {
       maxTravelDistanceKm: 30,
     })
     const fetch = routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": () =>
         jsonResponse(200, {
@@ -619,6 +623,8 @@ describe("keyboard use of the Activity selection page", () => {
         name: "Places and forecast",
       }),
     ).toBeInTheDocument()
-    expect(requests.filter((sent) => sent.method === "POST")).toHaveLength(1)
+    expect(
+      requests.filter((sent) => sent.path === "/api/plan-activities/check"),
+    ).toHaveLength(1)
   })
 })

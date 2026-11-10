@@ -6,6 +6,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import styles from "../styles.css?inline"
 import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
+import { forecastRoutes } from "./forecastFixtures"
 
 // jsdom applies stylesheet rules but does no layout, so these tests check the CSS rules
 // behind the 320 px requirements. The real size check is the manual quickstart step at 320 px.
@@ -231,6 +232,7 @@ describe("Account Suspended page at 320 px", () => {
 // Opens the create form as an Active Administrator with Outdoor selected, so every field is shown.
 async function renderCategoriesPageWithForm() {
   routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(200, signedInUser("Administrator")),
     "GET /api/admin/categories": () =>
       jsonResponse(200, [
@@ -332,6 +334,7 @@ describe("Activity categories page at 320 px", () => {
 async function renderPlanSetupWithChip() {
   usePlanSetupStore.getState().addDate("2026-11-07")
   routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -474,6 +477,7 @@ async function renderActivitySelection(
   acceptPlanSetup()
   usePlanActivitiesStore.getState().add(kayaking)
   routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-activities/categories": categories,
   })
@@ -595,7 +599,10 @@ describe("Places and forecast at 320 px", () => {
         maxTemperatureC: 35,
       },
     ])
-    routeFetch({ "GET /api/auth/me": () => jsonResponse(401) })
+    routeFetch({
+      ...forecastRoutes,
+      "GET /api/auth/me": () => jsonResponse(401),
+    })
     renderApp("/plan/places")
     await screen.findByRole("heading", {
       level: 1,

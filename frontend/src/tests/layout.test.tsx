@@ -10,6 +10,7 @@ import {
   signedInUser,
   stubFetch,
 } from "./renderApp"
+import { forecastRoutes } from "./forecastFixtures"
 
 describe("shared layout", () => {
   beforeEach(() => {
@@ -98,6 +99,7 @@ describe.each([
 ])("skip link on /admin/categories for a %s", (role, heading) => {
   it(`makes 'Skip to main content' the first focusable item on the ${heading} page`, async () => {
     routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () => jsonResponse(200, signedInUser(role)),
       "GET /api/admin/categories": () => jsonResponse(200, []),
     })
@@ -132,6 +134,7 @@ describe.each([
       maxTravelDistanceKm: 30,
     })
     routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
         jsonResponse(200, {
