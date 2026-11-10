@@ -34,7 +34,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 **Purpose**: Confirm the starting point. No new package, no migration and no new folder.
 
-- [ ] T001 From the repository root, run `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx`. From `frontend/`, run `npm run lint`, `npm test` and `npm run build`. This confirms that the baseline after feature 005 passes before any change. Record the test counts and any pre-existing failure in this task instead of fixing it in this feature. If the first `npm test` fails with "Failed to start forks worker", re-run it once before investigating.
+- [X] T001 From the repository root, run `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx`. From `frontend/`, run `npm run lint`, `npm test` and `npm run build`. This confirms that the baseline after feature 005 passes before any change. Record the test counts and any pre-existing failure in this task instead of fixing it in this feature. If the first `npm test` fails with "Failed to start forks worker", re-run it once before investigating. Result (2026-11-10): no failing test. The backend build has 0 errors and 568 tests pass (364 unit, 204 integration). Lint is clean and the build succeeds. The first `npm test` again reported "Failed to start forks worker" for 2 files and ran only 51 of 54; the unchanged re-run passed 654 tests in 54 files.
 
 ---
 
@@ -46,7 +46,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: shared client code
 
-- [ ] T002 Move the HTTP and JSON error handling of `Api/Clients/OpenMeteoGeocodingClient.cs` into a new `Api/Clients/ExternalServiceJson.cs` (research section 11).
+- [X] T002 Move the HTTP and JSON error handling of `Api/Clients/OpenMeteoGeocodingClient.cs` into a new `Api/Clients/ExternalServiceJson.cs` (research section 11).
   - Make it an `internal static class` with `Task<T?> GetAsync<T>(HttpClient httpClient, string path, ExternalService service, ILogger logger, bool badRequestMeansNotFound, CancellationToken cancellationToken) where T : class`.
   - It keeps the existing behaviour exactly: timeout, network failure, `badRequestMeansNotFound`, unexpected status, unreadable JSON and empty body.
   - It logs one warning per failure as `"{Service} failed: {FailureKind} {StatusCode}"`, using a display name per service: "Location search service" for `LocationSearch` and "Forecast service" for `Forecast`. That keeps the geocoding log text unchanged.
@@ -56,13 +56,13 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: the weather client
 
-- [ ] T003 [P] Create the client models in `Api/Clients/` (`data-model.md`, Client models):
+- [X] T003 [P] Create the client models in `Api/Clients/` (`data-model.md`, Client models):
   - `IForecastClient.cs`: `Task<HourlyForecast> GetAsync(double latitude, double longitude, DateOnly firstDate, DateOnly lastDate, CancellationToken cancellationToken)`. Comment that the interface exists so tests replace the external service with fake responses (constitution III).
   - `HourlyForecast.cs` with three records:
     - `HourlyForecast(IReadOnlyList<ForecastHourValues> Hours, IReadOnlyList<ForecastDaylight> Days)`;
     - `ForecastHourValues(DateTimeOffset Time, double? TemperatureC, double? PrecipitationMm, double? WindSpeedMs)`, with a comment that precipitation is the sum of the hour **before** `Time` (research section 2);
     - `ForecastDaylight(DateOnly Date, DateTimeOffset Sunrise, DateTimeOffset Sunset)`.
-- [ ] T004 Create `Api/Clients/OpenMeteoForecastResponse.cs` and `Api/Clients/OpenMeteoForecastClient.cs` (research sections 1 and 11).
+- [X] T004 Create `Api/Clients/OpenMeteoForecastResponse.cs` and `Api/Clients/OpenMeteoForecastClient.cs` (research sections 1 and 11).
   - **Response records** (`internal`): `hourly` with `time` (`long[]?`), `temperature_2m`, `precipitation` and `wind_speed_10m` (`double?[]?`); `daily` with `time`, `sunrise` and `sunset` (`long?[]?`). Use `[JsonPropertyName]` as in `OpenMeteoGeocodingResponse.cs`.
   - **Constants**: `BaseAddress = new("https://api.open-meteo.com/")` and `Timeout = TimeSpan.FromSeconds(4)`, with a comment on the 10-second page budget (5 s location lookup + 4 s forecast).
   - **Request path**: `v1/forecast?latitude=<lat>&longitude=<lon>&hourly=temperature_2m,precipitation,wind_speed_10m&daily=sunrise,sunset&wind_speed_unit=ms&timezone=Europe%2FVilnius&timeformat=unixtime&start_date=<yyyy-MM-dd>&end_date=<yyyy-MM-dd>`. Format the numbers and dates with `CultureInfo.InvariantCulture`.
@@ -73,7 +73,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - a date from `firstDate` to `lastDate` has no daily entry, or a daily entry has no sunrise or sunset.
   - A `null` hourly value stays `null`.
   - It never logs the position or the dates. Keep the class under 200 lines.
-- [ ] T005 Add `UnitTests/OpenMeteoForecastClientTests.cs` with `FakeHttpMessageHandler`, following `OpenMeteoGeocodingClientTests.cs`. Cover:
+- [X] T005 Add `UnitTests/OpenMeteoForecastClientTests.cs` with `FakeHttpMessageHandler`, following `OpenMeteoGeocodingClientTests.cs`. Cover:
   - the exact request path for latitude 54.6872, longitude 25.2797, 2026-11-10 to 2026-11-16, including the units, `timeformat=unixtime` and `timezone`;
   - a full answer parsed into hours and days, with times as the right instants and dates as Lithuanian dates;
   - `null` values kept as `null`;
@@ -83,7 +83,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: configuration
 
-- [ ] T006 Create `Api/Services/ForecastOptions.cs` (section `Forecast`, research section 9) with `MaxAgeMinutes = 30`, `FirstHour = 6` and `LastHour = 22`. Comment that each can be changed with an environment variable such as `Forecast__MaxAgeMinutes`.
+- [X] T006 Create `Api/Services/ForecastOptions.cs` (section `Forecast`, research section 9) with `MaxAgeMinutes = 30`, `FirstHour = 6` and `LastHour = 22`. Comment that each can be changed with an environment variable such as `Forecast__MaxAgeMinutes`.
   - In `Api/Program.cs`, bind it with `AddOptions<ForecastOptions>().Bind(...).Validate(...).ValidateOnStart()`. The rule is `MaxAgeMinutes > 0 && FirstHour >= 0 && FirstHour < LastHour && LastHour <= 23`, with the message "Forecast:MaxAgeMinutes must be positive and 0 <= FirstHour < LastHour <= 23.", as `AddPlanSetupRateLimit` does.
   - In `Api/appsettings.json`, add `"Forecast": { "MaxAgeMinutes": 30, "FirstHour": 6, "LastHour": 22 }`. Do not touch `appsettings.Development.json`.
   - Register `AddHttpClient<IForecastClient, OpenMeteoForecastClient>` with `BaseAddress` and `Timeout`, and `.RemoveAllLoggers()` with the same reason as the geocoding client.
@@ -91,7 +91,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: planning hours and rules
 
-- [ ] T007 [P] Create the planning hour records and builder in `Api/Services/` (`data-model.md`, research sections 2, 3 and 5):
+- [X] T007 [P] Create the planning hour records and builder in `Api/Services/` (`data-model.md`, research sections 2, 3 and 5):
   - `PlanningHour.cs`: `record PlanningHour(TimeOnly Start, TimeOnly End, decimal? TemperatureC, decimal? RainMmPerHour, decimal? WindMs, bool Daylight)`.
   - `PlanningDay.cs`: `record PlanningDay(DateOnly Date, TimeOnly Sunrise, TimeOnly Sunset, IReadOnlyList<PlanningHour> Hours)`.
   - `PlanningDays.cs`, a static class with `Build(HourlyForecast forecast, IReadOnlyList<DateOnly> dates, DateTimeOffset now, ForecastOptions options)`. For each date, in date order:
@@ -103,7 +103,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - `Daylight` is true when start ≥ sunrise and end ≤ sunset, comparing exact instants;
     - `Sunrise` and `Sunset` are the Lithuanian local times rounded down to the minute.
   - A date without a daylight entry cannot happen after T004; throw `InvalidOperationException` if it does.
-- [ ] T008 Add `UnitTests/PlanningDaysTests.cs` with a hand-built `HourlyForecast`. Cover:
+- [X] T008 Add `UnitTests/PlanningDaysTests.cs` with a hand-built `HourlyForecast`. Cover:
   - 16 hours 06:00–21:00 per date with the default options, and 3 hours with `FirstHour = 8, LastHour = 11`;
   - two non-consecutive dates in order;
   - with `now` at 14:20 today, the first hour is 15:00; at 14:00 exactly, 14:00 is left out; at 21:30, the list is empty; another date is not shortened;
@@ -113,7 +113,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - with sunrise 07:42, the 07:00 hour is not daylight and 08:00 is; with sunset 16:20, the 15:00 hour is daylight and 16:00 is not; a sunset exactly at 16:00 keeps 15:00 as daylight;
   - `Sunrise` and `Sunset` are shown as 07:42 and 16:20;
   - 2027-03-28 and 2027-10-31 (clock changes) each have 16 hours with the right instants.
-- [ ] T009 [P] Create `Api/Services/HourSuitability.cs` (`record HourSuitability(TimeOnly Start, IReadOnlyList<string> Reasons)` with `bool Suitable => Reasons.Count == 0`) and `Api/Services/HourSuitabilityRules.cs`, a static class with `IReadOnlyList<string> Check(PlanningHour hour, CheckedPlanActivity activity)` (research section 6, `data-model.md` HourSuitabilityRules).
+- [X] T009 [P] Create `Api/Services/HourSuitability.cs` (`record HourSuitability(TimeOnly Start, IReadOnlyList<string> Reasons)` with `bool Suitable => Reasons.Count == 0`) and `Api/Services/HourSuitabilityRules.cs`, a static class with `IReadOnlyList<string> Check(PlanningHour hour, CheckedPlanActivity activity)` (research section 6, `data-model.md` HourSuitabilityRules).
   - Reason texts as constants or format methods, exactly: `"Too cold: {t} °C, minimum {min} °C"`, `"Too warm: {t} °C, maximum {max} °C"`, `"Too much rain: {r} mm/h, maximum {max} mm/h"`, `"Too windy: {w} m/s, maximum {max} m/s"`, `"Outside daylight"`, `"No forecast for this hour"`.
   - Numbers are formatted with `"0.0"` and `CultureInfo.InvariantCulture`.
   - Order:
@@ -121,20 +121,20 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - then row 5 when `RequiresDaylight` and not `Daylight`;
     - then row 6 for Outdoor when any value is `null`, instead of rows 1 to 4.
   - An Indoor activity gets only row 5. Comparisons use `<` minimum and `>` maximum, so a value equal to its limit passes.
-- [ ] T010 Add `UnitTests/HourSuitabilityRulesTests.cs`, a table-driven test of every row in `data-model.md` (HourSuitabilityRules). Cover:
+- [X] T010 Add `UnitTests/HourSuitabilityRulesTests.cs`, a table-driven test of every row in `data-model.md` (HourSuitabilityRules). Cover:
   - each limit exactly at (passes), 0.1 inside (passes) and 0.1 outside (fails with the exact text), for minimum and maximum temperature, rain and wind;
   - rain limit 0 with 0.0 (passes) and 0.1 (fails);
   - several reasons together in the documented order;
   - a missing value giving only "No forecast for this hour" (plus "Outside daylight" first when relevant);
   - Indoor with missing values and bad weather is suitable without daylight, and gets only "Outside daylight" with daylight;
   - negative temperatures formatted as "-3.0".
-- [ ] T011 [P] Create the period and activity models in `Api/Services/`:
+- [X] T011 [P] Create the period and activity models in `Api/Services/`:
   - `SuitablePeriod.cs`: `record SuitablePeriod(TimeOnly Start, TimeOnly End, int LengthHours, bool ShorterThanDuration)`.
   - `SuitablePeriods.cs`, a static class with `From(IReadOnlyList<HourSuitability> hours, decimal durationHours)`: runs of suitable hours where one's start is the previous one's start + 1 h, with `ShorterThanDuration = LengthHours < durationHours`.
   - `ActivityDayForecast.cs`: `record ActivityDayForecast(DateOnly Date, IReadOnlyList<SuitablePeriod> Periods, IReadOnlyList<HourSuitability> Hours)`.
   - `ActivityForecast.cs`: `record ActivityForecast(bool WeatherIndependent, int SuitableHours, int DatesWithSuitableHours, bool HasLongEnoughPeriod, IReadOnlyList<ActivityDayForecast> Days)`.
   - `ActivityForecasts.cs`, a static class with `For(CheckedPlanActivity activity, IReadOnlyList<PlanningDay> days)` (research section 7). `WeatherIndependent` is `Type == Indoor && !RequiresDaylight`.
-- [ ] T012 Add `UnitTests/SuitablePeriodsTests.cs` and `UnitTests/ActivityForecastsTests.cs`. Cover:
+- [X] T012 Add `UnitTests/SuitablePeriodsTests.cs` and `UnitTests/ActivityForecastsTests.cs`. Cover:
   - 10:00–14:00 suitable, a gap, and 16:00 suitable give two periods of 4 and 1 h;
   - an empty or all-unsuitable day gives none;
   - with duration 2 h, a 1 h period is shorter, and 2 h and 3 h periods are not;
@@ -146,7 +146,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: test fakes
 
-- [ ] T013 Add the forecast fakes and the test-controlled clock:
+- [X] T013 Add the forecast fakes and the test-controlled clock:
   - `IntegrationTests/FakeForecastClient.cs`, following `FakeGeocodingClient.cs`:
     - scripted answers per `(latitude, longitude)`;
     - `ScriptFailure(latitude, longitude, FailureKind)`;
@@ -164,8 +164,8 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Frontend
 
-- [ ] T014 [P] Create `frontend/src/types/planForecast.ts` with `ForecastHour`, `ForecastDay`, `SuitablePeriod`, `HourSuitability`, `ActivityDayForecast`, `ActivityForecast`, `PlanForecast` and `PlanForecastRequest` exactly as in `data-model.md` (Frontend types). Import `PlanSetupCheckRequest` from `types/planSetup.ts` and `PlanActivityRequest` from `types/planActivity.ts`.
-- [ ] T015 [P] Create the wording helpers with tests (`data-model.md`, Helpers):
+- [X] T014 [P] Create `frontend/src/types/planForecast.ts` with `ForecastHour`, `ForecastDay`, `SuitablePeriod`, `HourSuitability`, `ActivityDayForecast`, `ActivityForecast`, `PlanForecast` and `PlanForecastRequest` exactly as in `data-model.md` (Frontend types). Import `PlanSetupCheckRequest` from `types/planSetup.ts` and `PlanActivityRequest` from `types/planActivity.ts`.
+- [X] T015 [P] Create the wording helpers with tests (`data-model.md`, Helpers):
   - In `frontend/src/helpers/formatPlanDate.ts`, add `formatPlanDateLong(isoDate)`: `"2026-11-15"` → `"Sunday 15 November 2026"`, joined with single spaces like `formatPlanDate`, `timeZone: "UTC"`. Extend `frontend/src/tests/formatPlanDate.test.ts`.
   - `frontend/src/helpers/suitablePeriodText.ts`: `suitablePeriodText(period, durationHours)` → `"★ Suitable 10:00–14:00 (4 h)"` or `"★ Suitable 10:00–11:00 (1 h), shorter than this activity's 2 h"`. Use the en dash and format the duration with `String(durationHours)`, so 1.5 shows as "1.5 h".
   - `frontend/src/helpers/forecastSummaryText.ts`: `forecastSummaryText(forecast, totalDates, durationHours)` returns:
