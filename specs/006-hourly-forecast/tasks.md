@@ -187,7 +187,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T016 [P] [US1] Add `UnitTests/WeatherForecastServiceTests.cs` with `RecordingForecastClient`, a real `MemoryCache`, and a `ForecastPeriod` built on a `FixedTimeProvider`. Cover:
+- [X] T016 [P] [US1] Add `UnitTests/WeatherForecastServiceTests.cs` with `RecordingForecastClient`, a real `MemoryCache`, and a `ForecastPeriod` built on a `FixedTimeProvider`. Cover:
   - the client is asked for the location's position and the whole period (today to today + 6);
   - `ReceivedAt` is the clock's time;
   - a second call at +29 minutes uses the cache (one client call, same `ReceivedAt`);
@@ -195,28 +195,28 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - the next day it calls again;
   - another location id calls again;
   - a failure is not cached: the next call reaches the client.
-- [ ] T017 [P] [US1] Add `UnitTests/PlanForecastServiceTests.cs`, building `PlanSetupService` with `RecordingGeocodingClient` and `PlanActivityService` with the EF Core in-memory database (as in `PlanActivityServiceTests.cs`), plus `WeatherForecastService` with `RecordingForecastClient`. Cover the success path:
+- [X] T017 [P] [US1] Add `UnitTests/PlanForecastServiceTests.cs`, building `PlanSetupService` with `RecordingGeocodingClient` and `PlanActivityService` with the EF Core in-memory database (as in `PlanActivityServiceTests.cs`), plus `WeatherForecastService` with `RecordingForecastClient`. Cover the success path:
   - one `PlanningDay` per plan date;
   - one `ActivityForecast` per activity in request order;
   - the same category twice with different limits gives different results;
   - `UpdatedAt` is `ReceivedAt` in Lithuanian time.
 
   The error paths come in US4 (T047).
-- [ ] T018 [P] [US1] Add `UnitTests/PlanForecastMappingTests.cs`: the configuration is valid; `TimeOnly(7, 5)` maps to `"07:05"`; a `PlanForecast` maps every field of every response DTO, including `null` values, empty `Hours` and `Reasons`, and `DateOnly` dates.
-- [ ] T019 [P] [US1] Add `IntegrationTests/PlanForecastEndpointTests.cs` (collection `PostgreSqlCollection`). Use your own place id and position, scripted in `FakeGeocodingClient` and `FakeForecastClient`, your own categories with `PostgreSqlApiFactory.UniqueCategoryName`, and `Clock` set to a fixed time (it drives "now" through `ForecastPeriod`, T013). Set `Clock` back to its earlier value at the end of the test, because the collection shares it. As a Visitor, cover the `200` contract in `contracts/plan-forecast-api.md`:
+- [X] T018 [P] [US1] Add `UnitTests/PlanForecastMappingTests.cs`: the configuration is valid; `TimeOnly(7, 5)` maps to `"07:05"`; a `PlanForecast` maps every field of every response DTO, including `null` values, empty `Hours` and `Reasons`, and `DateOnly` dates.
+- [X] T019 [P] [US1] Add `IntegrationTests/PlanForecastEndpointTests.cs` (collection `PostgreSqlCollection`). Use your own place id and position, scripted in `FakeGeocodingClient` and `FakeForecastClient`, your own categories with `PostgreSqlApiFactory.UniqueCategoryName`, and `Clock` set to a fixed time (it drives "now" through `ForecastPeriod`, T013). Set `Clock` back to its earlier value at the end of the test, because the collection shares it. As a Visitor, cover the `200` contract in `contracts/plan-forecast-api.md`:
   - one entry in `days` per plan date in date order, with 16 hours 06:00–21:00, `sunrise`, `sunset` and the values rounded to one decimal place;
   - with the clock at 14:20 on a plan date that is today, the first hour of that date is 15:00;
   - `activities` in request order with `weatherIndependent`, `suitableHours`, `datesWithSuitableHours`, `hasLongEnoughPeriod`, `periods` (including `shorterThanDuration`) and an `hours` entry per hour;
   - `updatedAt` is `"HH:mm"` in Lithuanian time;
   - the raw JSON uses the documented keys only.
-- [ ] T020 [P] [US1] Add `frontend/src/tests/planForecastApi.test.ts` (forecast part) and `frontend/src/tests/usePlanForecastStore.test.ts` (loading part), with `routeFetch` and fake timers, following `planActivitiesApi.test.ts` and `usePlanActivitiesCheckStore.test.ts`. Cover:
+- [X] T020 [P] [US1] Add `frontend/src/tests/planForecastApi.test.ts` (forecast part) and `frontend/src/tests/usePlanForecastStore.test.ts` (loading part), with `routeFetch` and fake timers, following `planActivitiesApi.test.ts` and `usePlanActivitiesCheckStore.test.ts`. Cover:
   - `getPlanForecast` sends `POST /api/plan-forecast` with the body from `planForecastRequest`, and maps `200` to `{ kind: "forecast" }`;
   - any other status not yet handled throws `ApiError`;
   - `planForecastRequest` builds the request from a checked setup and checked activities (location id, dates, distance, each activity's type and numbers);
   - the store goes `loading` → `loaded` with `forecast`;
   - a second `load` while loading sends no request;
   - `reset` aborts and drops a late answer.
-- [ ] T021 [P] [US1] Extend `frontend/src/tests/PlacesAndForecastPage.test.tsx` (forecast part), with a checked setup and checked activities and `routeFetch` answering `POST /api/plan-forecast`. Cover:
+- [X] T021 [P] [US1] Extend `frontend/src/tests/PlacesAndForecastPage.test.tsx` (forecast part), with a checked setup and checked activities and `routeFetch` answering `POST /api/plan-forecast`. Cover:
   - "Getting the forecast…" in the status region while loading, and exactly one request;
   - "Forecast updated at 14:05" after loading;
   - each activity is a region named after its shown name (repeated categories as "Cycling 1" and "Cycling 2") with its settings and its forecast area;
@@ -225,24 +225,25 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - "✗ No suitable hours on this date." for a date without periods, and "No hours left to plan today." for a date with no hours;
   - an Indoor activity without daylight shows only "Weather does not affect this indoor activity. Every hour from 06:00 to 22:00 is suitable.";
   - the existing tests (title, progress, setup summary, activity settings, Back, redirects) still pass.
+  - Done (2026-11-10): the shared answer `forecastRoutes` in `frontend/src/tests/forecastFixtures.ts` was added to the route stubs of six older test files that pass through step 3 (`ActivitySelectionPage`, `keyboard`, `responsive`, `accessibility`, `planCreatorOnly`, `layout`). Three of their tests counted every `POST` as an activity check, so they now count only `/api/plan-activities/check`. No assertion was removed or weakened.
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] Create `Api/Services/ReceivedForecast.cs` (`record ReceivedForecast(HourlyForecast Data, DateTimeOffset ReceivedAt)`) and `Api/Services/WeatherForecastService.cs` (`IForecastClient`, `IMemoryCache`, `ForecastPeriod`, `IOptions<ForecastOptions>`, and no `TimeProvider`) with `GetAsync(PlaceLocation location, CancellationToken)` (research section 4).
+- [X] T022 [US1] Create `Api/Services/ReceivedForecast.cs` (`record ReceivedForecast(HourlyForecast Data, DateTimeOffset ReceivedAt)`) and `Api/Services/WeatherForecastService.cs` (`IForecastClient`, `IMemoryCache`, `ForecastPeriod`, `IOptions<ForecastOptions>`, and no `TimeProvider`) with `GetAsync(PlaceLocation location, CancellationToken)` (research section 4).
   - The key is `forecast:<location.Id>:<firstDate:yyyy-MM-dd>`.
   - `ReceivedAt` is `ForecastPeriod.GetNow()`, and a cached entry is used only when `ForecastPeriod.GetNow() − ReceivedAt < MaxAgeMinutes`.
   - Otherwise it calls the client for `(location.Latitude, location.Longitude, firstDate, lastDate)` and stores the answer with `AbsoluteExpirationRelativeToNow = MaxAgeMinutes`.
   - Failures pass through and are not cached.
   - Register it with `AddScoped<WeatherForecastService>()` in `Api/Program.cs`.
-- [ ] T023 [US1] Create `Api/DTOs/Requests/PlanForecastRequest.cs` (`record PlanForecastRequest(PlanSetupCheckRequest? Setup, List<PlanActivityRequest>? Activities)`, with a comment that it reuses the two Continue shapes, research section 8). Also create `Api/Services/PlanForecast.cs` (`record PlanForecast(TimeOnly UpdatedAt, IReadOnlyList<PlanningDay> Days, IReadOnlyList<ActivityForecast> Activities)`) and `Api/Services/PlanForecastResult.cs`, following `PlanActivitiesResult.cs`, with `Success(PlanForecast)` and `Invalid(errors)`.
-- [ ] T024 [US1] Create `Api/Services/PlanForecastService.cs` (`PlanSetupService`, `PlanActivityService`, `WeatherForecastService`, `ForecastPeriod`, `IOptions<ForecastOptions>`, and no `TimeProvider`; "now" for `PlanningDays.Build` is `ForecastPeriod.GetNow()`) with `GetAsync(PlanForecastRequest, CancellationToken)`, following the four steps in `data-model.md` (PlanForecastService):
+- [X] T023 [US1] Create `Api/DTOs/Requests/PlanForecastRequest.cs` (`record PlanForecastRequest(PlanSetupCheckRequest? Setup, List<PlanActivityRequest>? Activities)`, with a comment that it reuses the two Continue shapes, research section 8). Also create `Api/Services/PlanForecast.cs` (`record PlanForecast(TimeOnly UpdatedAt, IReadOnlyList<PlanningDay> Days, IReadOnlyList<ActivityForecast> Activities)`) and `Api/Services/PlanForecastResult.cs`, following `PlanActivitiesResult.cs`, with `Success(PlanForecast)` and `Invalid(errors)`.
+- [X] T024 [US1] Create `Api/Services/PlanForecastService.cs` (`PlanSetupService`, `PlanActivityService`, `WeatherForecastService`, `ForecastPeriod`, `IOptions<ForecastOptions>`, and no `TimeProvider`; "now" for `PlanningDays.Build` is `ForecastPeriod.GetNow()`) with `GetAsync(PlanForecastRequest, CancellationToken)`, following the four steps in `data-model.md` (PlanForecastService):
   1. a missing `Setup` gives `Invalid([("setup", "The request is invalid.")])`;
   2. setup errors are returned with every key prefixed `setup.`, and nothing else runs;
   3. activity errors are returned with their keys unchanged, and the forecast is not requested;
   4. otherwise get the forecast, `PlanningDays.Build`, and `ActivityForecasts.For` for each checked activity, with `UpdatedAt` = `ReceivedAt` in Lithuanian time to the minute.
 
   Register it with `AddScoped<PlanForecastService>()`. Keep the class under 200 lines.
-- [ ] T025 [P] [US1] Create the response DTOs in `Api/DTOs/Responses/` as in `contracts/plan-forecast-api.md`:
+- [X] T025 [P] [US1] Create the response DTOs in `Api/DTOs/Responses/` as in `contracts/plan-forecast-api.md`:
   - `PlanForecastResponse(string UpdatedAt, IReadOnlyList<ForecastDayResponse> Days, IReadOnlyList<ActivityForecastResponse> Activities)`;
   - `ForecastDayResponse(DateOnly Date, string Sunrise, string Sunset, IReadOnlyList<ForecastHourResponse> Hours)`;
   - `ForecastHourResponse(string Start, string End, decimal? TemperatureC, decimal? RainMmPerHour, decimal? WindMs, bool Daylight)`;
@@ -250,34 +251,34 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - `ActivityDayForecastResponse(DateOnly Date, IReadOnlyList<SuitablePeriodResponse> Periods, IReadOnlyList<HourSuitabilityResponse> Hours)`;
   - `SuitablePeriodResponse(string Start, string End, int LengthHours, bool ShorterThanDuration)`;
   - `HourSuitabilityResponse(string Start, bool Suitable, IReadOnlyList<string> Reasons)`.
-- [ ] T026 [US1] Create `Api/Mapping/PlanForecastMappingProfile.cs`: every service record to its response, with `TimeOnly` to `string` as `time.ToString("HH:mm", CultureInfo.InvariantCulture)` (one `CreateMap<TimeOnly, string>().ConvertUsing(...)`), following `PlanActivityMappingProfile`. No rules.
-- [ ] T027 [US1] Create `Api/Controllers/PlanForecastController.cs`:
+- [X] T026 [US1] Create `Api/Mapping/PlanForecastMappingProfile.cs`: every service record to its response, with `TimeOnly` to `string` as `time.ToString("HH:mm", CultureInfo.InvariantCulture)` (one `CreateMap<TimeOnly, string>().ConvertUsing(...)`), following `PlanActivityMappingProfile`. No rules.
+- [X] T027 [US1] Create `Api/Controllers/PlanForecastController.cs`:
   - attributes `[ApiController]`, `[Route("api/plan-forecast")]`, `[Authorize(Policy = AuthorizationPolicies.PlanCreator)]`, `[EnableRateLimiting(RateLimitPolicies.PlanSetup)]` and `[ProducesResponseType(StatusCodes.Status403Forbidden)]`, with a comment on the shared limit (research section 10);
   - one `[HttpPost]` that returns `200` with `mapper.Map<PlanForecastResponse>(result.Forecast)`, or `400` `ValidationProblemDetails` (title "One or more request fields are invalid.", keys in result order) as `PlanActivitiesController.Check` does;
   - `ProducesResponseType` for `200`, `400`, `429` and `503`.
 
   In `Api/RateLimiting/RateLimitPolicies.cs`, change the `PlanSetup` comment to "Location searches, plan setup checks and forecast requests together".
-- [ ] T028 [P] [US1] Create `frontend/src/helpers/planForecastRequest.ts`: `planForecastRequest(setup: CheckedPlanSetup, activities: CheckedPlanActivity[]): PlanForecastRequest`, with `locationId` from `setup.location.id`, the checked dates and distance, and each activity's `categoryId`, `type`, `durationHours`, `requiresDaylight` and four limits. Add `frontend/src/tests/planForecastRequest.test.ts`.
-- [ ] T029 [US1] Create `frontend/src/api/planForecastApi.ts` with `getPlanForecast(request, signal)`: `200` gives `{ kind: "forecast"; forecast }`, and every other status throws `ApiError(status)` for now (US3 and US4 add the other kinds). Follow `planActivitiesApi.ts`.
-- [ ] T030 [US1] Create `frontend/src/stores/usePlanForecastStore.ts` (not persisted, `data-model.md` Plan forecast store), following `usePlanActivitiesCheckStore.ts`.
+- [X] T028 [P] [US1] Create `frontend/src/helpers/planForecastRequest.ts`: `planForecastRequest(setup: CheckedPlanSetup, activities: CheckedPlanActivity[]): PlanForecastRequest`, with `locationId` from `setup.location.id`, the checked dates and distance, and each activity's `categoryId`, `type`, `durationHours`, `requiresDaylight` and four limits. Add `frontend/src/tests/planForecastRequest.test.ts`.
+- [X] T029 [US1] Create `frontend/src/api/planForecastApi.ts` with `getPlanForecast(request, signal)`: `200` gives `{ kind: "forecast"; forecast }`, and every other status throws `ApiError(status)` for now (US3 and US4 add the other kinds). Follow `planActivitiesApi.ts`.
+- [X] T030 [US1] Create `frontend/src/stores/usePlanForecastStore.ts` (not persisted, `data-model.md` Plan forecast store), following `usePlanActivitiesCheckStore.ts`.
   - It holds `status`, `forecast`, `controller` and the last setup and activities.
   - `load(setup, activities)` is ignored while `loading`.
   - `reset()` aborts the pending request, drops its answer and returns to the initial state.
   - For now a thrown error sets `serverError`.
   - Export the initial state and reset it in `frontend/src/tests/setup.ts`.
-- [ ] T031 [P] [US1] Create `frontend/src/components/planForecastStatus.tsx`: one `<div role="status">` that shows "Getting the forecast…" while loading and "Forecast updated at <updatedAt>" when loaded. US3 adds the errors.
-- [ ] T032 [US1] Create `frontend/src/components/forecastDateEntry.tsx` and `frontend/src/components/activityForecast.tsx`, each under about 200 lines.
+- [X] T031 [P] [US1] Create `frontend/src/components/planForecastStatus.tsx`: one `<div role="status">` that shows "Getting the forecast…" while loading and "Forecast updated at <updatedAt>" when loaded. US3 adds the errors.
+- [X] T032 [US1] Create `frontend/src/components/forecastDateEntry.tsx` and `frontend/src/components/activityForecast.tsx`, each under about 200 lines.
   - **`ForecastDateEntry`** gets one `ForecastDay`, the matching `ActivityDayForecast` and the activity's duration. It renders:
     - `<h3>` with `formatPlanDateLong(date)`;
     - "Sunrise HH:MM · Sunset HH:MM";
     - then either "No hours left to plan today." (no hours), a list of `suitablePeriodText` items, or "✗ No suitable hours on this date.".
   - **`ActivityForecast`** gets the `ActivityForecast`, the plan's `days` and the checked activity. It renders either the indoor message (when `weatherIndependent`) or `forecastSummaryText`, followed by one `ForecastDateEntry` per date.
-- [ ] T033 [US1] Change `frontend/src/components/planActivitiesSummary.tsx`:
+- [X] T033 [US1] Change `frontend/src/components/planActivitiesSummary.tsx`:
   - each activity becomes `<section aria-labelledby="forecast-activity-<id>">` with `<h2 id="forecast-activity-<id>">` holding the shown name from `planActivityNames`, and its settings text as now;
   - add an optional `forecast?: PlanForecast` prop; when present, render `<ActivityForecast>` under the settings for `forecast.activities[index]` with `forecast.days`.
 
   Keep the existing text so the feature 005 tests still pass, or update them only where the `<strong>` became an `<h2>`.
-- [ ] T034 [US1] Change `frontend/src/pages/PlacesAndForecastPage.tsx`:
+- [X] T034 [US1] Change `frontend/src/pages/PlacesAndForecastPage.tsx`:
   - keep the title, `<h1>`, `PlanProgress current={3}`, the two redirects in their order, `PlanSetupSummary` and Back;
   - when both are checked, call `usePlanForecastStore.getState().load(setup, activities)` in an effect on mount and `reset()` on unmount;
   - render `PlanForecastStatus` above the activities, and pass `forecast` to `PlanActivitiesSummary` only when the status is `loaded`;
