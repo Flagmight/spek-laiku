@@ -6,9 +6,9 @@ Nothing is stored in the database: no entity, no schema change, no migration. Th
 
 ### IForecastClient
 
-`Task<ForecastData> GetAsync(double latitude, double longitude, DateOnly firstDate, DateOnly lastDate, CancellationToken cancellationToken)`. Throws `ExternalServiceException(ExternalService.Forecast, kind, status)` on every failure (research section 11). Tests replace it with `FakeForecastClient` (integration) or call `OpenMeteoForecastClient` through `FakeHttpMessageHandler` (unit).
+`Task<HourlyForecast> GetAsync(double latitude, double longitude, DateOnly firstDate, DateOnly lastDate, CancellationToken cancellationToken)`. Throws `ExternalServiceException(ExternalService.Forecast, kind, status)` on every failure (research section 11). Tests replace it with `FakeForecastClient` (integration) or call `OpenMeteoForecastClient` through `FakeHttpMessageHandler` (unit).
 
-### ForecastData (record)
+### HourlyForecast (record)
 
 | Field | Type | Notes |
 |---|---|---|
@@ -34,6 +34,10 @@ Nothing is stored in the database: no entity, no schema change, no migration. Th
 
 ## Service models (`backend/src/SpekLaiku.Api/Services/`)
 
+### ForecastPeriod (changed)
+
+New method `DateTimeOffset GetNow()`: the injected `TimeProvider`'s current time converted to Lithuanian time (`TimeZoneId`). `GetCurrent()` uses it too. This is the only clock the forecast services read, so "today", "now" and `ReceivedAt` always agree with the forecast period, and the integration tests control all of them through `PostgreSqlApiFactory.Clock` (research section 3).
+
 ### ForecastOptions (section `Forecast`)
 
 | Setting | Default | Rule (validated at start) |
@@ -44,11 +48,11 @@ Nothing is stored in the database: no entity, no schema change, no migration. Th
 
 ### ReceivedForecast (record)
 
-`Data` (`ForecastData`), `ReceivedAt` (`DateTimeOffset`, from `TimeProvider` when the service answered).
+`Data` (`HourlyForecast`), `ReceivedAt` (`DateTimeOffset`, from `ForecastPeriod.GetNow()` when the service answered).
 
 ### WeatherForecastService
 
-`Task<ReceivedForecast> GetAsync(PlaceLocation location, CancellationToken cancellationToken)`. It asks for the whole current forecast period (`ForecastPeriod.GetCurrent()`) and caches the answer under `forecast:<location.Id>:<firstDate>`. A cached answer is reused only while `now − ReceivedAt < MaxAgeMinutes` (research section 4). Failures are not cached.
+`Task<ReceivedForecast> GetAsync(PlaceLocation location, CancellationToken cancellationToken)`. It asks for the whole current forecast period (`ForecastPeriod.GetCurrent()`) and caches the answer under `forecast:<location.Id>:<firstDate>`. A cached answer is reused only while `ForecastPeriod.GetNow() − ReceivedAt < MaxAgeMinutes` (research section 4). Failures are not cached. It does not inject `TimeProvider` itself.
 
 ### PlanningHour (record)
 
@@ -67,7 +71,7 @@ Nothing is stored in the database: no entity, no schema change, no migration. Th
 
 ### PlanningDays (static)
 
-`IReadOnlyList<PlanningDay> Build(ForecastData forecast, IReadOnlyList<DateOnly> dates, DateTimeOffset now, ForecastOptions options)` builds one day per plan date, in date order:
+`IReadOnlyList<PlanningDay> Build(HourlyForecast forecast, IReadOnlyList<DateOnly> dates, DateTimeOffset now, ForecastOptions options)` builds one day per plan date, in date order:
 - Hours from `FirstHour` to `LastHour` − 1. On today's date, hours whose start is at or before `now` are left out.
 - Temperature and wind come from the entry stamped at the hour's start, and rain from the entry stamped one hour later (research section 2).
 - A missing entry or value is `null`.
@@ -132,7 +136,7 @@ An Indoor activity is checked only against row 5. A value equal to its limit pas
 1. `request.Setup` is `null`: `Invalid([("setup", "The request is invalid.")])`.
 2. `PlanSetupService.CheckAsync(request.Setup)`. On failure, `Invalid` with every key prefixed `setup.` (for example `setup.dates[0]`).
 3. `PlanActivityService.CheckAsync(new PlanActivitiesCheckRequest(request.Activities))`. On failure, `Invalid` with its keys unchanged.
-4. `WeatherForecastService.GetAsync(setup.Location)`, `PlanningDays.Build(…, setup.Dates, now, options)`, and `ActivityForecasts.For` for each checked activity.
+4. `WeatherForecastService.GetAsync(setup.Location)`, `PlanningDays.Build(…, setup.Dates, forecastPeriod.GetNow(), options)`, and `ActivityForecasts.For` for each checked activity. The service gets the time only from `ForecastPeriod`, not from `TimeProvider`.
 
 ## Validation
 
@@ -191,8 +195,8 @@ interface PlanForecastRequest { setup: PlanSetupCheckRequest; activities: PlanAc
 
 | Helper | Result |
 |---|---|
-| `formatPlanDateLong(isoDate)` (in `formatPlanDate.ts`) | `"2026-11-15"` → `"Saturday 15 November 2026"` |
-| `forecastSummaryText(forecast, totalDates, durationHours)` | `"Suitable hours: 9 on 2 of 3 dates."`, with `" No period is long enough for this activity's 2 h."` added when `!hasLongEnoughPeriod`; `"No suitable hours on any of your dates. Try other dates or change this activity's limits."` when `suitableHours` is 0 |
+| `formatPlanDateLong(isoDate)` (in `formatPlanDate.ts`) | `"2026-11-14"` → `"Saturday 14 November 2026"` |
+| `forecastSummaryText(forecast, totalDates, durationHours)` | `"Suitable hours: 9 on 2 of 3 dates."` (`"… of 1 date."` for a one-date plan, spec FR-022), with `" No period is long enough for this activity's 2 h."` added when `!hasLongEnoughPeriod`; `"No suitable hours on any of your dates. Try other dates or change this activity's limits."` when `suitableHours` is 0 |
 | `suitablePeriodText(period, durationHours)` | `"★ Suitable 10:00–14:00 (4 h)"`, or with `", shorter than this activity's 2 h"` added |
 | `planForecastRequest(setup, activities)` | The request above, from the checked values |
 

@@ -29,14 +29,14 @@ All decisions below resolve the open points of the Technical Context in `plan.md
   - For each plan date, the hours start at `Forecast:FirstHour` (6) and the last one starts at `Forecast:LastHour` − 1 (21). Both values are in configuration (section 9).
   - On today's date, an hour whose start is at or before the current time in Lithuania has already started and is left out. When none is left, the date has no hours and the page shows "No hours left to plan today."
   - Each hour's start is built as a Lithuanian local time and converted to an instant to look up its values (section 2).
-- **Rationale**: Lithuania changes the clocks at 03:00 and 04:00 local time, outside the 06:00–22:00 window, so every planning hour exists exactly once on every date. No hour is invented or shown twice (spec Edge cases), and no special code is needed for those days. `TimeProvider` gives the current time, so tests control "today" and "now" (constitution III).
+- **Rationale**: Lithuania changes the clocks at 03:00 and 04:00 local time, outside the 06:00–22:00 window, so every planning hour exists exactly once on every date. No hour is invented or shown twice (spec Edge cases), and no special code is needed for those days. The current time comes from a new `ForecastPeriod.GetNow()`, which reads the injected `TimeProvider`. The forecast period, "today", "now" and the received time then always share one clock. The integration tests already replace `ForecastPeriod` with one built on their `FixedTimeProvider` (`PostgreSqlApiFactory.Clock`), so they control all of these (constitution III). Replacing `TimeProvider` for the whole test host was rejected, because the sign-in cookies would then expire when a test moves the clock forward.
 - **Alternatives considered**: All 24 hours. Rejected by the clarification. A day window chosen on the page. Rejected: it would widen the scope (spec Clarifications).
 
 ## 4. Freshness and reuse (spec FR-009, Assumptions)
 
-- **Decision**: `WeatherForecastService` keeps the answer in the existing `IMemoryCache` under `forecast:<locationId>:<firstDate>`, together with the instant it was received (`TimeProvider`). An entry is used only while `now − receivedAt` is less than `Forecast:MaxAgeMinutes` (30). The cache entry also expires after the same time, so old answers do not stay in memory. Failures are not cached.
+- **Decision**: `WeatherForecastService` keeps the answer in the existing `IMemoryCache` under `forecast:<locationId>:<firstDate>`, together with the instant it was received (`ForecastPeriod.GetNow()`, section 3). An entry is used only while `now − receivedAt` is less than `Forecast:MaxAgeMinutes` (30). The cache entry also expires after the same time, so old answers do not stay in memory. Failures are not cached.
 - **Rationale**:
-  - The age is checked against `TimeProvider`, not only by the cache's own expiry, so tests can prove the 30-minute rule with a fixed clock.
+  - The age is checked against `ForecastPeriod.GetNow()`, not only by the cache's own expiry, so tests can prove the 30-minute rule with a fixed clock.
   - The key holds the first date of the period, so an answer from yesterday is never used today.
   - The location id identifies the position, because the position always comes from the location search service (spec FR-004).
 - **Alternatives considered**:
@@ -136,8 +136,8 @@ All decisions below resolve the open points of the Technical Context in `plan.md
 
 - **Decision**:
   - Step 3 keeps the setup summary. `PlanActivitiesSummary` is changed so each activity is a `<section aria-labelledby>` with the shown name as an `h2`. It takes an optional per-activity forecast, which it renders with a new `ActivityForecast` component under the settings (matched by position, because the server answers in request order).
-  - Each date is an `h3` with the long date ("Saturday 15 November 2026", a new `formatPlanDateLong` beside `formatPlanDate`), "Sunrise HH:MM · Sunset HH:MM", and the period list.
-  - Each date also has a disclosure button with `aria-expanded` and `aria-controls`. Its visible text is "Show hours for <date>" or "Hide hours for <date>", and its accessible name adds the activity: "Show hours for Kayaking on Saturday 15 November 2026".
+  - Each date is an `h3` with the long date ("Saturday 14 November 2026", a new `formatPlanDateLong` beside `formatPlanDate`), "Sunrise HH:MM · Sunset HH:MM", and the period list.
+  - Each date also has a disclosure button with `aria-expanded` and `aria-controls`. Its visible text is "Show hours for <date>" or "Hide hours for <date>", and its accessible name is the visible text followed by the activity: "Show hours for Saturday 14 November 2026, Kayaking". The visible text comes first and unbroken, so voice control users can say what they see (WCAG 2.5.3, Label in Name).
   - The hours are a real `<table>` with a caption and header cells. Below the existing 40em breakpoint, CSS shows each row as a card: each cell carries a visually hidden label that becomes visible, giving the "Label: value" text.
   - Status messages ("Getting the forecast…", the errors, "Forecast updated at HH:MM") are in one `role="status"` region above the activities. Errors have Retry.
 - **Rationale**:

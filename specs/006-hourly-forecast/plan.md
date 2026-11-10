@@ -47,7 +47,8 @@ Tests use `FakeForecastClient` and the existing `FakeGeocodingClient`, never the
 - `Clients/ExternalService.cs` (changed): adds `Forecast`.
 - `Clients/ExternalServiceJson.cs` (new, internal static): `GetAsync<T>(HttpClient, path, ExternalService, ILogger, badRequestMeansNotFound, cancellationToken)`. This is the timeout, network, status and JSON handling moved from `OpenMeteoGeocodingClient`, with one warning per failure naming only the service, kind and status code.
 - `Clients/OpenMeteoGeocodingClient.cs` (changed): uses `ExternalServiceJson`; its behaviour and log text stay the same.
-- `Clients/IForecastClient.cs`, `ForecastData.cs` (with `ForecastHourValues` and `ForecastDaylight`), `OpenMeteoForecastClient.cs` and `OpenMeteoForecastResponse.cs` (new): research sections 1 and 11, `data-model.md` (Client models). Base address `https://api.open-meteo.com/`, timeout 4 seconds.
+- `Clients/IForecastClient.cs`, `HourlyForecast.cs` (with `ForecastHourValues` and `ForecastDaylight`), `OpenMeteoForecastClient.cs` and `OpenMeteoForecastResponse.cs` (new): research sections 1 and 11, `data-model.md` (Client models). Base address `https://api.open-meteo.com/`, timeout 4 seconds.
+- `Services/ForecastPeriod.cs` (changed): adds `GetNow()`, the current time in Lithuania. The forecast services read the time only through it, so they follow the integration tests' clock (research section 3).
 - `Services/ForecastOptions.cs` (new): section `Forecast`, validated at start (research section 9).
 - `Services/WeatherForecastService.cs` and `ReceivedForecast.cs` (new): the cached forecast for a location (research section 4).
 - `Services/PlanningHour.cs`, `PlanningDay.cs` and `PlanningDays.cs` (new): the planning hours per date.
@@ -149,7 +150,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
   - Unit and integration tests for every rule, boundary and status; frontend tests for loading, success, empty ("No hours left", "No suitable hours"), error and out-of-date states.
   - The endpoint has an authorization test for every caller type.
   - "One user cannot change another user's data" does not apply: nothing is stored.
-  - The weather and location services are always fakes. Time comes from `TimeProvider` and fake timers.
+  - The weather and location services are always fakes. The backend reads the time only through `ForecastPeriod`, which the tests build on a `FixedTimeProvider`; the frontend uses fake timers.
 - **PASS (IV Security)**:
   - Authorization is enforced on the server by the existing policy.
   - All input is validated again on the server, and the position comes only from the location search service by id.
@@ -196,7 +197,7 @@ backend/
 │   ├── Clients/ExternalServiceJson.cs                    (new)
 │   ├── Clients/OpenMeteoGeocodingClient.cs               (changed)
 │   ├── Clients/IForecastClient.cs                        (new)
-│   ├── Clients/ForecastData.cs                           (new)
+│   ├── Clients/HourlyForecast.cs                           (new)
 │   ├── Clients/OpenMeteoForecastClient.cs                (new)
 │   ├── Clients/OpenMeteoForecastResponse.cs              (new)
 │   ├── Controllers/PlanForecastController.cs             (new)
@@ -211,6 +212,7 @@ backend/
 │   ├── Errors/ApiExceptionHandler.cs                     (changed)
 │   ├── Mapping/PlanForecastMappingProfile.cs             (new)
 │   ├── RateLimiting/RateLimitPolicies.cs                 (changed, comment only)
+│   ├── Services/ForecastPeriod.cs                        (changed)
 │   ├── Services/ForecastOptions.cs                       (new)
 │   ├── Services/WeatherForecastService.cs                (new)
 │   ├── Services/ReceivedForecast.cs                      (new)
