@@ -168,6 +168,31 @@ public sealed class PlanForecastServiceTests : IDisposable
         Assert.Empty(forecastClient.Calls);
     }
 
+    [Fact]
+    public async Task DateOutsideTheReceivedForecast_GivesThePastDateMessageInsteadOfAFailure()
+    {
+        // As when midnight in Lithuania passes between the setup check and the forecast request: the answer
+        // starts the next day, so the date the check accepted is not in it.
+        forecastClient.Answer = Forecast(Today.AddDays(1), 7, 18.0);
+
+        var result = await CreateService().GetAsync(
+            new PlanForecastRequest(new PlanSetupCheckRequest(Vilnius.Id, [Today], null), [Kayaking()]),
+            CancellationToken.None);
+
+        Assert.Equal([Error("setup.dates", "Dates cannot be in the past.")], result.Errors);
+    }
+
+    [Fact]
+    public async Task UpdatedAt_IsShownInLithuanianTimeWhateverTheClocksOffset()
+    {
+        // The test clock's instant is in UTC (12:05); Lithuania is two hours ahead in November.
+        var result = await CreateService().GetAsync(
+            new PlanForecastRequest(new PlanSetupCheckRequest(Vilnius.Id, [Today], null), [Kayaking()]),
+            CancellationToken.None);
+
+        Assert.Equal(new TimeOnly(14, 5), result.Forecast!.UpdatedAt);
+    }
+
     public void Dispose()
     {
         cache.Dispose();

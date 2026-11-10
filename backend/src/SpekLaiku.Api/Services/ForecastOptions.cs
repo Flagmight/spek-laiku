@@ -8,7 +8,13 @@ public sealed class ForecastOptions
 {
     public const string SectionName = "Forecast";
 
-    public const string InvalidMessage = "Forecast:MaxAgeMinutes must be positive and 0 <= FirstHour < LastHour <= 23.";
+    public const string InvalidMessage = "Forecast:MaxAgeMinutes must be positive and 4 <= FirstHour < LastHour <= 23.";
+
+    /// <summary>
+    /// Lithuania changes the clocks at 03:00 and 04:00 local time, when an hour is skipped or repeated. Planning
+    /// starts at 04:00 at the earliest, so every planning hour exists exactly once (research section 3).
+    /// </summary>
+    public const int EarliestFirstHour = 4;
 
     /// <summary>How long a received forecast may be shown as current (spec FR-009).</summary>
     public int MaxAgeMinutes { get; init; } = 30;
@@ -21,7 +27,7 @@ public sealed class ForecastOptions
 
     public static bool IsValid(ForecastOptions options) =>
         options.MaxAgeMinutes > 0
-        && options.FirstHour >= 0
+        && options.FirstHour >= EarliestFirstHour
         && options.FirstHour < options.LastHour
         && options.LastHour <= 23;
 }

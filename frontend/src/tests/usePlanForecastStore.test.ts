@@ -286,7 +286,7 @@ describe("usePlanForecastStore when the plan is out of date", () => {
     expect(usePlanSetupStore.getState().recheckNotice).toBe(false)
   })
 
-  it("reads the current user again on a 403", async () => {
+  it("reads the current user again on a 403 and offers Retry meanwhile", async () => {
     const refresh = vi
       .spyOn(useCurrentUserStore.getState(), "refresh")
       .mockResolvedValue()
@@ -295,6 +295,8 @@ describe("usePlanForecastStore when the plan is out of date", () => {
     await act(() => store().load(setup, activities))
 
     expect(refresh).toHaveBeenCalledOnce()
-    expect(store().status).toBe("idle")
+    // Not an empty step: if reading the user fails, the page still shows the error with Retry.
+    expect(store().status).toBe("serverError")
+    expect(store().forecast).toBeNull()
   })
 })

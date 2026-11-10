@@ -10,7 +10,7 @@ namespace SpekLaiku.Api.Services;
 /// </summary>
 public static class PlanningDays
 {
-    private static readonly TimeZoneInfo Lithuania = TimeZoneInfo.FindSystemTimeZoneById(ForecastPeriod.TimeZoneId);
+    private static TimeZoneInfo Lithuania => ForecastPeriod.Lithuania;
 
     /// <param name="now">The current time; hours of today that start at or before it are left out.</param>
     public static IReadOnlyList<PlanningDay> Build(

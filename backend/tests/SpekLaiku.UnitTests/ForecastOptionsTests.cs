@@ -23,6 +23,9 @@ public sealed class ForecastOptionsTests
     [InlineData(30, 10, 8)]
     [InlineData(30, -1, 22)]
     [InlineData(30, 6, 24)]
+    // Before 04:00 a planning hour could fall on the clock change, when an hour is skipped or repeated.
+    [InlineData(30, 0, 22)]
+    [InlineData(30, 3, 22)]
     public void InvalidSettings_AreRefused(int maxAgeMinutes, int firstHour, int lastHour)
     {
         var options = new ForecastOptions { MaxAgeMinutes = maxAgeMinutes, FirstHour = firstHour, LastHour = lastHour };
@@ -31,7 +34,7 @@ public sealed class ForecastOptionsTests
     }
 
     [Theory]
-    [InlineData(1, 0, 23)]
+    [InlineData(1, 4, 23)]
     [InlineData(60, 8, 9)]
     public void SettingsAtTheLimits_AreAccepted(int maxAgeMinutes, int firstHour, int lastHour)
     {

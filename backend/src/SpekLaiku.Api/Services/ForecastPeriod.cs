@@ -12,7 +12,8 @@ public sealed class ForecastPeriod(TimeProvider timeProvider)
 
     public const string TimeZoneId = "Europe/Vilnius";
 
-    private static readonly TimeZoneInfo Lithuania = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
+    /// <summary>Lithuania's time zone; the one copy every forecast class uses.</summary>
+    public static readonly TimeZoneInfo Lithuania = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId);
 
     /// <summary>The current time in Lithuania, with Lithuania's offset.</summary>
     public DateTimeOffset GetNow() => TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), Lithuania);

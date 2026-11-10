@@ -69,9 +69,10 @@ function toResult(outcome: PlanForecastOutcome | null): Result {
       usePlanActivitiesStore.getState().markOutdated()
       return { status: "activitiesOutdated", forecast: null }
     case "forbidden":
-      // The role or status changed: reading the user again lets the page guard show the right page.
+      // The role or status changed: reading the user again lets the page guard show the right page. Until
+      // it does, or if that fails, the page shows the server error with Retry instead of an empty step.
       void useCurrentUserStore.getState().refresh()
-      return { status: "idle", forecast: null }
+      return { status: "serverError", forecast: null }
     case "weatherUnavailable":
       return { status: "weatherUnavailable", forecast: null }
     case "tooManyRequests":

@@ -21,8 +21,6 @@ public sealed class OpenMeteoForecastClient(HttpClient httpClient, ILogger<OpenM
     /// </summary>
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(4);
 
-    private static readonly TimeZoneInfo Lithuania = TimeZoneInfo.FindSystemTimeZoneById(ForecastPeriod.TimeZoneId);
-
     public async Task<HourlyForecast> GetAsync(
         double latitude,
         double longitude,
@@ -41,7 +39,7 @@ public sealed class OpenMeteoForecastClient(HttpClient httpClient, ILogger<OpenM
         var answer = await ExternalServiceJson.GetAsync<OpenMeteoForecastResponse>(
             httpClient, path, ExternalService.Forecast, logger, badRequestMeansNotFound: false, cancellationToken);
 
-        return answer!.ToForecast(firstDate, lastDate, Lithuania)
+        return answer!.ToForecast(firstDate, lastDate, ForecastPeriod.Lithuania)
             ?? throw ExternalServiceJson.Failure(
                 ExternalService.Forecast, logger, FailureKind.InvalidResponse, (int)HttpStatusCode.OK);
     }

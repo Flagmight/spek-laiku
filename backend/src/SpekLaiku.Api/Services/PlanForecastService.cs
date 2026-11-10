@@ -42,12 +42,23 @@ public sealed class PlanForecastService(
         }
 
         var received = await weatherForecastService.GetAsync(setup.Setup.Location, cancellationToken);
+
+        // Midnight in Lithuania can pass between the setup check and the forecast request, so a date the
+        // check accepted may already be outside the period the forecast covers: the setup is then out of date.
+        if (setup.Setup.Dates.Any(date => received.Data.Days.All(day => day.Date != date)))
+        {
+            return PlanForecastResult.Invalid([new($"{SetupKey}.dates", PlanSetupValidator.PastDateMessage)]);
+        }
+
         var days = PlanningDays.Build(received.Data, setup.Setup.Dates, forecastPeriod.GetNow(), options.Value);
         var forecasts = activities.Activities.Select(activity => ActivityForecasts.For(activity, days)).ToList();
 
         return PlanForecastResult.Success(new PlanForecast(ToMinute(received.ReceivedAt), days, forecasts));
     }
 
-    // ReceivedAt already carries Lithuania's offset (ForecastPeriod.GetNow).
-    private static TimeOnly ToMinute(DateTimeOffset receivedAt) => new(receivedAt.Hour, receivedAt.Minute);
+    private static TimeOnly ToMinute(DateTimeOffset receivedAt)
+    {
+        var inLithuania = TimeZoneInfo.ConvertTime(receivedAt, ForecastPeriod.Lithuania);
+        return new TimeOnly(inLithuania.Hour, inLithuania.Minute);
+    }
 }
