@@ -458,15 +458,15 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T055 [P] [US5] Add `IntegrationTests/PlanForecastAuthorizationTests.cs`, following `PlanActivitiesAuthorizationTests.cs`. Cover every row of the authorization table in `contracts/plan-forecast-api.md` with a valid body:
+- [X] T055 [P] [US5] Add `IntegrationTests/PlanForecastAuthorizationTests.cs`, following `PlanActivitiesAuthorizationTests.cs`. Cover every row of the authorization table in `contracts/plan-forecast-api.md` with a valid body:
   - a Visitor and an Active Registered User get `200`;
   - a Suspended Registered User, an Active and a Suspended Administrator, and a cookie whose account was deleted get `403`;
   - for every `403`, neither `FakeGeocodingClient.GetCalls` nor `FakeForecastClient.Calls` changes.
-- [ ] T056 [P] [US5] Check that `frontend/src/tests/planCreatorOnly.test.tsx` still covers `/plan/places` for an Active Administrator (Access denied) and a Suspended user (Account suspended), and that no forecast request is sent for them. Extend it if not.
+- [X] T056 [P] [US5] Check that `frontend/src/tests/planCreatorOnly.test.tsx` still covers `/plan/places` for an Active Administrator (Access denied) and a Suspended user (Account suspended), and that no forecast request is sent for them. Extend it if not.
 
 ### Implementation for User Story 5
 
-- [ ] T057 [US5] Make T055 and T056 pass. The policy is already on `PlanForecastController` (T027), the rate limiter runs before authorization, and the route is inside `PlanCreatorOnly`; fix only what the tests show.
+- [X] T057 [US5] Make T055 and T056 pass. The policy is already on `PlanForecastController` (T027), the rate limiter runs before authorization, and the route is inside `PlanCreatorOnly`; fix only what the tests show.
 
 **Checkpoint**: Access is enforced on the server and shown correctly in the browser.
 
