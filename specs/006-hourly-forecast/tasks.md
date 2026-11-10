@@ -340,17 +340,17 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T039 [P] [US3] Extend `UnitTests/ApiExceptionHandlerTests.cs`. Cover:
+- [X] T039 [P] [US3] Extend `UnitTests/ApiExceptionHandlerTests.cs`. Cover:
   - `ExternalServiceException(Forecast, …)` gives `503`, title "Service unavailable.", detail "The weather service is unavailable. No forecast is shown." and the extension `service` = `"forecast"`;
   - `LocationSearch` keeps "Location search is unavailable. Try again later." and adds `service` = `"locationSearch"`;
   - other exceptions are unchanged.
-- [ ] T040 [P] [US3] Add `IntegrationTests/PlanForecastFailureTests.cs` (own place ids). Cover:
+- [X] T040 [P] [US3] Add `IntegrationTests/PlanForecastFailureTests.cs` (own place ids). Cover:
   - each `FailureKind` scripted in `FakeForecastClient` gives `503` with `service: "forecast"` and the weather detail;
   - a scripted geocoding `GetAsync` failure for an uncached id gives `503` with `service: "locationSearch"`, and the fake forecast client is not called;
   - after a forecast failure, the next request calls the fake client again (not cached).
 
   Failure logging is tested in T005 for the real client. The fake throws without logging, so do not test logging here.
-- [ ] T041 [P] [US3] Extend `IntegrationTests/PlanSetupRateLimitTests.cs`. Its tests build their own host through `CreateHost(geocoding, permitLimit: "3")`, which today replaces only `IGeocodingClient`.
+- [X] T041 [P] [US3] Extend `IntegrationTests/PlanSetupRateLimitTests.cs`. Its tests build their own host through `CreateHost(geocoding, permitLimit: "3")`, which today replaces only `IGeocodingClient`.
   - Give `CreateHost` a `FakeForecastClient` too: an optional parameter, with a new one when it is not passed. Its host must never reach the live weather service.
   - Add a `ForecastAsync(client)` helper that posts a valid body (a place scripted in that host's fakes and a valid activity), next to `SearchAsync` and `CheckAsync`.
   - Cover, with a limit of 3:
@@ -358,14 +358,14 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - three forecast requests use up the limit, and the next search is refused;
     - the refused forecast request reaches neither fake client (`GetCalls` and `Calls` do not change).
   - The existing tests must pass unchanged.
-- [ ] T042 [P] [US3] Extend `frontend/src/tests/planForecastApi.test.ts` and `frontend/src/tests/usePlanForecastStore.test.ts` (errors part). Cover:
+- [X] T042 [P] [US3] Extend `frontend/src/tests/planForecastApi.test.ts` and `frontend/src/tests/usePlanForecastStore.test.ts` (errors part). Cover:
   - `503` with `service: "forecast"` maps to `weatherUnavailable`;
   - `503` with `service: "locationSearch"`, `500` and a `503` without a body throw `ApiError`;
   - `429` maps to `tooManyRequests`;
   - the store sets `weatherUnavailable`, `tooManyRequests` and `serverError` (`500`, a network error, and no answer after 10 s but not before) and clears `forecast` in each;
   - `retry()` sends the same request again;
   - an answer arriving after `reset()` is dropped.
-- [ ] T043 [P] [US3] Extend `frontend/src/tests/PlacesAndForecastPage.test.tsx` (errors part). Cover:
+- [X] T043 [P] [US3] Extend `frontend/src/tests/PlacesAndForecastPage.test.tsx` (errors part). Cover:
   - "Error: The weather service is unavailable. No forecast is shown." with Retry and no hours, periods or "Forecast updated" text, while the setup summary, the activities' settings and Back stay;
   - "Error: Too many requests. Wait a minute and try again." with Retry;
   - "Error: Something went wrong. Try again." with Retry for a `500`;
@@ -374,12 +374,12 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] In `Api/Errors/ApiExceptionHandler.cs`, choose the `503` detail by `ExternalServiceException.Service` (`Forecast`: "The weather service is unavailable. No forecast is shown."; `LocationSearch`: the existing text). Add `problem.Extensions["service"]` = `"forecast"` or `"locationSearch"`. Update the class comment. The client still logs; the handler does not log again.
-- [ ] T045 [US3] In `frontend/src/api/planForecastApi.ts`, add `{ kind: "weatherUnavailable" }` for `503` when the body's `service` is `"forecast"`, and `{ kind: "tooManyRequests" }` for `429`. In `frontend/src/stores/usePlanForecastStore.ts`:
+- [X] T044 [US3] In `Api/Errors/ApiExceptionHandler.cs`, choose the `503` detail by `ExternalServiceException.Service` (`Forecast`: "The weather service is unavailable. No forecast is shown."; `LocationSearch`: the existing text). Add `problem.Extensions["service"]` = `"forecast"` or `"locationSearch"`. Update the class comment. The client still logs; the handler does not log again.
+- [X] T045 [US3] In `frontend/src/api/planForecastApi.ts`, add `{ kind: "weatherUnavailable" }` for `503` when the body's `service` is `"forecast"`, and `{ kind: "tooManyRequests" }` for `429`. In `frontend/src/stores/usePlanForecastStore.ts`:
   - add the 10-second timeout with an `AbortController`;
   - map the outcomes to `weatherUnavailable`, `tooManyRequests` and `serverError` (thrown errors and the timeout), clearing `forecast`;
   - add `retry()`.
-- [ ] T046 [US3] In `frontend/src/components/planForecastStatus.tsx`, show the three error messages with "Error: " (via `formatErrorMessage` if it fits) and a "Retry" button that calls `usePlanForecastStore.getState().retry()`. Keep everything in the one status region so it is announced without moving focus.
+- [X] T046 [US3] In `frontend/src/components/planForecastStatus.tsx`, show the three error messages with "Error: " (via `formatErrorMessage` if it fits) and a "Retry" button that calls `usePlanForecastStore.getState().retry()`. Keep everything in the one status region so it is announced without moving focus.
 
 **Checkpoint**: No failure ever shows forecast data, and every failure offers Retry.
 
