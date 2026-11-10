@@ -53,7 +53,7 @@ SDK version 10.0.401. Preview versions are not used.
 | Object mapping | AutoMapper | Required by the project rules for DTO and entity mapping. |
 | Validation | Data annotations and checks in application services | The server validates all input (NFR-003). No extra validation library is needed. |
 | External services | Open-Meteo forecast API, Open-Meteo geocoding API, OpenStreetMap Overpass API, called through HttpClient created by IHttpClientFactory | Open-Meteo and Overpass are mandatory. The geocoding API provides the location search for plan setup. |
-| Caching and resilience | In-memory cache, timeouts on external calls, and the built-in ASP.NET Core rate limiting middleware on endpoints that call public APIs | Reduces calls to public APIs, keeps one client from flooding them (FR-049), and supports NFR-002, NFR-007 and NFR-008. |
+| Caching and resilience | In-memory cache (locations for an hour, forecasts per location and day for up to 30 minutes), timeouts on external calls, and the built-in ASP.NET Core rate limiting middleware on endpoints that call public APIs | Reduces calls to public APIs, keeps one client from flooding them (FR-049), and supports NFR-002, NFR-007 and NFR-008. |
 | Logging | ILogger\<T\> with the built-in providers | Required by the project rules. Passwords and keys are never logged (NFR-006). |
 | Backend tests | xUnit and Microsoft.AspNetCore.Mvc.Testing | Standard for ASP.NET Core. API tests also verify authorization rules. |
 | Frontend tests | Vitest and React Testing Library | Works with Vite. Finding fields by label also checks accessibility (NFR-009). |
@@ -184,9 +184,9 @@ and specs/ contains feature specifications.
 | Controllers/ | Thin controllers: routes, HTTP status codes, authenticated user, calling services. No business rules. |
 | Authorization/ | Authorization policies, requirements and handlers, applied to controllers by policy name (`ActiveAdministrator` from feature 003; `PlanCreator` from feature 004, which allows Visitors and Active Registered Users). |
 | RateLimiting/ | Rate limiting policies of the built-in ASP.NET Core middleware, their options (bound from the `RateLimiting` configuration section) and their registration, applied to controllers by policy name (first used by feature 004: `PlanSetup`, 30 requests per minute per network address, FR-049). |
-| Errors/ | The exception handler that logs unexpected failures and answers with a general `500` problem response, and answers `503` when an external service (Open-Meteo, Overpass) fails. |
+| Errors/ | The exception handler that logs unexpected failures and answers with a general `500` problem response, and answers `503` when an external service (Open-Meteo, Overpass) fails, with a `service` field naming it (`"forecast"` or `"locationSearch"`, feature 006). |
 | Services/ | Application services with the business logic (suitability, scheduling, plan checks, plans, categories, accounts, service status). |
-| Clients/ | HTTP clients for Open-Meteo (forecast and geocoding) and Overpass, created through IHttpClientFactory, with timeouts and a shared exception type for service failures. Services use them through dependency injection, and tests replace them with fakes (the geocoding client is first, from feature 004). |
+| Clients/ | HTTP clients for Open-Meteo (forecast and geocoding) and Overpass, created through IHttpClientFactory, with timeouts and a shared exception type for service failures. Services use them through dependency injection, and tests replace them with fakes (the geocoding client is first, from feature 004; the forecast client follows in feature 006). Both Open-Meteo clients share one error handling class, `ExternalServiceJson`, which logs one warning per failure without the request address. |
 | DTOs/Requests/, DTOs/Responses/ | Request and response objects at the API boundary. Entities are never returned directly. |
 | Mapping/ | AutoMapper profiles between entities and DTOs. They contain no business rules. |
 | Entities/ | Database entity classes. |
