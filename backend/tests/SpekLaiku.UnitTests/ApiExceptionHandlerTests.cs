@@ -29,7 +29,32 @@ public class ApiExceptionHandlerTests
         Assert.Equal(StatusCodes.Status503ServiceUnavailable, status);
         Assert.Contains("\"title\":\"Service unavailable.\"", response);
         Assert.Contains("\"detail\":\"Location search is unavailable. Try again later.\"", response);
+        Assert.Contains("\"service\":\"locationSearch\"", response);
         Assert.DoesNotContain("Timeout", response);
+    }
+
+    [Theory]
+    [InlineData(FailureKind.Timeout)]
+    [InlineData(FailureKind.Network)]
+    [InlineData(FailureKind.UnexpectedStatus)]
+    [InlineData(FailureKind.InvalidResponse)]
+    public async Task ForecastFailure_Answers503WithTheWeatherMessageAndService(FailureKind kind)
+    {
+        var (status, response) = await HandleAsync(new ExternalServiceException(ExternalService.Forecast, kind, 500));
+
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, status);
+        Assert.Contains("\"title\":\"Service unavailable.\"", response);
+        Assert.Contains("\"detail\":\"The weather service is unavailable. No forecast is shown.\"", response);
+        Assert.Contains("\"service\":\"forecast\"", response);
+        Assert.DoesNotContain(kind.ToString(), response);
+    }
+
+    [Fact]
+    public async Task OtherFailure_HasNoServiceField()
+    {
+        var (_, response) = await HandleAsync(new InvalidOperationException("boom"));
+
+        Assert.DoesNotContain("\"service\"", response);
     }
 
     [Fact]
