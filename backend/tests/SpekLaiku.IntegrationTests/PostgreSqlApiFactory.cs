@@ -45,7 +45,18 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     /// </summary>
     public FakeGeocodingClient Geocoding { get; } = new();
 
-    /// <summary>The clock behind the forecast period only; tests set it before checking dates.</summary>
+    /// <summary>
+    /// The weather service the API sees. The API caches forecasts per location id and day, and the cache is
+    /// shared by the collection, so every test uses its own place id and position (feature 006 research
+    /// section 4).
+    /// </summary>
+    public FakeForecastClient Forecast { get; } = new();
+
+    /// <summary>
+    /// The clock behind <see cref="ForecastPeriod"/> only: the forecast period, and "now" and the received time
+    /// of the forecast services, which read the time through it. Tests set it before checking dates and set
+    /// it back afterwards, because the collection shares it.
+    /// </summary>
     public FixedTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
 
     private string ConnectionString => localDatabase?.ConnectionString ?? container!.GetConnectionString();
@@ -147,7 +158,10 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
         {
             services.RemoveAll<IGeocodingClient>();
             services.AddSingleton<IGeocodingClient>(Geocoding);
-            // Only the forecast period gets the fixed clock; cookies and Identity keep the real one.
+            services.RemoveAll<IForecastClient>();
+            services.AddSingleton<IForecastClient>(Forecast);
+            // Only the forecast period gets the fixed clock; cookies and Identity keep the real one. The forecast
+            // services read the time through ForecastPeriod, so they follow this clock too.
             services.RemoveAll<ForecastPeriod>();
             services.AddSingleton(new ForecastPeriod(Clock));
         });
