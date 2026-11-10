@@ -28,4 +28,19 @@ public sealed class ForecastPeriodTests
         Assert.Equal(DateOnly.Parse(lastDate), last);
         Assert.Equal(first.AddDays(ForecastPeriod.Days - 1), last);
     }
+
+    [Theory]
+    [InlineData("2026-11-10T12:20:00Z", "2026-11-10T14:20:00+02:00")]
+    [InlineData("2026-07-01T11:00:00Z", "2026-07-01T14:00:00+03:00")]
+    public void GetNow_IsTheClocksInstantWithTheLithuanianOffset(string utcNow, string lithuanian)
+    {
+        var period = new ForecastPeriod(new FixedTimeProvider(DateTimeOffset.Parse(utcNow)));
+
+        var now = period.GetNow();
+
+        var expected = DateTimeOffset.Parse(lithuanian);
+        Assert.Equal(expected, now);
+        Assert.Equal(expected.Offset, now.Offset);
+        Assert.Equal(expected.Hour, now.Hour);
+    }
 }

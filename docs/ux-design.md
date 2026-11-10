@@ -381,10 +381,15 @@ area.
 |  | No categories | "No activity categories are available yet." |
 |  | Limit reached | "You can add up to 10 activities." and every **Add** is disabled. |
 |  | Checking | "Checking your activities…" and **Continue** is disabled. |
-| Places and Forecast | Loading | "Getting the forecast and nearby places…" and **Generate schedule** is disabled. |
-|  | Empty (per activity) | "No place found" row with **Remove** and **Change activity**. |
-|  | Service unavailable | The matching service message, **Generate schedule** disabled, Retry available. |
-|  | First version (feature 005) | Only the checked setup, the checked activities and **Back**. Features 006 and 007 add the forecast and places. |
+| Places and Forecast | Loading | "Getting the forecast…" (feature 006). Feature 007 makes it "Getting the forecast and nearby places…" with **Generate schedule** disabled. |
+|  | Success | "Forecast updated at HH:MM", then per activity a summary ("Suitable hours: 9 on 2 of 3 dates.") and per date the sunrise, sunset and "★ Suitable 10:00–14:00 (4 h)" periods; a period shorter than the activity's duration adds ", shorter than this activity's 2 h". **Show hours** opens the date's hours with "★ Suitable" or "✗ Unsuitable" and every reason. |
+|  | Empty (per date) | "✗ No suitable hours on this date." On today's date with no hour left: "No hours left to plan today." |
+|  | Empty (per activity) | "No suitable hours on any of your dates. Try other dates or change this activity's limits." An indoor activity without a daylight requirement shows only "Weather does not affect this indoor activity. Every hour from 06:00 to 22:00 is suitable." Feature 007 adds the "No place found" row with **Remove** and **Change activity**. |
+|  | Service unavailable | "Error: The weather service is unavailable. No forecast is shown." with Retry, and no forecast values. Feature 007 adds the map data service message and disables **Generate schedule**. |
+|  | Too many requests | "Error: Too many requests. Wait a minute and try again." with Retry. |
+|  | Server error | "Error: Something went wrong. Try again." with Retry (also after 10 seconds without an answer). |
+|  | Plan out of date | The server found the setup or the activities no longer valid: the user goes back to Plan Setup or Activity Selection, which shows the "checked again" notice below. |
+| Plan Setup and Activity Selection | Checked again | "Your plan setup needs to be checked again. Select Continue." (Plan Setup) or "Your activities need to be checked again. Select Continue." (Activity Selection), at the top in a framed box, until the next successful **Continue**. |
 | Schedule Overview | Loading | "Generating your schedule…" |
 |  | Partial | An activity without a suitable time shows "No suitable time found" and is flagged. |
 |  | Empty | "No suitable time found for any activity. Change the dates or the weather limits." with **Back**. |

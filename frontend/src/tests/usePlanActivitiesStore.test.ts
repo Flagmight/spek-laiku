@@ -168,13 +168,14 @@ describe("usePlanActivitiesStore in the browser tab's session", () => {
     expect(planActivitiesStorageKey).toBe("spek-laiku-plan-activities")
   })
 
-  it("saves only the activities and the checked list, with version 1", () => {
+  it("saves only the activities, the checked list and the notice, with version 1", () => {
     checkedActivities()
 
     expect(stored()).toEqual({
       state: {
         activities: store().activities,
         checked: [checkedKayaking],
+        recheckNotice: false,
       },
       version: 1,
     })
@@ -223,5 +224,66 @@ describe("usePlanActivitiesStore in the browser tab's session", () => {
     store().clear()
 
     expect(stored()?.state).toEqual(initialPlanActivitiesState)
+  })
+})
+
+describe("usePlanActivitiesStore 'checked again' notice", () => {
+  it("markOutdated() unchecks the activities and turns the notice on", () => {
+    const { first, second } = checkedActivities()
+
+    store().markOutdated()
+
+    expect(store().checked).toBeNull()
+    expect(store().recheckNotice).toBe(true)
+    expect(store().activities).toEqual([first, second])
+  })
+
+  it("keeps the notice through changes until the next successful check", () => {
+    const { first, second } = checkedActivities()
+    store().markOutdated()
+
+    store().update(first.id, { durationText: "3" })
+    store().remove(second.id)
+    store().add(museum)
+    store().clearChecked()
+    expect(store().recheckNotice).toBe(true)
+
+    store().setChecked([checkedKayaking])
+    expect(store().recheckNotice).toBe(false)
+  })
+
+  it("clear() turns the notice off", () => {
+    store().markOutdated()
+
+    store().clear()
+
+    expect(store().recheckNotice).toBe(false)
+  })
+
+  it("keeps the notice after a reload", async () => {
+    checkedActivities()
+    store().markOutdated()
+    const saved = sessionStorage.getItem(planActivitiesStorageKey)!
+    usePlanActivitiesStore.setState(initialPlanActivitiesState)
+    sessionStorage.setItem(planActivitiesStorageKey, saved)
+
+    await usePlanActivitiesStore.persist.rehydrate()
+
+    expect(store().recheckNotice).toBe(true)
+  })
+
+  it("gives activities saved before the notice existed no notice", async () => {
+    sessionStorage.setItem(
+      planActivitiesStorageKey,
+      JSON.stringify({
+        state: { activities: [], checked: [checkedKayaking] },
+        version: 1,
+      }),
+    )
+
+    await usePlanActivitiesStore.persist.rehydrate()
+
+    expect(store().checked).toEqual([checkedKayaking])
+    expect(store().recheckNotice).toBe(false)
   })
 })

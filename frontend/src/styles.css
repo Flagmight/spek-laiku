@@ -478,13 +478,115 @@ fieldset.plan-activity h3 {
   list-style: none;
 }
 
-.plan-activities-summary li {
+/* Only the activities; the dates, periods and reasons listed inside one have their own rules. */
+.plan-activities-summary > li {
   padding: 8px 0;
   border-bottom: 1px solid #d9dee3;
 }
 
 .plan-activities-summary p {
   margin: 0;
+}
+
+/* Step 3: the forecast under each activity (feature 006). */
+.plan-activities-summary h2 {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+}
+
+.forecast-status p {
+  margin: 8px 0;
+}
+
+/* The "checked again" notice on steps 1 and 2: a framed box, so it is not told by colour alone. */
+.recheck-notice {
+  margin: 0 0 16px;
+  padding: 8px 16px;
+  border: 2px solid #1d4ed8;
+  border-left-width: 8px;
+  font-weight: 600;
+}
+
+.plan-activities-summary .forecast-summary {
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.forecast-dates,
+.forecast-periods,
+.forecast-reasons {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.forecast-date {
+  padding-top: 8px;
+}
+
+.forecast-date h3 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+/* Show and Hide are secondary actions, full width on phones like the other buttons. */
+.forecast-date button {
+  width: 100%;
+  margin-top: 8px;
+  background: #ffffff;
+  color: #1d4ed8;
+}
+
+/* Phones: each hour is a card titled with its time, and each value reads "Label: value"
+   (docs/ux-design.md section 8). The header row stays in the table for assistive technology but is
+   hidden, because every cell carries its own label. */
+.forecast-hours,
+.forecast-hours tbody,
+.forecast-hours tr,
+.forecast-hours td {
+  display: block;
+  width: 100%;
+}
+
+.forecast-hours {
+  margin-top: 8px;
+}
+
+.forecast-hours caption {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.forecast-hours thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.forecast-hours tr {
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #d9dee3;
+  border-radius: 4px;
+}
+
+/* Long reasons wrap instead of widening the page. */
+.forecast-hours td {
+  padding: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.forecast-hours td:first-child {
+  font-weight: 700;
+}
+
+.cell-label {
+  font-weight: 600;
 }
 
 /* Wider screens: buttons are sized to their text. */
@@ -549,5 +651,61 @@ fieldset.plan-activity h3 {
   .date-picker input {
     flex: 1 1 12rem;
     width: auto;
+  }
+
+  .forecast-date button {
+    width: auto;
+  }
+
+  /* The hours as a real table with its header row. The cell labels are removed, not only hidden,
+     so screen readers do not read "Time" from both the header and the cell. */
+  .forecast-hours {
+    display: table;
+    border-collapse: collapse;
+  }
+
+  .forecast-hours caption {
+    display: table-caption;
+  }
+
+  .forecast-hours thead {
+    position: static;
+    display: table-header-group;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .forecast-hours tbody {
+    display: table-row-group;
+  }
+
+  .forecast-hours tr {
+    display: table-row;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid #d9dee3;
+    border-radius: 0;
+  }
+
+  .forecast-hours th,
+  .forecast-hours td {
+    display: table-cell;
+    width: auto;
+    padding: 4px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .forecast-hours td:first-child {
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
+  .cell-label {
+    display: none;
   }
 }

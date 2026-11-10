@@ -6,6 +6,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import styles from "../styles.css?inline"
 import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
+import { forecastRoutes } from "./forecastFixtures"
 
 // jsdom applies stylesheet rules but does no layout, so these tests check the CSS rules
 // behind the 320 px requirements. The real size check is the manual quickstart step at 320 px.
@@ -231,6 +232,7 @@ describe("Account Suspended page at 320 px", () => {
 // Opens the create form as an Active Administrator with Outdoor selected, so every field is shown.
 async function renderCategoriesPageWithForm() {
   routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(200, signedInUser("Administrator")),
     "GET /api/admin/categories": () =>
       jsonResponse(200, [
@@ -332,6 +334,7 @@ describe("Activity categories page at 320 px", () => {
 async function renderPlanSetupWithChip() {
   usePlanSetupStore.getState().addDate("2026-11-07")
   routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -474,6 +477,7 @@ async function renderActivitySelection(
   acceptPlanSetup()
   usePlanActivitiesStore.getState().add(kayaking)
   routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-activities/categories": categories,
   })
@@ -595,7 +599,10 @@ describe("Places and forecast at 320 px", () => {
         maxTemperatureC: 35,
       },
     ])
-    routeFetch({ "GET /api/auth/me": () => jsonResponse(401) })
+    routeFetch({
+      ...forecastRoutes,
+      "GET /api/auth/me": () => jsonResponse(401),
+    })
     renderApp("/plan/places")
     await screen.findByRole("heading", {
       level: 1,
@@ -629,6 +636,127 @@ describe("Places and forecast at 320 px", () => {
     // jsdom does not expand the list-style shorthand, so the rule itself is checked.
     expect(styles).toMatch(
       /\.plan-activities-summary \{[^}]*padding: 0;[^}]*list-style: none;/,
+    )
+  })
+})
+
+describe("Places and forecast hours at 320 px", () => {
+  const kaunas = {
+    id: 598316,
+    name: "Kaunas",
+    area: "Kaunas County",
+    latitude: 54.90156,
+    longitude: 23.90909,
+  }
+
+  // Step 3 with one checked Kayaking activity and its first date's hours open.
+  async function renderOpenHours() {
+    usePlanSetupStore.getState().setChecked({
+      location: kaunas,
+      dates: ["2026-11-07"],
+      maxTravelDistanceKm: 30,
+    })
+    usePlanActivitiesStore.getState().setChecked([
+      {
+        id: "a",
+        categoryId: "category-kayaking",
+        name: "Kayaking",
+        type: "Outdoor",
+        durationHours: 2,
+        requiresDaylight: true,
+        maxWindMs: 8,
+        maxRainMmPerHour: 0.5,
+        minTemperatureC: 15,
+        maxTemperatureC: 35,
+      },
+    ])
+    routeFetch({
+      ...forecastRoutes,
+      "GET /api/auth/me": () => jsonResponse(401),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/places")
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Show hours for Saturday 7 November 2026, Kayaking",
+      }),
+    )
+    return screen.getByRole("table")
+  }
+
+  it("shows each hour as a card with a border", async () => {
+    const table = await renderOpenHours()
+
+    expect(getComputedStyle(table).display).toBe("block")
+    const [, firstHour] = within(table).getAllByRole("row")
+    expect(getComputedStyle(firstHour).display).toBe("block")
+    expect(getComputedStyle(firstHour).borderStyle).toBe("solid")
+    for (const cell of within(firstHour).getAllByRole("cell")) {
+      expect(getComputedStyle(cell).display).toBe("block")
+    }
+  })
+
+  it("shows every cell's label, so each value reads 'Label: value'", async () => {
+    const table = await renderOpenHours()
+
+    const [, firstHour] = within(table).getAllByRole("row")
+    const labels = firstHour.querySelectorAll(".cell-label")
+    expect([...labels].map((label) => label.textContent)).toEqual([
+      "Time: ",
+      "Temperature: ",
+      "Rain: ",
+      "Wind: ",
+      "Daylight: ",
+      "Suitability: ",
+    ])
+    for (const label of labels) {
+      expect(getComputedStyle(label).display).not.toBe("none")
+    }
+  })
+
+  it("keeps the header row in the table but hidden on phones", async () => {
+    const table = await renderOpenHours()
+
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(6)
+    const header = table.querySelector("thead")!
+    expect(getComputedStyle(header).position).toBe("absolute")
+    expect(styles).toMatch(
+      /\.forecast-hours thead \{[^}]*overflow: hidden;[^}]*clip-path: inset\(50%\);/,
+    )
+  })
+
+  it("makes Show and Hide full-width 44 × 44 px targets", async () => {
+    await renderOpenHours()
+
+    const hide = screen.getByRole("button", {
+      name: "Hide hours for Saturday 7 November 2026, Kayaking",
+    })
+    expect(getComputedStyle(hide).width).toBe("100%")
+    expectTouchTarget(hide)
+  })
+
+  it("wraps long reasons instead of widening the page", () => {
+    // jsdom does no layout, so the rule behind "no horizontal scrolling at 320 px" is checked.
+    expect(styles).toMatch(
+      /\.forecast-hours td \{[^}]*overflow-wrap: anywhere;/,
+    )
+  })
+
+  it("shows a real table with its header row and no cell labels from 40em wide", () => {
+    const wide = styles.slice(styles.indexOf("@media (min-width: 40em)"))
+
+    expect(wide).toMatch(/\.forecast-hours \{\s*display: table;/)
+    expect(wide).toMatch(
+      /\.forecast-hours thead \{[^}]*display: table-header-group;[^}]*clip-path: none;/,
+    )
+    expect(wide).toMatch(/\.forecast-hours tr \{\s*display: table-row;/)
+    expect(wide).toMatch(/\.cell-label \{\s*display: none;/)
+    expect(wide).toMatch(/\.forecast-date button \{\s*width: auto;/)
+  })
+
+  it("frames the 'checked again' notice instead of relying on colour", () => {
+    expect(styles).toMatch(
+      /\.recheck-notice \{[^}]*border: 2px solid[^}]*border-left-width: 8px;/,
     )
   })
 })

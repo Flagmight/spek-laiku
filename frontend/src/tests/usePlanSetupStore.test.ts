@@ -130,7 +130,7 @@ function stored() {
 }
 
 describe("usePlanSetupStore in the browser tab's session", () => {
-  it("saves the location, dates, distance and checked setup with version 1", () => {
+  it("saves the location, dates, distance, checked setup and notice with version 1", () => {
     checkedState()
     store().setMaxTravelDistanceText("45")
 
@@ -141,6 +141,7 @@ describe("usePlanSetupStore in the browser tab's session", () => {
         dates: ["2026-11-07"],
         maxTravelDistanceText: "45",
         checked: null,
+        recheckNotice: false,
       },
       version: 1,
     })
@@ -187,5 +188,72 @@ describe("usePlanSetupStore in the browser tab's session", () => {
     store().clear()
 
     expect(stored()?.state).toEqual(initialPlanSetupState)
+  })
+})
+
+describe("usePlanSetupStore 'checked again' notice", () => {
+  it("markOutdated() unchecks the setup and turns the notice on", () => {
+    checkedState()
+
+    store().markOutdated()
+
+    expect(store().checked).toBeNull()
+    expect(store().recheckNotice).toBe(true)
+    expect(store().dates).toEqual(["2026-11-07"])
+  })
+
+  it("keeps the notice through changes until the next successful check", () => {
+    checkedState()
+    store().markOutdated()
+
+    store().removeDate("2026-11-07")
+    store().addDate("2026-11-08")
+    store().setMaxTravelDistanceText("40")
+    expect(store().recheckNotice).toBe(true)
+
+    store().setChecked(checkedSetup)
+    expect(store().recheckNotice).toBe(false)
+  })
+
+  it("clear() turns the notice off", () => {
+    store().markOutdated()
+
+    store().clear()
+
+    expect(store().recheckNotice).toBe(false)
+  })
+
+  it("keeps the notice after a reload", async () => {
+    checkedState()
+    store().markOutdated()
+    const saved = sessionStorage.getItem(planSetupStorageKey)!
+    usePlanSetupStore.setState(initialPlanSetupState)
+    sessionStorage.setItem(planSetupStorageKey, saved)
+
+    await usePlanSetupStore.persist.rehydrate()
+
+    expect(store().recheckNotice).toBe(true)
+    expect(store().checked).toBeNull()
+  })
+
+  it("gives a setup saved before the notice existed no notice", async () => {
+    sessionStorage.setItem(
+      planSetupStorageKey,
+      JSON.stringify({
+        state: {
+          locationText: "Kaunas, Kaunas County",
+          location: kaunas,
+          dates: ["2026-11-07"],
+          maxTravelDistanceText: "30",
+          checked: checkedSetup,
+        },
+        version: 1,
+      }),
+    )
+
+    await usePlanSetupStore.persist.rehydrate()
+
+    expect(store().checked).toEqual(checkedSetup)
+    expect(store().recheckNotice).toBe(false)
   })
 })

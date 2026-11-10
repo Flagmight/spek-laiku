@@ -6,6 +6,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { PlanCategory } from "../types/planActivity"
 import type { CheckedPlanSetup, PlanLocation } from "../types/planSetup"
 import { jsonResponse, renderAppWithLocation, routeFetch } from "./renderApp"
+import { forecastRoutes } from "./forecastFixtures"
 
 const kaunas: PlanLocation = {
   id: 598316,
@@ -79,6 +80,7 @@ function render(
   categoriesAnswer: CategoriesAnswer = () => jsonResponse(200, categoryList),
 ) {
   routeFetch({
+    ...forecastRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -500,6 +502,7 @@ describe("Activity selection Continue", () => {
     categoriesAnswer: CategoriesAnswer = () => jsonResponse(200, categoryList),
   ) {
     const { requests } = routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": categoriesAnswer,
       [checkRoute]: check,
@@ -507,7 +510,8 @@ describe("Activity selection Continue", () => {
     const { currentLocation } = renderAppWithLocation("/plan/activities")
     return {
       currentLocation,
-      checks: () => requests.filter((sent) => sent.method === "POST"),
+      checks: () =>
+        requests.filter((sent) => sent.path === "/api/plan-activities/check"),
     }
   }
 
@@ -821,6 +825,7 @@ describe("Activity selection settings", () => {
   // The server echoes what it was sent, so step 3 shows the values that really were sent.
   function renderEchoingServer() {
     const { requests } = routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
         jsonResponse(200, {
@@ -977,6 +982,7 @@ describe("Activity selection settings", () => {
       async (label, key, hint, message) => {
         const user = userEvent.setup()
         const { requests } = routeFetch({
+          ...forecastRoutes,
           "GET /api/auth/me": () => jsonResponse(401),
           "GET /api/plan-activities/categories": () =>
             jsonResponse(200, categoryList),
@@ -992,7 +998,9 @@ describe("Activity selection settings", () => {
         await user.click(continueButton())
 
         await waitFor(() => expect(field).toHaveFocus())
-        const check = requests.find((sent) => sent.method === "POST")!
+        const check = requests.find(
+          (sent) => sent.path === "/api/plan-activities/check",
+        )!
         expect(sentActivities(check.body)[0][key]).toBeNull()
         expect(field).toHaveAttribute("aria-invalid", "true")
         expect(field).toHaveAccessibleDescription(`${hint} Error: ${message}`)
@@ -1009,6 +1017,7 @@ describe("Activity selection settings", () => {
     const message =
       "Minimum temperature must be lower than maximum temperature."
     routeFetch({
+      ...forecastRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": () =>
         jsonResponse(200, categoryList),
@@ -1114,5 +1123,90 @@ describe("Activity selection page", () => {
 
     await screen.findByRole("heading", { level: 1, name: "Plan setup" })
     expect(currentLocation()).toBe("/plan/setup")
+  })
+})
+
+describe("Activity selection: 'checked again' notice", () => {
+  const notice = "Your activities need to be checked again. Select Continue."
+
+  function renderWith(check: () => Response | Promise<Response>) {
+    routeFetch({
+      ...forecastRoutes,
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, {
+          firstDate: "2026-11-04",
+          lastDate: "2026-11-10",
+          maxDates: 7,
+        }),
+      "GET /api/plan-activities/categories": () =>
+        jsonResponse(200, categoryList),
+      [checkRoute]: check,
+    })
+    return renderAppWithLocation("/plan/activities")
+  }
+
+  it("is not shown when the page is opened normally", async () => {
+    acceptSetup()
+    render()
+    await screen.findByRole("heading", { level: 1, name: "Activity selection" })
+
+    expect(screen.queryByText(notice)).not.toBeInTheDocument()
+  })
+
+  it("is shown in a status region after step 3 found the activities out of date", async () => {
+    acceptSetup()
+    usePlanActivitiesStore.getState().add(cycling)
+    usePlanActivitiesStore.getState().markOutdated()
+    render()
+
+    expect(await screen.findByText(notice)).toHaveAttribute("role", "status")
+  })
+
+  it("is still shown after a reload", async () => {
+    acceptSetup()
+    usePlanActivitiesStore.getState().add(cycling)
+    usePlanActivitiesStore.getState().markOutdated()
+    await usePlanActivitiesStore.persist.rehydrate()
+    render()
+
+    expect(await screen.findByText(notice)).toBeInTheDocument()
+  })
+
+  it("stays after a failed Continue and is gone after a successful one", async () => {
+    acceptSetup()
+    usePlanActivitiesStore.getState().add(cycling)
+    usePlanActivitiesStore.getState().add(museum)
+    usePlanActivitiesStore.getState().markOutdated()
+    let answer = jsonResponse(400, {
+      errors: {
+        "activities[0]": [
+          "This activity's category has changed. Remove it and add it again.",
+        ],
+      },
+    })
+    const user = userEvent.setup()
+    renderWith(() => answer)
+    await screen.findByText(notice)
+
+    await user.click(continueButton())
+    expect(
+      await screen.findByText(
+        "Error: This activity's category has changed. Remove it and add it again.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(notice)).toBeInTheDocument()
+
+    answer = jsonResponse(200, acceptedPlan)
+    await user.click(continueButton())
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Places and forecast",
+    })
+    expect(usePlanActivitiesStore.getState().recheckNotice).toBe(false)
+    await user.click(screen.getByRole("link", { name: "Back" }))
+    await screen.findByRole("heading", { level: 1, name: "Activity selection" })
+    expect(screen.queryByText(notice)).not.toBeInTheDocument()
   })
 })

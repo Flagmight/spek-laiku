@@ -27,21 +27,27 @@ export interface PlanActivitiesState {
   activities: PlanActivity[]
   // The last successful check. Add, remove and update set it back to null (spec FR-018).
   checked: CheckedPlanActivity[] | null
+  // Set when step 3's server check found the activities out of date, so the page asks the user to check
+  // them again; only the next successful Continue ends it (feature 006 spec FR-005).
+  recheckNotice: boolean
   add: (category: PlanCategory) => void
   remove: (id: string) => void
   update: (id: string, changes: PlanActivityChanges) => void
   setChecked: (checked: CheckedPlanActivity[]) => void
   // Asks for a new check without touching the activities, after step 1 accepts a new setup.
   clearChecked: () => void
+  // The server found the checked activities no longer valid: they must be checked again, with the notice.
+  markOutdated: () => void
   clear: () => void
 }
 
 export const initialPlanActivitiesState: Pick<
   PlanActivitiesState,
-  "activities" | "checked"
+  "activities" | "checked" | "recheckNotice"
 > = {
   activities: [],
   checked: null,
+  recheckNotice: false,
 }
 
 // The server sends null for an Indoor category's limits, which become empty fields.
@@ -93,8 +99,10 @@ export const usePlanActivitiesStore = create<PlanActivitiesState>()(
           ),
           checked: null,
         })),
-      setChecked: (checked) => set({ checked }),
+      // A successful Continue also ends the "checked again" notice.
+      setChecked: (checked) => set({ checked, recheckNotice: false }),
       clearChecked: () => set({ checked: null }),
+      markOutdated: () => set({ checked: null, recheckNotice: true }),
       clear: () => set(initialPlanActivitiesState),
     }),
     {
@@ -105,8 +113,11 @@ export const usePlanActivitiesStore = create<PlanActivitiesState>()(
       partialize: (state): PlanActivitiesData => ({
         activities: state.activities,
         checked: state.checked,
+        recheckNotice: state.recheckNotice,
       }),
-      // Activities stored in any other shape are dropped; the user starts again.
+      // Activities stored in any other shape are dropped; the user starts again. The version stays 1 for
+      // the notice added by feature 006: persist merges a stored value over the initial state, so a
+      // session saved before it gets recheckNotice false.
       migrate: () => initialPlanActivitiesState,
     },
   ),

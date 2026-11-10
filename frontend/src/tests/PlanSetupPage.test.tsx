@@ -738,3 +738,59 @@ describe("Plan setup page: maximum travel distance", () => {
     expect(sentDistance(requests)).toBe(50)
   })
 })
+
+describe("Plan setup page: 'checked again' notice", () => {
+  const notice = "Your plan setup needs to be checked again. Select Continue."
+
+  it("is not shown when the page is opened normally", async () => {
+    renderPlanSetup()
+    await waitFor(() => expect(dateInput()).toBeEnabled())
+
+    expect(screen.queryByText(notice)).not.toBeInTheDocument()
+  })
+
+  it("is shown at the top in a status region after step 3 found the setup out of date", async () => {
+    usePlanSetupStore.getState().markOutdated()
+    renderPlanSetup()
+
+    const shown = await screen.findByText(notice)
+    expect(shown).toHaveAttribute("role", "status")
+    expect(
+      shown.compareDocumentPosition(
+        screen.getByRole("button", { name: "Continue" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it("is still shown after a reload", async () => {
+    usePlanSetupStore.getState().markOutdated()
+    await usePlanSetupStore.persist.rehydrate()
+    renderPlanSetup()
+
+    expect(await screen.findByText(notice)).toBeInTheDocument()
+  })
+
+  it("stays after a failed Continue and is gone after a successful one", async () => {
+    usePlanSetupStore.getState().markOutdated()
+    let answer = jsonResponse(400, {
+      errors: { "dates[0]": ["Dates cannot be in the past."] },
+    })
+    const user = userEvent.setup()
+    await renderReadySetup(() => answer, user)
+
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    expect(
+      await screen.findByText("Error: Dates cannot be in the past."),
+    ).toBeInTheDocument()
+    expect(screen.getByText(notice)).toBeInTheDocument()
+
+    answer = jsonResponse(200, checkedKaunas())
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    await screen.findByRole("heading", { level: 1, name: "Activity selection" })
+    await user.click(screen.getByRole("link", { name: "Back" }))
+
+    await screen.findByRole("heading", { level: 1, name: "Plan setup" })
+    expect(screen.queryByText(notice)).not.toBeInTheDocument()
+    expect(usePlanSetupStore.getState().recheckNotice).toBe(false)
+  })
+})
