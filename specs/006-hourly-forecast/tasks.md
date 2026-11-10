@@ -393,13 +393,13 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T047 [P] [US4] Extend `UnitTests/PlanForecastServiceTests.cs` (error paths). Cover:
+- [X] T047 [P] [US4] Extend `UnitTests/PlanForecastServiceTests.cs` (error paths). Cover:
   - a missing `Setup` gives only `setup`;
   - a past date gives `setup.dates[0]` and runs no activity check (pass a disposed context: it must not throw) and no forecast call;
   - an unknown location gives `setup.locationId`;
   - a wind limit of 31 gives `activities[0].maxWindMs`, and an unknown category gives `activities[0]`, with no forecast call;
   - keys keep the order of the underlying checks.
-- [ ] T048 [P] [US4] Extend `IntegrationTests/PlanForecastEndpointTests.cs` (`400` part). Cover:
+- [X] T048 [P] [US4] Extend `IntegrationTests/PlanForecastEndpointTests.cs` (`400` part). Cover:
   - `setup.dates[0]` "Dates cannot be in the past." after moving `Clock` one day forward;
   - `setup.locationId` for an id the fake geocoding client does not know;
   - `setup` for a body without `setup`;
@@ -408,14 +408,14 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - `activities` for an empty list;
   - `request` for a string where a number belongs;
   - in every case `FakeForecastClient.Calls` does not change.
-- [ ] T049 [P] [US4] Extend `frontend/src/tests/usePlanSetupStore.test.ts` and `frontend/src/tests/usePlanActivitiesStore.test.ts`. Cover:
+- [X] T049 [P] [US4] Extend `frontend/src/tests/usePlanSetupStore.test.ts` and `frontend/src/tests/usePlanActivitiesStore.test.ts`. Cover:
   - `markOutdated()` sets `checked` to `null` and `recheckNotice` to `true`;
   - `setChecked` sets it back to `false`;
   - `clear` resets it;
   - `add`, `remove`, `update` and the setup changes leave it unchanged;
   - it is written to `sessionStorage` and read back after `persist.rehydrate()`;
   - a stored value without the field gets `false`.
-- [ ] T050 [P] [US4] Extend `frontend/src/tests/planForecastApi.test.ts`, `frontend/src/tests/usePlanForecastStore.test.ts` and `frontend/src/tests/PlacesAndForecastPage.test.tsx` (out-of-date part). Cover:
+- [X] T050 [P] [US4] Extend `frontend/src/tests/planForecastApi.test.ts`, `frontend/src/tests/usePlanForecastStore.test.ts` and `frontend/src/tests/PlacesAndForecastPage.test.tsx` (out-of-date part). Cover:
   - `400` with a `setup.dates[0]` key maps to `setupOutdated`;
   - `400` with an `activities[0]` key maps to `activitiesOutdated`;
   - `400` with only `request` throws `ApiError`;
@@ -423,7 +423,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - on the page, `setupOutdated` leads to `/plan/setup` showing "Your plan setup needs to be checked again. Select Continue.";
   - on the page, `activitiesOutdated` leads to `/plan/activities` showing "Your activities need to be checked again. Select Continue.";
   - `403` refreshes the current user.
-- [ ] T051 [P] [US4] Extend `frontend/src/tests/PlanSetupPage.test.tsx` and `frontend/src/tests/ActivitySelectionPage.test.tsx` (notice part). Cover:
+- [X] T051 [P] [US4] Extend `frontend/src/tests/PlanSetupPage.test.tsx` and `frontend/src/tests/ActivitySelectionPage.test.tsx` (notice part). Cover:
   - the notice is shown in a status region at the top while `recheckNotice` is true;
   - it is still shown after re-rendering from `sessionStorage`;
   - it is gone after a successful Continue, and stays after a failed one;
@@ -431,16 +431,16 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Implementation for User Story 4
 
-- [ ] T052 [US4] In `frontend/src/stores/usePlanSetupStore.ts` and `frontend/src/stores/usePlanActivitiesStore.ts`:
+- [X] T052 [US4] In `frontend/src/stores/usePlanSetupStore.ts` and `frontend/src/stores/usePlanActivitiesStore.ts`:
   - add `recheckNotice: boolean` (initial `false`) to the state, the initial state and `partialize`;
   - add `markOutdated: () => set({ checked: null, recheckNotice: true })`;
   - make `setChecked` also set `recheckNotice: false`.
   - Keep `version: 1`, with a comment that `persist` merges the stored value over the initial state, so older sessions get `false` (research section 12).
-- [ ] T053 [US4] In `frontend/src/api/planForecastApi.ts`, read a `400` body: any key starting with `setup` gives `{ kind: "setupOutdated" }`; otherwise any key starting with `activities` gives `{ kind: "activitiesOutdated" }`; otherwise throw `ApiError(400)`. `403` gives `{ kind: "forbidden" }`. In `frontend/src/stores/usePlanForecastStore.ts`:
+- [X] T053 [US4] In `frontend/src/api/planForecastApi.ts`, read a `400` body: any key starting with `setup` gives `{ kind: "setupOutdated" }`; otherwise any key starting with `activities` gives `{ kind: "activitiesOutdated" }`; otherwise throw `ApiError(400)`. `403` gives `{ kind: "forbidden" }`. In `frontend/src/stores/usePlanForecastStore.ts`:
   - set `setupOutdated` and call `usePlanSetupStore.getState().markOutdated()`;
   - set `activitiesOutdated` and call `usePlanActivitiesStore.getState().markOutdated()`;
   - on `forbidden`, call `useCurrentUserStore.getState().refresh()` and return to `idle`, as the check stores do.
-- [ ] T054 [US4] Create `frontend/src/components/recheckNotice.tsx` (`<p role="status" className="recheck-notice">` with the given text) and use it:
+- [X] T054 [US4] Create `frontend/src/components/recheckNotice.tsx` (`<p role="status" className="recheck-notice">` with the given text) and use it:
   - `frontend/src/components/planSetupForm.tsx` or `frontend/src/pages/PlanSetupPage.tsx` (whichever keeps the notice above the form fields): "Your plan setup needs to be checked again. Select Continue." while `usePlanSetupStore` `recheckNotice` is true;
   - `frontend/src/pages/ActivitySelectionPage.tsx`: "Your activities need to be checked again. Select Continue." while `usePlanActivitiesStore` `recheckNotice` is true.
 
