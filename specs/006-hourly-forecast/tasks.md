@@ -296,13 +296,13 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T035 [P] [US2] Extend `IntegrationTests/PlanForecastEndpointTests.cs` (reasons part). Script single hours in `FakeForecastClient` and check the `reasons` of a Kayaking activity:
+- [X] T035 [P] [US2] Extend `IntegrationTests/PlanForecastEndpointTests.cs` (reasons part). Script single hours in `FakeForecastClient` and check the `reasons` of a Kayaking activity:
   - 12:00 with 9.0 m/s and 1.2 mm/h gives "Too much rain: 1.2 mm/h, maximum 0.5 mm/h" and "Too windy: 9.0 m/s, maximum 8.0 m/s" in that order;
   - 4.2 °C gives "Too cold: 4.2 °C, minimum 15.0 °C";
   - an hour before sunrise gives "Outside daylight";
   - a `null` value gives "No forecast for this hour" and `null` in `days[i].hours[j]`;
   - a value exactly at each limit is suitable.
-- [ ] T036 [P] [US2] Extend `frontend/src/tests/PlacesAndForecastPage.test.tsx` (hours part). Cover:
+- [X] T036 [P] [US2] Extend `frontend/src/tests/PlacesAndForecastPage.test.tsx` (hours part). Cover:
   - each date has a button "Show hours for Saturday 14 November 2026" whose accessible name is the visible text followed by the activity ("Show hours for Saturday 14 November 2026, Kayaking") and whose `aria-expanded` is `false`;
   - selecting it shows a table with a caption and the column headers Time, Temperature, Rain, Wind, Daylight and Suitability, the button text changes to "Hide hours for …", and `aria-expanded` becomes `true`;
   - each row shows "12:00–13:00", "16.4 °C", "1.2 mm/h", "9.0 m/s", "Yes" or "No", and "★ Suitable" or "✗ Unsuitable" followed by each reason;
@@ -312,7 +312,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Implementation for User Story 2
 
-- [ ] T037 [US2] Create `frontend/src/components/forecastHoursTable.tsx`. It gets the `ForecastHour[]`, the matching `HourSuitability[]`, the activity's shown name and the long date.
+- [X] T037 [US2] Create `frontend/src/components/forecastHoursTable.tsx`. It gets the `ForecastHour[]`, the matching `HourSuitability[]`, the activity's shown name and the long date.
   - It renders `<table>` with `<caption>` "Hours for <name> on <date>" and `<th scope="col">` for Time, Temperature, Rain, Wind, Daylight and Suitability.
   - Each row has:
     - "HH:MM–HH:MM";
@@ -321,7 +321,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - "★ Suitable" or "✗ Unsuitable" with the reasons as a list.
   - Each cell starts with `<span className="cell-label">Label: </span>` for the phone card layout (US6 styles it).
   - Values are shown with `toFixed(1)`; that is display only, the server already rounded them.
-- [ ] T038 [US2] In `frontend/src/components/forecastDateEntry.tsx`, add the disclosure:
+- [X] T038 [US2] In `frontend/src/components/forecastDateEntry.tsx`, add the disclosure:
   - a `<button type="button">` with `aria-expanded`, `aria-controls` and visible text "Show hours for <date>" (or "Hide hours for <date>"), and `aria-label` that same text followed by ", <name>" (for example "Show hours for Saturday 14 November 2026, Kayaking"), so the accessible name starts with the visible text (spec FR-023);
   - local `useState` for open, closed at first;
   - `ForecastHoursTable` in an element with the controlled id, rendered only when open.
