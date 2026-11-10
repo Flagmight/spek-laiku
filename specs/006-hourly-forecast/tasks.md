@@ -480,8 +480,8 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T058 [P] [US6] Extend `frontend/src/tests/keyboard.test.tsx`. Check the tab order on step 3: skip link, navigation, progress links, then per activity each "Show hours" button in date order, then Back. Also check that Enter and Space open and close the hours, and that Retry is reachable in the error state.
-- [ ] T059 [P] [US6] Extend `frontend/src/tests/accessibility.test.tsx` and `frontend/src/tests/layout.test.tsx` for Places and forecast. Cover:
+- [X] T058 [P] [US6] Extend `frontend/src/tests/keyboard.test.tsx`. Check the tab order on step 3: skip link, navigation, progress links, then per activity each "Show hours" button in date order, then Back. Also check that Enter and Space open and close the hours, and that Retry is reachable in the error state.
+- [X] T059 [P] [US6] Extend `frontend/src/tests/accessibility.test.tsx` and `frontend/src/tests/layout.test.tsx` for Places and forecast. Cover:
   - one `<h1>`, then `<h2>` per activity and `<h3>` per date;
   - each activity is a region named after it;
   - the title and skip link;
@@ -489,13 +489,13 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - the tables have captions and column headers;
   - suitability is always ★ or ✗ with words;
   - the two notices on steps 1 and 2 are in status regions.
-- [ ] T060 [P] [US6] Extend `frontend/src/tests/responsive.test.tsx`. Check that:
+- [X] T060 [P] [US6] Extend `frontend/src/tests/responsive.test.tsx`. Check that:
   - below 40em, each hours table row is displayed as a card (block layout), the `.cell-label` text is visible, the header row is visually hidden but still in the table, buttons are full width with 44 × 44 px targets, and no element is wider than 320 px;
   - from 40em it is a normal table with the labels hidden.
 
 ### Implementation for User Story 6
 
-- [ ] T061 [US6] In `frontend/src/styles.css`, add the Places and forecast styles, reusing the existing breakpoint, button, banner and visually-hidden rules instead of copying them:
+- [X] T061 [US6] In `frontend/src/styles.css`, add the Places and forecast styles, reusing the existing breakpoint, button, banner and visually-hidden rules instead of copying them:
   - spacing for the activity sections, date entries and period lists;
   - `.recheck-notice` styled like a banner, with text, not colour alone;
   - the hours table with header cells and `.cell-label` visually hidden from 40em;
