@@ -31,7 +31,8 @@ function planRequests(requests: { path: string }[]) {
     (request) =>
       request.path.startsWith("/api/locations") ||
       request.path.startsWith("/api/plan-setup") ||
-      request.path.startsWith("/api/plan-activities"),
+      request.path.startsWith("/api/plan-activities") ||
+      request.path.startsWith("/api/plan-forecast"),
   )
 }
 
@@ -103,6 +104,21 @@ describe("plan pages access", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: heading }),
     ).toBeInTheDocument()
+  })
+
+  it.each([
+    ["a visitor", null],
+    ["an Active Registered User", signedInUser("Registered User")],
+  ])("asks for the forecast at /plan/places for %s", async (_case, user) => {
+    acceptSetup()
+    const { requests } = stubUser(user)
+    renderApp("/plan/places")
+
+    await waitFor(() =>
+      expect(
+        requests.filter((request) => request.path === "/api/plan-forecast"),
+      ).toHaveLength(1),
+    )
   })
 
   it.each(pages)(
