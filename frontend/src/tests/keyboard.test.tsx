@@ -628,3 +628,127 @@ describe("keyboard use of the Activity selection page", () => {
     ).toHaveLength(1)
   })
 })
+
+describe("keyboard use of the Places and forecast page", () => {
+  const saturday = "Saturday 7 November 2026"
+  const sunday = "Sunday 8 November 2026"
+
+  // A checked setup of two dates and checked Kayaking and Museum, as Continue on step 2 leaves them.
+  function acceptPlan() {
+    usePlanSetupStore.getState().setChecked({
+      location: kaunas,
+      dates: ["2026-11-07", "2026-11-08"],
+      maxTravelDistanceKm: 30,
+    })
+    const activities = usePlanActivitiesStore.getState()
+    activities.add(kayaking)
+    activities.add(museum)
+    const [first, second] = usePlanActivitiesStore.getState().activities
+    activities.setChecked([
+      checkedFrom(kayaking, first.id),
+      checkedFrom(museum, second.id),
+    ])
+  }
+
+  function checkedFrom(category: PlanCategory, id: string) {
+    return {
+      id,
+      categoryId: category.id,
+      name: category.name,
+      type: category.type,
+      durationHours: category.defaultDurationHours,
+      requiresDaylight: category.requiresDaylight,
+      maxWindMs: category.maxWindMs,
+      maxRainMmPerHour: category.maxRainMmPerHour,
+      minTemperatureC: category.minTemperatureC,
+      maxTemperatureC: category.maxTemperatureC,
+    }
+  }
+
+  function showButton(date: string, activity: string) {
+    return screen.getByRole("button", {
+      name: `Show hours for ${date}, ${activity}`,
+    })
+  }
+
+  it("reaches the skip link, the navigation, the progress links, each 'Show hours' button in date order, then Back", async () => {
+    acceptPlan()
+    routeFetch({
+      ...forecastRoutes,
+      "GET /api/auth/me": () => jsonResponse(401),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/places")
+    await screen.findByText("Forecast updated at 14:05")
+
+    const expected = [
+      screen.getByRole("link", { name: "Skip to main content" }),
+      screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Create plan" }),
+      screen.getByRole("link", { name: "Log in" }),
+      screen.getByRole("link", { name: "Register" }),
+      screen.getByRole("link", { name: "Plan setup" }),
+      screen.getByRole("link", { name: "Activities" }),
+      showButton(saturday, "Kayaking"),
+      showButton(sunday, "Kayaking"),
+      showButton(saturday, "Museum"),
+      showButton(sunday, "Museum"),
+      screen.getByRole("link", { name: "Back" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+  })
+
+  it("opens and closes the hours with Enter and Space", async () => {
+    acceptPlan()
+    routeFetch({
+      ...forecastRoutes,
+      "GET /api/auth/me": () => jsonResponse(401),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/places")
+    await screen.findByText("Forecast updated at 14:05")
+
+    showButton(saturday, "Kayaking").focus()
+    await user.keyboard("{Enter}")
+    expect(
+      screen.getByRole("table", { name: `Hours for Kayaking on ${saturday}` }),
+    ).toBeInTheDocument()
+    const hide = screen.getByRole("button", {
+      name: `Hide hours for ${saturday}, Kayaking`,
+    })
+    expect(hide).toHaveFocus()
+
+    await user.keyboard(" ")
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(showButton(saturday, "Kayaking")).toHaveFocus()
+  })
+
+  it("reaches Retry after an error and loads again with the keyboard", async () => {
+    acceptPlan()
+    let failing = true
+    routeFetch({
+      "POST /api/plan-forecast": (request) =>
+        failing
+          ? jsonResponse(500)
+          : forecastRoutes["POST /api/plan-forecast"](request),
+      "GET /api/auth/me": () => jsonResponse(401),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/places")
+    await screen.findByText("Error: Something went wrong. Try again.")
+
+    // The progress links come before the status region with Retry.
+    screen.getByRole("link", { name: "Activities" }).focus()
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Retry" })).toHaveFocus()
+
+    failing = false
+    await user.keyboard("{Enter}")
+    expect(
+      await screen.findByText("Forecast updated at 14:05"),
+    ).toBeInTheDocument()
+  })
+})

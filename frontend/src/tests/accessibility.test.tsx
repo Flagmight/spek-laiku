@@ -11,7 +11,11 @@ import {
   signedInUser,
   stubFetch,
 } from "./renderApp"
-import { forecastRoutes } from "./forecastFixtures"
+import {
+  daylightActivityForecast,
+  forecastDay,
+  forecastRoutes,
+} from "./forecastFixtures"
 
 function stubRegistration(answer: () => Promise<Response>) {
   vi.stubGlobal(
@@ -707,5 +711,158 @@ describe("Plan setup accessibility", () => {
     expect(
       screen.getByRole("alert", { name: "Error summary" }),
     ).toBeInTheDocument()
+  })
+})
+
+describe("Places and forecast accessibility", () => {
+  // A checked setup of one date and checked Kayaking, with one unsuitable hour in the forecast.
+  function renderPlaces(answer: Answer = () => jsonResponse(200, forecast())) {
+    usePlanSetupStore.getState().setChecked({
+      location: kaunasPlace,
+      dates: ["2026-11-07"],
+      maxTravelDistanceKm: 30,
+    })
+    const activities = usePlanActivitiesStore.getState()
+    activities.add(kayakingCategory)
+    const [kayaking] = usePlanActivitiesStore.getState().activities
+    activities.setChecked([
+      {
+        id: kayaking.id,
+        categoryId: kayakingCategory.id,
+        name: "Kayaking",
+        type: "Outdoor",
+        durationHours: 2,
+        requiresDaylight: true,
+        maxWindMs: 8,
+        maxRainMmPerHour: 0.5,
+        minTemperatureC: 15,
+        maxTemperatureC: 35,
+      },
+    ])
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-forecast": answer,
+    })
+    renderApp("/plan/places")
+  }
+
+  function forecast() {
+    const day = forecastDay("2026-11-07")
+    const activity = daylightActivityForecast([day])
+    activity.days[0].hours[6] = {
+      start: "12:00",
+      suitable: false,
+      reasons: ["Too windy: 9.0 m/s, maximum 8.0 m/s"],
+    }
+    return { updatedAt: "14:05", days: [day], activities: [activity] }
+  }
+
+  it("has one h1, an h2 per activity and an h3 per date", async () => {
+    renderPlaces()
+    await screen.findByText("Forecast updated at 14:05")
+
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Kayaking" }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "Saturday 7 November 2026",
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it("makes each activity a region named after it", async () => {
+    renderPlaces()
+    await screen.findByText("Forecast updated at 14:05")
+
+    const region = screen.getByRole("region", { name: "Kayaking" })
+    expect(region).toHaveTextContent("Suitable hours: 8 on 1 of 1 date.")
+  })
+
+  it.each([
+    ["loading", () => new Promise<Response>(() => {}), "Getting the forecast…"],
+    [
+      "loaded",
+      () => jsonResponse(200, forecast()),
+      "Forecast updated at 14:05",
+    ],
+    [
+      "failed",
+      () => jsonResponse(503, { status: 503, service: "forecast" }),
+      "Error: The weather service is unavailable. No forecast is shown.",
+    ],
+  ] as const)(
+    "announces the %s message in the one forecast status region without moving focus",
+    async (_case, answer, message) => {
+      renderPlaces(answer)
+
+      const region = await screen.findByRole("status", { name: "Forecast" })
+      await vi.waitFor(() => expect(region).toHaveTextContent(message))
+      expect(region).not.toHaveFocus()
+      expect(region).not.toContainElement(document.activeElement as HTMLElement)
+    },
+  )
+
+  it("gives each hours table a caption and column headers, and every verdict symbols with words", async () => {
+    renderPlaces()
+    const user = userEvent.setup()
+    await screen.findByText("Forecast updated at 14:05")
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Show hours for Saturday 7 November 2026, Kayaking",
+      }),
+    )
+
+    const table = screen.getByRole("table", {
+      name: "Hours for Kayaking on Saturday 7 November 2026",
+    })
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(6)
+    for (const row of within(table).getAllByRole("row").slice(1)) {
+      expect(row.textContent).toMatch(/★ Suitable|✗ Unsuitable/)
+    }
+    const noon = within(table)
+      .getAllByRole("row")
+      .find((row) => row.textContent?.includes("12:00–"))!
+    expect(noon).toHaveTextContent("✗ Unsuitable")
+    expect(noon).toHaveTextContent("Too windy: 9.0 m/s, maximum 8.0 m/s")
+  })
+
+  it("shows the suitable periods and the empty date with symbols and words", async () => {
+    renderPlaces()
+    await screen.findByText("Forecast updated at 14:05")
+
+    expect(screen.getByText("★ Suitable 08:00–16:00 (8 h)")).toBeInTheDocument()
+  })
+})
+
+describe("'checked again' notices accessibility", () => {
+  it.each([
+    [
+      "/plan/setup",
+      "Your plan setup needs to be checked again. Select Continue.",
+    ],
+    [
+      "/plan/activities",
+      "Your activities need to be checked again. Select Continue.",
+    ],
+  ])("shows the notice on %s in a status region", async (page, notice) => {
+    usePlanSetupStore.getState().setChecked({
+      location: kaunasPlace,
+      dates: ["2026-11-07"],
+      maxTravelDistanceKm: 30,
+    })
+    if (page === "/plan/setup") {
+      usePlanSetupStore.getState().markOutdated()
+    } else {
+      usePlanActivitiesStore.getState().add(kayakingCategory)
+      usePlanActivitiesStore.getState().markOutdated()
+    }
+    stubPlanSetup()
+    renderApp(page)
+
+    expect(await screen.findByText(notice)).toHaveAttribute("role", "status")
   })
 })
