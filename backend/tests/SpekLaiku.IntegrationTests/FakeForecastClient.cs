@@ -27,6 +27,9 @@ public sealed class FakeForecastClient : IForecastClient
     public void ScriptFailure(double latitude, double longitude, FailureKind kind) =>
         failures[(latitude, longitude)] = kind;
 
+    /// <summary>A forecast for this position no longer fails.</summary>
+    public void ScriptRecovery(double latitude, double longitude) => failures.TryRemove((latitude, longitude), out _);
+
     public Task<HourlyForecast> GetAsync(
         double latitude,
         double longitude,
