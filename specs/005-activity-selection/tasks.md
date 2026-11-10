@@ -395,7 +395,7 @@ description: "Task list for feature 005 Activity Selection and Limits"
   - `appsettings.Development.json` is unchanged.
 
   Then list the quickstart Manual Validation steps for the user to run before the Pull Request.
-- [ ] T060 Run a separate AI-assisted review of the branch (for example `/code-review` and `/security-review`) and apply or reject each finding with a short reason. Then prepare the Pull Request description for the user (constitution V, VII and Quality Gates). It must include:
+- [X] T060 Run a separate AI-assisted review of the branch (for example `/code-review` and `/security-review`) and apply or reject each finding with a short reason. Then prepare the Pull Request description for the user (constitution V, VII and Quality Gates). It must include:
   - a link to `specs/005-activity-selection/spec.md` and a summary of the change;
   - the tests and checks run (T058 and the manual quickstart steps), and "no migration";
   - screenshots of Activity selection (desktop and 320 px) with activities, with errors and with the categories error, and of Places and forecast;
