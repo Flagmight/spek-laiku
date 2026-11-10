@@ -1,6 +1,9 @@
 import { act } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
-import { usePlanForecastStore } from "../stores/usePlanForecastStore"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import {
+  planForecastTimeoutMs,
+  usePlanForecastStore,
+} from "../stores/usePlanForecastStore"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { CheckedPlanSetup } from "../types/planSetup"
 import { planForecast } from "./forecastFixtures"
@@ -151,5 +154,94 @@ describe("usePlanForecastStore", () => {
     expect(pending[0].signal.aborted).toBe(true)
     expect(store().status).toBe("idle")
     expect(store().forecast).toBeNull()
+  })
+})
+
+describe("usePlanForecastStore failures", () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each([
+    [
+      "weatherUnavailable",
+      () => jsonResponse(503, { status: 503, service: "forecast" }),
+    ],
+    ["tooManyRequests", () => jsonResponse(429, { status: 429 })],
+    ["serverError", () => jsonResponse(500)],
+    [
+      "serverError",
+      () => jsonResponse(503, { status: 503, service: "locationSearch" }),
+    ],
+  ] as const)("sets %s and keeps no forecast", async (status, answer) => {
+    routeFetch({ [forecastRoute]: answer })
+
+    await act(() => store().load(setup, activities))
+
+    expect(store().status).toBe(status)
+    expect(store().forecast).toBeNull()
+  })
+
+  it("reports a server error for a network error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+    )
+
+    await act(() => store().load(setup, activities))
+
+    expect(store().status).toBe("serverError")
+  })
+
+  it("reports a server error after 10 seconds without an answer, not before", async () => {
+    vi.useFakeTimers()
+    const { pending } = stubPendingRequests()
+
+    act(() => {
+      void store().load(setup, activities)
+    })
+    await act(() => vi.advanceTimersByTimeAsync(planForecastTimeoutMs - 1))
+    expect(store().status).toBe("loading")
+
+    await act(() => vi.advanceTimersByTimeAsync(1))
+
+    expect(planForecastTimeoutMs).toBe(10_000)
+    expect(store().status).toBe("serverError")
+    expect(pending[0].signal.aborted).toBe(true)
+  })
+
+  it("clears an earlier forecast when a later request fails", async () => {
+    let answer = jsonResponse(200, planForecast(["2026-11-14"], 1))
+    routeFetch({ [forecastRoute]: () => answer })
+    await act(() => store().load(setup, activities))
+    expect(store().forecast).not.toBeNull()
+
+    answer = jsonResponse(503, { status: 503, service: "forecast" })
+    await act(() => store().retry())
+
+    expect(store().status).toBe("weatherUnavailable")
+    expect(store().forecast).toBeNull()
+  })
+
+  it("sends the same request on Retry", async () => {
+    let answer = jsonResponse(500)
+    const { requests } = routeFetch({ [forecastRoute]: () => answer })
+    await act(() => store().load(setup, activities))
+
+    answer = jsonResponse(200, planForecast(["2026-11-14"], 1))
+    await act(() => store().retry())
+
+    expect(requests).toHaveLength(2)
+    expect(requests[1].body).toEqual(requests[0].body)
+    expect(store().status).toBe("loaded")
+  })
+
+  it("does nothing on Retry before any request", async () => {
+    const { fetchMock } = routeFetch({})
+
+    await act(() => store().retry())
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(store().status).toBe("idle")
   })
 })

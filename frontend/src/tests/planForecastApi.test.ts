@@ -44,3 +44,37 @@ describe("getPlanForecast", () => {
     await expect(getPlanForecast(request)).rejects.toEqual(new ApiError(status))
   })
 })
+
+describe("getPlanForecast failures", () => {
+  it("maps a 503 for the weather service to weatherUnavailable", async () => {
+    routeFetch({
+      [forecastRoute]: () =>
+        jsonResponse(503, {
+          status: 503,
+          title: "Service unavailable.",
+          detail: "The weather service is unavailable. No forecast is shown.",
+          service: "forecast",
+        }),
+    })
+
+    expect(await getPlanForecast(request)).toEqual({
+      kind: "weatherUnavailable",
+    })
+  })
+
+  it("maps a 429 to tooManyRequests", async () => {
+    routeFetch({ [forecastRoute]: () => jsonResponse(429, { status: 429 }) })
+
+    expect(await getPlanForecast(request)).toEqual({ kind: "tooManyRequests" })
+  })
+
+  it.each([
+    ["a 503 from the location search", { service: "locationSearch" }],
+    ["a 503 without a service", { status: 503 }],
+    ["a 503 without a body", undefined],
+  ])("throws ApiError for %s", async (_case, body) => {
+    routeFetch({ [forecastRoute]: () => jsonResponse(503, body) })
+
+    await expect(getPlanForecast(request)).rejects.toEqual(new ApiError(503))
+  })
+})

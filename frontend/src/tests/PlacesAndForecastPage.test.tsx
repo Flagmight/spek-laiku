@@ -10,6 +10,7 @@ import {
   answerForecast,
   daylightActivityForecast,
   forecastDay,
+  planForecast,
 } from "./forecastFixtures"
 import { jsonResponse, renderAppWithLocation, routeFetch } from "./renderApp"
 import type { RecordedRequest } from "./renderApp"
@@ -82,13 +83,15 @@ function acceptActivities(...categories: PlanCategory[]) {
   )
 }
 
+type Handler = (request: RecordedRequest) => Response | Promise<Response>
+
 // By default the forecast is answered for the checked dates, every activity suitable in daylight.
 function render(
-  answer: (
-    request: RecordedRequest,
-  ) => Response | Promise<Response> = answerForecast,
+  answer: Handler = answerForecast,
+  moreRoutes: Record<string, Handler> = {},
 ) {
   const routes = routeFetch({
+    ...moreRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -602,6 +605,125 @@ describe("Places and forecast page: the hours of a date", () => {
     await screen.findByText("No hours left to plan today.")
     expect(
       screen.queryByRole("button", { name: /Show hours/ }),
+    ).not.toBeInTheDocument()
+  })
+})
+
+describe("Places and forecast page: when the forecast cannot be shown", () => {
+  function forecastStatus() {
+    return screen.getByRole("status", { name: "Forecast" })
+  }
+
+  it.each([
+    [
+      "the weather service is unavailable",
+      () => jsonResponse(503, { status: 503, service: "forecast" }),
+      "Error: The weather service is unavailable. No forecast is shown.",
+    ],
+    [
+      "there are too many requests",
+      () => jsonResponse(429, { status: 429 }),
+      "Error: Too many requests. Wait a minute and try again.",
+    ],
+    [
+      "the server fails",
+      () => jsonResponse(500),
+      "Error: Something went wrong. Try again.",
+    ],
+  ])(
+    "shows the message with Retry and no forecast when %s",
+    async (_case, answer, message) => {
+      acceptSetup()
+      acceptActivities(cycling)
+      render(answer)
+
+      await waitFor(() => expect(forecastStatus()).toHaveTextContent(message))
+      expect(
+        within(forecastStatus()).getByRole("button", { name: "Retry" }),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/Forecast updated/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Suitable hours/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Sunrise/)).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole("button", { name: /Show hours/ }),
+      ).not.toBeInTheDocument()
+      // The setup, the activities' settings and Back stay.
+      expect(screen.getByText(/Kaunas, Kaunas County/)).toBeInTheDocument()
+      expect(activityItems()[0]).toHaveTextContent("Requires daylight")
+      expect(screen.getByRole("link", { name: "Back" })).toBeInTheDocument()
+    },
+  )
+
+  it("loads again on Retry and then shows the forecast", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const user = userEvent.setup()
+    let failing = true
+    let release: () => void = () => {}
+    const { requests } = render((request) =>
+      failing
+        ? jsonResponse(503, { status: 503, service: "forecast" })
+        : new Promise<Response>((resolve) => {
+            release = () => resolve(answerForecast(request))
+          }),
+    )
+    await waitFor(() =>
+      expect(forecastStatus()).toHaveTextContent(
+        "The weather service is unavailable.",
+      ),
+    )
+
+    failing = false
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(forecastStatus()).toHaveTextContent("Getting the forecast…")
+    release()
+    expect(
+      await screen.findByText("Forecast updated at 14:05"),
+    ).toBeInTheDocument()
+    expect(forecastRequests(requests)).toHaveLength(2)
+  })
+
+  it("asks again when the page is opened again, and ignores the old answer", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const user = userEvent.setup()
+    const answers: ((response: Response) => void)[] = []
+    const { requests } = render(
+      () => new Promise<Response>((resolve) => answers.push(resolve)),
+      {
+        // Continue on step 2 accepts the activities as sent.
+        "POST /api/plan-activities/check": (request) =>
+          jsonResponse(200, {
+            activities: (
+              request.body as { activities: Record<string, unknown>[] }
+            ).activities.map((activity) => ({ ...activity, name: "Cycling" })),
+          }),
+      },
+    )
+    await waitFor(() =>
+      expect(forecastStatus()).toHaveTextContent("Getting the forecast…"),
+    )
+
+    await user.click(screen.getByRole("link", { name: "Back" }))
+    await heading("Activity selection")
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    await heading("Places and forecast")
+
+    await waitFor(() => expect(forecastRequests(requests)).toHaveLength(2))
+    // The first page's answer arrives late and must not be shown.
+    answers[0](
+      jsonResponse(200, {
+        ...planForecast(["2026-11-07"], 1),
+        updatedAt: "09:00",
+      }),
+    )
+    answers[1](jsonResponse(200, planForecast(["2026-11-07"], 1)))
+    expect(
+      await screen.findByText("Forecast updated at 14:05"),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText("Forecast updated at 09:00"),
     ).not.toBeInTheDocument()
   })
 })
