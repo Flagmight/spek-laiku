@@ -170,7 +170,7 @@ Any other failure: the existing general problem answer from `ApiExceptionHandler
 | `200` | The forecast, and "Forecast updated at <updatedAt>" |
 | `400` with a `setup…` key | Redirect to the Plan setup page with the notice "Your plan setup needs to be checked again. Select Continue." |
 | `400` with other keys except `request` | Redirect to Activity selection with "Your activities need to be checked again. Select Continue." |
-| `403` | The current user is read again; the route guard shows Access denied or Account suspended |
+| `403` | The current user is read again, so the route guard shows Access denied or Account suspended; meanwhile "Error: Something went wrong. Try again." with Retry |
 | `429` | "Error: Too many requests. Wait a minute and try again." with Retry |
 | `503` with `service: "forecast"` | "Error: The weather service is unavailable. No forecast is shown." with Retry |
 | Any other status, `400` with `request`, a 10-second timeout, or a network failure | "Error: Something went wrong. Try again." with Retry |

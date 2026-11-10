@@ -537,13 +537,15 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - no test calls a live Open-Meteo address.
 
   Then list the quickstart Manual Validation steps for the user to run before the Pull Request.
-- [ ] T068 Run a separate AI-assisted review of the branch (for example `/code-review` and `/security-review`) and apply or reject each finding with a short reason. Then prepare the Pull Request description for the user (constitution V, VII and Quality Gates). It must include:
+- [X] T068 Run a separate AI-assisted review of the branch (for example `/code-review` and `/security-review`) and apply or reject each finding with a short reason. Then prepare the Pull Request description for the user (constitution V, VII and Quality Gates). It must include:
   - a link to `specs/006-hourly-forecast/spec.md` and a summary of the change;
   - the tests and checks run (T066 and the manual quickstart steps), and "no migration";
   - screenshots of Places and forecast (desktop and 320 px) with suitable periods, an open hours table, the weather service error, and a "checked again" notice;
   - the review tool, important findings, changes made and findings not applied.
 
   The user opens and merges the Pull Request.
+
+  Done (2026-11-10): `/code-review` (high) gave 8 findings; 5 were applied (a date leaving the forecast period at midnight now gives the setup-outdated answer instead of a 500; a 403 shows the server error with Retry; `Forecast:FirstHour` must be at least 4; one shared Lithuania time zone; the received time is converted to Lithuanian time explicitly) and 3 were not (the indoor message wording is fixed by spec FR-022; a per-location lock against simultaneous cache misses is not needed at this scale (constitution VIII); running the setup and activity checks in parallel would break the rule that nothing else runs when the setup fails, and the 5 s + 4 s budget already fits within 10 s). `/security-review` found no vulnerabilities.
 
 ---
 

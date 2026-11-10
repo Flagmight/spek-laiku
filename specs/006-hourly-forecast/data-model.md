@@ -43,7 +43,7 @@ New method `DateTimeOffset GetNow()`: the injected `TimeProvider`'s current time
 | Setting | Default | Rule (validated at start) |
 |---|---|---|
 | `MaxAgeMinutes` | 30 | > 0 |
-| `FirstHour` | 6 | 0 ≤ `FirstHour` < `LastHour` |
+| `FirstHour` | 6 | 4 ≤ `FirstHour` < `LastHour` (no planning hour on the clock change at 03:00 and 04:00) |
 | `LastHour` | 22 | `LastHour` ≤ 23; the last planning hour is (`LastHour` − 1):00 to `LastHour`:00 |
 
 ### ReceivedForecast (record)
@@ -136,7 +136,8 @@ An Indoor activity is checked only against row 5. A value equal to its limit pas
 1. `request.Setup` is `null`: `Invalid([("setup", "The request is invalid.")])`.
 2. `PlanSetupService.CheckAsync(request.Setup)`. On failure, `Invalid` with every key prefixed `setup.` (for example `setup.dates[0]`).
 3. `PlanActivityService.CheckAsync(new PlanActivitiesCheckRequest(request.Activities))`. On failure, `Invalid` with its keys unchanged.
-4. `WeatherForecastService.GetAsync(setup.Location)`, `PlanningDays.Build(…, setup.Dates, forecastPeriod.GetNow(), options)`, and `ActivityForecasts.For` for each checked activity. The service gets the time only from `ForecastPeriod`, not from `TimeProvider`.
+4. `WeatherForecastService.GetAsync(setup.Location)`. If a plan date is not among the answer's days (midnight in Lithuania passed between the check and the request), `Invalid([("setup.dates", "Dates cannot be in the past.")])`.
+5. `PlanningDays.Build(…, setup.Dates, forecastPeriod.GetNow(), options)`, and `ActivityForecasts.For` for each checked activity. The service gets the time only from `ForecastPeriod`, not from `TimeProvider`.
 
 ## Validation
 
@@ -175,7 +176,7 @@ interface PlanForecastRequest { setup: PlanSetupCheckRequest; activities: PlanAc
 | `status` | `"idle"`, `"loading"`, `"loaded"`, `"weatherUnavailable"`, `"tooManyRequests"`, `"serverError"`, `"setupOutdated"`, `"activitiesOutdated"` |
 | `forecast` | `PlanForecast \| null`; set only with `"loaded"`, cleared by every other status (spec FR-006) |
 | `controller` | The pending request's `AbortController` |
-| `load(setup, activities)` | Ignored while `"loading"`. Sends the request with a 10-second timeout and sets the status from the outcome. On `setupOutdated` it calls `usePlanSetupStore.getState().markOutdated()`; on `activitiesOutdated` it calls `usePlanActivitiesStore.getState().markOutdated()`. On `forbidden` it refreshes the current user, as the check stores do. |
+| `load(setup, activities)` | Ignored while `"loading"`. Sends the request with a 10-second timeout and sets the status from the outcome. On `setupOutdated` it calls `usePlanSetupStore.getState().markOutdated()`; on `activitiesOutdated` it calls `usePlanActivitiesStore.getState().markOutdated()`. On `forbidden` it refreshes the current user, as the check stores do, and sets `serverError`, so step 3 shows Retry instead of an empty area if the refresh does not lead to another page. |
 | `retry()` | `load` with the last setup and activities. |
 | `reset()` | Aborts, and returns to the initial state. An answer for an aborted request is dropped (spec FR-006). |
 

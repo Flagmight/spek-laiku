@@ -88,7 +88,7 @@ All decisions below resolve the open points of the Technical Context in `plan.md
 
 ## 9. Configuration (spec FR-009, FR-010, Assumptions)
 
-- **Decision**: A new `Forecast` section with `ForecastOptions`: `MaxAgeMinutes` (30), `FirstHour` (6), `LastHour` (22). It is validated at start: `MaxAgeMinutes` > 0, and 0 ≤ `FirstHour` < `LastHour` ≤ 23. The upper bound keeps every hour's end a valid time of the same day. It is bound like `PlanSetupRateLimitOptions`, so it can be changed with environment variables such as `Forecast__MaxAgeMinutes`.
+- **Decision**: A new `Forecast` section with `ForecastOptions`: `MaxAgeMinutes` (30), `FirstHour` (6), `LastHour` (22). It is validated at start: `MaxAgeMinutes` > 0, and 4 ≤ `FirstHour` < `LastHour` ≤ 23. The upper bound keeps every hour's end a valid time of the same day; the lower bound keeps every planning hour after the clock change at 03:00 and 04:00 (section 3; added after the code review). It is bound like `PlanSetupRateLimitOptions`, so it can be changed with environment variables such as `Forecast__MaxAgeMinutes`.
 - **Rationale**: The spec calls the 30 minutes and the window defaults that can be changed without a code change.
 
 ## 10. Request limit (spec FR-008, Clarifications)
