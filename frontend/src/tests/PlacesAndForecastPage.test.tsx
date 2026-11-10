@@ -440,3 +440,168 @@ describe("Places and forecast page: the forecast", () => {
     expect(region).not.toHaveTextContent("Sunrise")
   })
 })
+
+describe("Places and forecast page: the hours of a date", () => {
+  const date = "Saturday 7 November 2026"
+
+  // 12:00 too wet and windy, 14:00 without a temperature, the rest suitable in daylight.
+  function forecastWithReasons(activityCount = 1): PlanForecast {
+    const day = forecastDay("2026-11-07")
+    day.hours = day.hours.map((hour) =>
+      hour.start === "12:00"
+        ? { ...hour, temperatureC: 16.4, rainMmPerHour: 1.2, windMs: 9 }
+        : hour.start === "14:00"
+          ? { ...hour, temperatureC: null }
+          : hour,
+    )
+    const activity = daylightActivityForecast([day])
+    activity.days[0].hours = activity.days[0].hours.map((hour) =>
+      hour.start === "12:00"
+        ? {
+            ...hour,
+            suitable: false,
+            reasons: [
+              "Too much rain: 1.2 mm/h, maximum 0.5 mm/h",
+              "Too windy: 9.0 m/s, maximum 8.0 m/s",
+            ],
+          }
+        : hour.start === "14:00"
+          ? { ...hour, suitable: false, reasons: ["No forecast for this hour"] }
+          : hour,
+    )
+    return {
+      updatedAt: "14:05",
+      days: [day],
+      activities: Array.from({ length: activityCount }, () => activity),
+    }
+  }
+
+  function showButton(activityName: string) {
+    return screen.getByRole("button", {
+      name: `Show hours for ${date}, ${activityName}`,
+    })
+  }
+
+  function rowOf(table: HTMLElement, start: string) {
+    return within(table)
+      .getAllByRole("row")
+      .find((row) => row.textContent?.includes(`${start}–`))!
+  }
+
+  it("has a closed 'Show hours' button per date that also names the activity", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    render(() => jsonResponse(200, forecastWithReasons()))
+    await screen.findByText("Forecast updated at 14:05")
+
+    const button = showButton("Cycling")
+    expect(button).toHaveTextContent(`Show hours for ${date}`)
+    expect(button).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+  })
+
+  it("opens a table of the date's hours with values, daylight, suitability and reasons", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const user = userEvent.setup()
+    render(() => jsonResponse(200, forecastWithReasons()))
+    await screen.findByText("Forecast updated at 14:05")
+
+    await user.click(showButton("Cycling"))
+
+    const table = screen.getByRole("table", {
+      name: `Hours for Cycling on ${date}`,
+    })
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual([
+      "Time",
+      "Temperature",
+      "Rain",
+      "Wind",
+      "Daylight",
+      "Suitability",
+    ])
+    const button = screen.getByRole("button", {
+      name: `Hide hours for ${date}, Cycling`,
+    })
+    expect(button).toHaveTextContent(`Hide hours for ${date}`)
+    expect(button).toHaveAttribute("aria-expanded", "true")
+    expect(button).toHaveAttribute("aria-controls", table.parentElement!.id)
+
+    const noon = rowOf(table, "12:00")
+    expect(noon).toHaveTextContent("12:00–13:00")
+    expect(noon).toHaveTextContent("16.4 °C")
+    expect(noon).toHaveTextContent("1.2 mm/h")
+    expect(noon).toHaveTextContent("9.0 m/s")
+    expect(noon).toHaveTextContent("Yes")
+    expect(noon).toHaveTextContent("✗ Unsuitable")
+    expect(noon).toHaveTextContent("Too much rain: 1.2 mm/h, maximum 0.5 mm/h")
+    expect(noon).toHaveTextContent("Too windy: 9.0 m/s, maximum 8.0 m/s")
+
+    const ten = rowOf(table, "10:00")
+    expect(ten).toHaveTextContent("★ Suitable")
+    expect(ten).toHaveTextContent("18.0 °C")
+    expect(ten).toHaveTextContent("0.0 mm/h")
+
+    const evening = rowOf(table, "20:00")
+    expect(evening).toHaveTextContent("No")
+    expect(evening).toHaveTextContent("Outside daylight")
+
+    const missing = rowOf(table, "14:00")
+    expect(missing).toHaveTextContent("No data")
+    expect(missing).toHaveTextContent("No forecast for this hour")
+  })
+
+  it("hides the table again", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const user = userEvent.setup()
+    render(() => jsonResponse(200, forecastWithReasons()))
+    await screen.findByText("Forecast updated at 14:05")
+
+    await user.click(showButton("Cycling"))
+    await user.click(
+      screen.getByRole("button", { name: `Hide hours for ${date}, Cycling` }),
+    )
+
+    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(showButton("Cycling")).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("opens each activity's table on its own", async () => {
+    acceptSetup()
+    acceptActivities(cycling, cycling)
+    const user = userEvent.setup()
+    render(() => jsonResponse(200, forecastWithReasons(2)))
+    await screen.findByText("Forecast updated at 14:05")
+
+    await user.click(showButton("Cycling 2"))
+
+    expect(
+      screen.getByRole("table", { name: `Hours for Cycling 2 on ${date}` }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole("table")).toHaveLength(1)
+    expect(showButton("Cycling 1")).toHaveAttribute("aria-expanded", "false")
+  })
+
+  it("has no 'Show hours' button for a date without hours", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const today = { ...forecastDay("2026-11-07"), hours: [] }
+    render(() =>
+      jsonResponse(200, {
+        updatedAt: "21:40",
+        days: [today],
+        activities: [daylightActivityForecast([today])],
+      }),
+    )
+
+    await screen.findByText("No hours left to plan today.")
+    expect(
+      screen.queryByRole("button", { name: /Show hours/ }),
+    ).not.toBeInTheDocument()
+  })
+})

@@ -134,6 +134,47 @@ public class PlanForecastEndpointTests(PostgreSqlApiFactory factory)
         Assert.Equal(0, body.GetProperty("activities")[0].GetProperty("days")[0].GetProperty("periods").GetArrayLength());
     }
 
+    [Fact]
+    public async Task UnsuitableHours_GiveEveryReasonAndMissingValuesAreNull()
+    {
+        var place = ScriptPlace();
+        var date = Today.AddDays(2);
+        var forecast = FakeForecastClient.Fill(Today, 7, 18.0, 0.0, 3.0, new TimeOnly(7, 42), new TimeOnly(16, 20));
+        forecast = FakeForecastClient.WithHour(forecast, date, 9, 15.0, 0.5, 8.0);
+        forecast = FakeForecastClient.WithHour(forecast, date, 10, 4.2, 0.0, 3.0);
+        forecast = FakeForecastClient.WithHour(forecast, date, 12, 16.4, 1.2, 9.0);
+        forecast = FakeForecastClient.WithHour(forecast, date, 13, 35.0, 0.5, 8.0);
+        forecast = FakeForecastClient.WithHour(forecast, date, 14, null, 0.0, 3.0);
+        factory.Forecast.Script(place.Latitude, place.Longitude, forecast);
+        var kayakingId = await AddOutdoorCategoryAsync(PostgreSqlApiFactory.UniqueCategoryName("Forecast reasons"));
+
+        var (status, body) = await PostAsync(new
+        {
+            setup = new { locationId = place.Id, dates = new[] { "2026-11-12" }, maxTravelDistanceKm = 30 },
+            activities = new object[] { OutdoorActivity(kayakingId, minTemperatureC: 15) }
+        });
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        var hours = body.GetProperty("activities")[0].GetProperty("days")[0].GetProperty("hours");
+
+        // The hours start at 06:00, so the hour HH:00 is at position HH - 6.
+        Assert.Equal(["Outside daylight"], Reasons(hours[7 - 6]));
+        Assert.True(hours[9 - 6].GetProperty("suitable").GetBoolean());
+        Assert.Equal(["Too cold: 4.2 °C, minimum 15.0 °C"], Reasons(hours[10 - 6]));
+        Assert.Equal(
+            ["Too much rain: 1.2 mm/h, maximum 0.5 mm/h", "Too windy: 9.0 m/s, maximum 8.0 m/s"],
+            Reasons(hours[12 - 6]));
+        Assert.True(hours[13 - 6].GetProperty("suitable").GetBoolean());
+        Assert.Equal(["No forecast for this hour"], Reasons(hours[14 - 6]));
+
+        var values = body.GetProperty("days")[0].GetProperty("hours")[14 - 6];
+        Assert.Equal(JsonValueKind.Null, values.GetProperty("temperatureC").ValueKind);
+        Assert.Equal(0.0m, values.GetProperty("rainMmPerHour").GetDecimal());
+    }
+
+    private static List<string?> Reasons(JsonElement hour) =>
+        hour.GetProperty("reasons").EnumerateArray().Select(reason => reason.GetString()).ToList();
+
     private static List<string> Keys(JsonElement element) =>
         element.EnumerateObject().Select(property => property.Name).ToList();
 

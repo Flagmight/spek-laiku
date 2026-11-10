@@ -8,6 +8,8 @@ import { ForecastDateEntry } from "./forecastDateEntry"
 
 interface ActivityForecastProps {
   activity: CheckedPlanActivity
+  // The shown name, for example "Cycling 2", used to name each date's hours.
+  name: string
   forecast: ActivityForecastData
   // The plan's dates; forecast.days lines up with them by position.
   days: ForecastDay[]
@@ -16,6 +18,7 @@ interface ActivityForecastProps {
 // One activity's forecast area (spec FR-020 to FR-022): a summary line, then one entry per plan date.
 export function ActivityForecast({
   activity,
+  name,
   forecast,
   days,
 }: ActivityForecastProps) {
@@ -40,6 +43,8 @@ export function ActivityForecast({
             day={day}
             activityDay={forecast.days[index]}
             durationHours={activity.durationHours}
+            activityId={activity.id}
+            activityName={name}
           />
         ))}
       </ul>

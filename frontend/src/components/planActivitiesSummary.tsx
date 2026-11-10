@@ -41,6 +41,7 @@ export function PlanActivitiesSummary({
               {forecast && activityForecast && (
                 <ActivityForecast
                   activity={activity}
+                  name={names[activity.id]}
                   forecast={activityForecast}
                   days={forecast.days}
                 />
