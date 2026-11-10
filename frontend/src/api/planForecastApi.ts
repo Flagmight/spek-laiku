@@ -5,12 +5,17 @@ const path = "/api/plan-forecast"
 
 export type PlanForecastOutcome =
   | { kind: "forecast"; forecast: PlanForecast }
+  | { kind: "setupOutdated" }
+  | { kind: "activitiesOutdated" }
+  | { kind: "forbidden" }
   | { kind: "weatherUnavailable" }
   | { kind: "tooManyRequests" }
 
-// The forecast for the checked plan (contracts/plan-forecast-api.md). A 503 counts as the weather service
-// only when the answer names it; a 503 from the location search service, and any other status, throws
-// ApiError. Network and abort errors pass through, so callers treat them all as a server error.
+// The forecast for the checked plan (contracts/plan-forecast-api.md). A 400 says which part of the plan the
+// server found out of date: any "setup" key means the setup, otherwise any "activities" key the
+// activities. A 503 counts as the weather service only when the answer names it. Anything else, including
+// a 400 with only "request" and a 503 from the location search service, throws ApiError. Network and abort
+// errors pass through, so callers treat them all as a server error.
 export async function getPlanForecast(
   request: PlanForecastRequest,
   signal?: AbortSignal,
@@ -28,6 +33,15 @@ export async function getPlanForecast(
         kind: "forecast",
         forecast: (await response.json()) as PlanForecast,
       }
+    case 400: {
+      const outdated = await outdatedPart(response)
+      if (outdated) {
+        return { kind: outdated }
+      }
+      break
+    }
+    case 403:
+      return { kind: "forbidden" }
     case 429:
       return { kind: "tooManyRequests" }
     case 503:
@@ -38,6 +52,27 @@ export async function getPlanForecast(
   }
 
   throw new ApiError(response.status)
+}
+
+// Which part of the plan a 400 answer refuses, or undefined when it names neither.
+async function outdatedPart(
+  response: Response,
+): Promise<"setupOutdated" | "activitiesOutdated" | undefined> {
+  let keys: string[]
+  try {
+    const problem = (await response.json()) as { errors?: object }
+    keys = Object.keys(problem.errors ?? {})
+  } catch {
+    return undefined
+  }
+
+  if (keys.some((key) => key.startsWith("setup"))) {
+    return "setupOutdated"
+  }
+
+  return keys.some((key) => key.startsWith("activities"))
+    ? "activitiesOutdated"
+    : undefined
 }
 
 // The service named in a 503 answer, or undefined when the body cannot be read.

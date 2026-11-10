@@ -15,24 +15,35 @@ export interface PlanSetupState {
   maxTravelDistanceText: string
   // The last successful check. Any change below sets it back to null (spec FR-019).
   checked: CheckedPlanSetup | null
+  // Set when step 3's server check found the setup out of date, so the page asks the user to check it
+  // again; it stays until the next successful Continue (feature 006 spec FR-005).
+  recheckNotice: boolean
   setLocationText: (text: string) => void
   chooseLocation: (location: PlanLocation) => void
   addDate: (date: string) => void
   removeDate: (date: string) => void
   setMaxTravelDistanceText: (text: string) => void
   setChecked: (setup: CheckedPlanSetup) => void
+  // The server found the checked setup no longer valid: it must be checked again, with the notice.
+  markOutdated: () => void
   clear: () => void
 }
 
 export const initialPlanSetupState: Pick<
   PlanSetupState,
-  "locationText" | "location" | "dates" | "maxTravelDistanceText" | "checked"
+  | "locationText"
+  | "location"
+  | "dates"
+  | "maxTravelDistanceText"
+  | "checked"
+  | "recheckNotice"
 > = {
   locationText: "",
   location: null,
   dates: [],
   maxTravelDistanceText: "30",
   checked: null,
+  recheckNotice: false,
 }
 
 export function locationLabel(location: PlanLocation): string {
@@ -69,11 +80,14 @@ export const usePlanSetupStore = create<PlanSetupState>()(
         set({ maxTravelDistanceText: text, checked: null }),
       // Also shows the distance the server kept, so an empty field shows 30 again (spec US3 scenario 4);
       // this does not count as a change, so the setup stays checked.
+      // A successful Continue also ends the "checked again" notice (feature 006 spec FR-005).
       setChecked: (setup) =>
         set({
           checked: setup,
           maxTravelDistanceText: String(setup.maxTravelDistanceKm),
+          recheckNotice: false,
         }),
+      markOutdated: () => set({ checked: null, recheckNotice: true }),
       clear: () => set(initialPlanSetupState),
     }),
     {
@@ -87,8 +101,11 @@ export const usePlanSetupStore = create<PlanSetupState>()(
         dates: state.dates,
         maxTravelDistanceText: state.maxTravelDistanceText,
         checked: state.checked,
+        recheckNotice: state.recheckNotice,
       }),
-      // A setup stored in any other shape is dropped; the user starts again.
+      // A setup stored in any other shape is dropped; the user starts again. The version stays 1 for the
+      // notice added by feature 006: persist merges a stored value over the initial state, so a session
+      // saved before it gets recheckNotice false.
       migrate: () => initialPlanSetupState,
     },
   ),

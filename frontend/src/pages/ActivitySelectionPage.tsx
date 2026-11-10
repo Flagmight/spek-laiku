@@ -4,7 +4,9 @@ import { PlanActivitiesForm } from "../components/planActivitiesForm"
 import { PlanCategoryList } from "../components/planCategoryList"
 import { PlanProgress } from "../components/planProgress"
 import { PlanSetupSummary } from "../components/planSetupSummary"
+import { RecheckNotice } from "../components/recheckNotice"
 import { usePageTitle } from "../hooks/usePageTitle"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanCategoriesStore } from "../stores/usePlanCategoriesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 
@@ -14,6 +16,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 export function ActivitySelectionPage() {
   usePageTitle("Activity selection")
   const checked = usePlanSetupStore((state) => state.checked)
+  const recheckNotice = usePlanActivitiesStore((state) => state.recheckNotice)
   const hasCheckedSetup = checked !== null
 
   useEffect(() => {
@@ -34,6 +37,11 @@ export function ActivitySelectionPage() {
     <>
       <h1>Activity selection</h1>
       <PlanProgress current={2} />
+      {recheckNotice && (
+        <RecheckNotice>
+          Your activities need to be checked again. Select Continue.
+        </RecheckNotice>
+      )}
       <PlanSetupSummary setup={checked} />
       <p>
         <Link to="/plan/setup" className="button-link">

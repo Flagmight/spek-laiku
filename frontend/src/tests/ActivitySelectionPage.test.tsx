@@ -1125,3 +1125,88 @@ describe("Activity selection page", () => {
     expect(currentLocation()).toBe("/plan/setup")
   })
 })
+
+describe("Activity selection: 'checked again' notice", () => {
+  const notice = "Your activities need to be checked again. Select Continue."
+
+  function renderWith(check: () => Response | Promise<Response>) {
+    routeFetch({
+      ...forecastRoutes,
+      "GET /api/auth/me": () => jsonResponse(401),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, {
+          firstDate: "2026-11-04",
+          lastDate: "2026-11-10",
+          maxDates: 7,
+        }),
+      "GET /api/plan-activities/categories": () =>
+        jsonResponse(200, categoryList),
+      [checkRoute]: check,
+    })
+    return renderAppWithLocation("/plan/activities")
+  }
+
+  it("is not shown when the page is opened normally", async () => {
+    acceptSetup()
+    render()
+    await screen.findByRole("heading", { level: 1, name: "Activity selection" })
+
+    expect(screen.queryByText(notice)).not.toBeInTheDocument()
+  })
+
+  it("is shown in a status region after step 3 found the activities out of date", async () => {
+    acceptSetup()
+    usePlanActivitiesStore.getState().add(cycling)
+    usePlanActivitiesStore.getState().markOutdated()
+    render()
+
+    expect(await screen.findByText(notice)).toHaveAttribute("role", "status")
+  })
+
+  it("is still shown after a reload", async () => {
+    acceptSetup()
+    usePlanActivitiesStore.getState().add(cycling)
+    usePlanActivitiesStore.getState().markOutdated()
+    await usePlanActivitiesStore.persist.rehydrate()
+    render()
+
+    expect(await screen.findByText(notice)).toBeInTheDocument()
+  })
+
+  it("stays after a failed Continue and is gone after a successful one", async () => {
+    acceptSetup()
+    usePlanActivitiesStore.getState().add(cycling)
+    usePlanActivitiesStore.getState().add(museum)
+    usePlanActivitiesStore.getState().markOutdated()
+    let answer = jsonResponse(400, {
+      errors: {
+        "activities[0]": [
+          "This activity's category has changed. Remove it and add it again.",
+        ],
+      },
+    })
+    const user = userEvent.setup()
+    renderWith(() => answer)
+    await screen.findByText(notice)
+
+    await user.click(continueButton())
+    expect(
+      await screen.findByText(
+        "Error: This activity's category has changed. Remove it and add it again.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText(notice)).toBeInTheDocument()
+
+    answer = jsonResponse(200, acceptedPlan)
+    await user.click(continueButton())
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Places and forecast",
+    })
+    expect(usePlanActivitiesStore.getState().recheckNotice).toBe(false)
+    await user.click(screen.getByRole("link", { name: "Back" }))
+    await screen.findByRole("heading", { level: 1, name: "Activity selection" })
+    expect(screen.queryByText(notice)).not.toBeInTheDocument()
+  })
+})

@@ -5,6 +5,9 @@ import { planForecastRequest } from "../helpers/planForecastRequest"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanForecast } from "../types/planForecast"
 import type { CheckedPlanSetup } from "../types/planSetup"
+import { useCurrentUserStore } from "./useCurrentUserStore"
+import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
+import { usePlanSetupStore } from "./usePlanSetupStore"
 
 // After this long without an answer the request counts as a server error (spec FR-006).
 export const planForecastTimeoutMs = 10_000
@@ -16,6 +19,9 @@ export type PlanForecastStatus =
   | "weatherUnavailable"
   | "tooManyRequests"
   | "serverError"
+  // The server found the setup or the activities out of date; the page's guards send the user back.
+  | "setupOutdated"
+  | "activitiesOutdated"
 
 // The forecast on step 3 (data-model.md, Plan forecast store). It is never kept in the session: the page
 // asks again each time it opens (spec FR-025), and a forecast is held only while its status is "loaded",
@@ -55,6 +61,17 @@ function toResult(outcome: PlanForecastOutcome | null): Result {
   switch (outcome?.kind) {
     case "forecast":
       return { status: "loaded", forecast: outcome.forecast }
+    case "setupOutdated":
+      // Unchecking the setup makes step 3 send the user to Plan setup, which shows the notice (spec FR-005).
+      usePlanSetupStore.getState().markOutdated()
+      return { status: "setupOutdated", forecast: null }
+    case "activitiesOutdated":
+      usePlanActivitiesStore.getState().markOutdated()
+      return { status: "activitiesOutdated", forecast: null }
+    case "forbidden":
+      // The role or status changed: reading the user again lets the page guard show the right page.
+      void useCurrentUserStore.getState().refresh()
+      return { status: "idle", forecast: null }
     case "weatherUnavailable":
       return { status: "weatherUnavailable", forecast: null }
     case "tooManyRequests":

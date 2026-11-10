@@ -78,3 +78,48 @@ describe("getPlanForecast failures", () => {
     await expect(getPlanForecast(request)).rejects.toEqual(new ApiError(503))
   })
 })
+
+describe("getPlanForecast when the plan is out of date", () => {
+  it.each([
+    [{ "setup.dates[0]": ["Dates cannot be in the past."] }, "setupOutdated"],
+    [{ setup: ["The request is invalid."] }, "setupOutdated"],
+    [
+      {
+        "setup.locationId": ["Select a location in Lithuania from the list."],
+        "activities[0]": ["This activity is no longer available. Remove it."],
+      },
+      "setupOutdated",
+    ],
+    [
+      {
+        "activities[0].maxWindMs": ["Enter a wind limit between 0 and 30 m/s."],
+      },
+      "activitiesOutdated",
+    ],
+    [{ activities: ["Add at least one activity."] }, "activitiesOutdated"],
+  ])("maps the 400 keys %o to %s", async (errors, kind) => {
+    routeFetch({
+      [forecastRoute]: () => jsonResponse(400, { status: 400, errors }),
+    })
+
+    expect(await getPlanForecast(request)).toEqual({ kind })
+  })
+
+  it.each([
+    [
+      "only the request key",
+      { errors: { request: ["The request is invalid."] } },
+    ],
+    ["no errors", { status: 400 }],
+  ])("throws ApiError for a 400 with %s", async (_case, body) => {
+    routeFetch({ [forecastRoute]: () => jsonResponse(400, body) })
+
+    await expect(getPlanForecast(request)).rejects.toEqual(new ApiError(400))
+  })
+
+  it("maps a 403 to forbidden", async () => {
+    routeFetch({ [forecastRoute]: () => jsonResponse(403) })
+
+    expect(await getPlanForecast(request)).toEqual({ kind: "forbidden" })
+  })
+})

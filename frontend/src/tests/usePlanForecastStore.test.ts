@@ -1,9 +1,12 @@
 import { act } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import {
   planForecastTimeoutMs,
   usePlanForecastStore,
 } from "../stores/usePlanForecastStore"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { CheckedPlanSetup } from "../types/planSetup"
 import { planForecast } from "./forecastFixtures"
@@ -242,6 +245,56 @@ describe("usePlanForecastStore failures", () => {
     await act(() => store().retry())
 
     expect(fetchMock).not.toHaveBeenCalled()
+    expect(store().status).toBe("idle")
+  })
+})
+
+describe("usePlanForecastStore when the plan is out of date", () => {
+  it("marks the setup as out of date for a setup key", async () => {
+    usePlanSetupStore.getState().setChecked(setup)
+    routeFetch({
+      [forecastRoute]: () =>
+        jsonResponse(400, {
+          errors: { "setup.dates[0]": ["Dates cannot be in the past."] },
+        }),
+    })
+
+    await act(() => store().load(setup, activities))
+
+    expect(store().status).toBe("setupOutdated")
+    expect(usePlanSetupStore.getState().checked).toBeNull()
+    expect(usePlanSetupStore.getState().recheckNotice).toBe(true)
+    expect(usePlanActivitiesStore.getState().recheckNotice).toBe(false)
+  })
+
+  it("marks the activities as out of date for an activity key", async () => {
+    usePlanActivitiesStore.getState().setChecked(activities)
+    routeFetch({
+      [forecastRoute]: () =>
+        jsonResponse(400, {
+          errors: {
+            "activities[0]": ["This activity is no longer available."],
+          },
+        }),
+    })
+
+    await act(() => store().load(setup, activities))
+
+    expect(store().status).toBe("activitiesOutdated")
+    expect(usePlanActivitiesStore.getState().checked).toBeNull()
+    expect(usePlanActivitiesStore.getState().recheckNotice).toBe(true)
+    expect(usePlanSetupStore.getState().recheckNotice).toBe(false)
+  })
+
+  it("reads the current user again on a 403", async () => {
+    const refresh = vi
+      .spyOn(useCurrentUserStore.getState(), "refresh")
+      .mockResolvedValue()
+    routeFetch({ [forecastRoute]: () => jsonResponse(403) })
+
+    await act(() => store().load(setup, activities))
+
+    expect(refresh).toHaveBeenCalledOnce()
     expect(store().status).toBe("idle")
   })
 })

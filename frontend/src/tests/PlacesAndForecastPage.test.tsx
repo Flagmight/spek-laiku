@@ -727,3 +727,59 @@ describe("Places and forecast page: when the forecast cannot be shown", () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe("Places and forecast page: when the plan is out of date", () => {
+  it("sends the user to Plan setup with the notice when the setup is out of date", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const { currentLocation } = render(() =>
+      jsonResponse(400, {
+        errors: { "setup.dates[0]": ["Dates cannot be in the past."] },
+      }),
+    )
+
+    await heading("Plan setup")
+    expect(currentLocation()).toBe("/plan/setup")
+    expect(
+      screen.getByText(
+        "Your plan setup needs to be checked again. Select Continue.",
+      ),
+    ).toBeInTheDocument()
+    expect(usePlanSetupStore.getState().checked).toBeNull()
+    // The activities are kept for when the setup has been checked again.
+    expect(usePlanActivitiesStore.getState().activities).toHaveLength(1)
+  })
+
+  it("sends the user to Activity selection with the notice when the activities are out of date", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const { currentLocation } = render(() =>
+      jsonResponse(400, {
+        errors: {
+          "activities[0]": ["This activity is no longer available. Remove it."],
+        },
+      }),
+    )
+
+    await heading("Activity selection")
+    expect(currentLocation()).toBe("/plan/activities")
+    expect(
+      screen.getByText(
+        "Your activities need to be checked again. Select Continue.",
+      ),
+    ).toBeInTheDocument()
+    expect(usePlanSetupStore.getState().checked).not.toBeNull()
+  })
+
+  it("shows the server error for a 400 that names neither part", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    render(() =>
+      jsonResponse(400, { errors: { request: ["The request is invalid."] } }),
+    )
+
+    expect(
+      await screen.findByText("Error: Something went wrong. Try again."),
+    ).toBeInTheDocument()
+  })
+})
