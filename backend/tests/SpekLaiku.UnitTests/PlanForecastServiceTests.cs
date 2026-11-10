@@ -95,21 +95,97 @@ public sealed class PlanForecastServiceTests : IDisposable
         Assert.Equal(new TimeOnly(14, 5), result.Forecast!.UpdatedAt);
     }
 
+    [Fact]
+    public async Task MissingSetup_GivesOnlyTheSetupKey()
+    {
+        var result = await CreateService().GetAsync(new PlanForecastRequest(null, [Kayaking()]), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal([Error("setup", "The request is invalid.")], result.Errors);
+        Assert.Empty(forecastClient.Calls);
+    }
+
+    [Fact]
+    public async Task PastDate_GivesThePrefixedSetupKeyAndChecksNothingElse()
+    {
+        // A disposed context throws if anything queries it, so the activity check must not run.
+        var disposed = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options);
+        await disposed.DisposeAsync();
+
+        var result = await CreateService(disposed).GetAsync(
+            new PlanForecastRequest(new PlanSetupCheckRequest(Vilnius.Id, [Today.AddDays(-1)], null), [Kayaking()]),
+            CancellationToken.None);
+
+        Assert.Equal([Error("setup.dates[0]", "Dates cannot be in the past.")], result.Errors);
+        Assert.Empty(forecastClient.Calls);
+    }
+
+    [Fact]
+    public async Task UnknownLocationAndBadDistance_KeepTheSetupChecksOrder()
+    {
+        var result = await CreateService().GetAsync(
+            new PlanForecastRequest(new PlanSetupCheckRequest(42, [Today], 0m), [Kayaking()]),
+            CancellationToken.None);
+
+        Assert.Equal(
+            [
+                Error("setup.locationId", "Select a location in Lithuania from the list."),
+                Error("setup.maxTravelDistanceKm", "Enter a whole number between 1 and 200.")
+            ],
+            result.Errors);
+        Assert.Empty(forecastClient.Calls);
+    }
+
+    [Fact]
+    public async Task InvalidActivities_GiveTheActivityKeysWithoutAskingForTheForecast()
+    {
+        var tooWindy = Kayaking() with { MaxWindMs = 31m };
+        var unknown = Kayaking() with { CategoryId = Guid.NewGuid() };
+
+        var result = await CreateService().GetAsync(
+            new PlanForecastRequest(new PlanSetupCheckRequest(Vilnius.Id, [Today], null), [tooWindy, unknown]),
+            CancellationToken.None);
+
+        Assert.Equal(
+            [
+                Error("activities[0].maxWindMs", "Enter a wind limit between 0 and 30 m/s."),
+                Error("activities[1]", PlanActivityValidator.UnavailableMessage)
+            ],
+            result.Errors);
+        Assert.Empty(forecastClient.Calls);
+    }
+
+    [Fact]
+    public async Task NoActivities_GivesTheListKey()
+    {
+        var result = await CreateService().GetAsync(
+            new PlanForecastRequest(new PlanSetupCheckRequest(Vilnius.Id, [Today], null), []),
+            CancellationToken.None);
+
+        Assert.Equal([Error("activities", PlanActivityValidator.NoActivitiesMessage)], result.Errors);
+        Assert.Empty(forecastClient.Calls);
+    }
+
     public void Dispose()
     {
         cache.Dispose();
         context.Dispose();
     }
 
+    private static KeyValuePair<string, string> Error(string key, string message) => new(key, message);
+
     private PlanActivityRequest Kayaking() => new(kayaking.Id, "Outdoor", 2m, true, 8m, 0.5m, 15m, 35m);
 
-    private PlanForecastService CreateService()
+    private PlanForecastService CreateService(ApplicationDbContext? activities = null)
     {
         var period = new ForecastPeriod(clock);
         var options = Options.Create(new ForecastOptions());
+        var database = activities ?? context;
         return new PlanForecastService(
             new PlanSetupService(new LocationSearchService(geocoding, cache), period),
-            new PlanActivityService(context, new ActivityCategoryService(context)),
+            new PlanActivityService(database, new ActivityCategoryService(database)),
             new WeatherForecastService(forecastClient, cache, period, options),
             period,
             options);

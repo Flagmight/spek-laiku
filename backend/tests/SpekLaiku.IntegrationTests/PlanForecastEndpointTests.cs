@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.DTOs.Responses;
@@ -171,6 +172,98 @@ public class PlanForecastEndpointTests(PostgreSqlApiFactory factory)
         Assert.Equal(JsonValueKind.Null, values.GetProperty("temperatureC").ValueKind);
         Assert.Equal(0.0m, values.GetProperty("rainMmPerHour").GetDecimal());
     }
+
+    [Fact]
+    public async Task OutOfDateSetup_GivesThePrefixedSetupKeys()
+    {
+        var place = ScriptPlace();
+        var kayakingId = await AddOutdoorCategoryAsync(PostgreSqlApiFactory.UniqueCategoryName("Forecast past"));
+        var calls = factory.Forecast.Calls;
+
+        // The date was checked yesterday; it is now in the past.
+        var (pastStatus, pastBody) = await PostAsync(
+            new
+            {
+                setup = new { locationId = place.Id, dates = new[] { "2026-11-10" }, maxTravelDistanceKm = 30 },
+                activities = new object[] { OutdoorActivity(kayakingId, minTemperatureC: 15) }
+            },
+            "2026-11-11T08:00:00Z");
+        var (unknownStatus, unknownBody) = await PostAsync(new
+        {
+            setup = new { locationId = 1, dates = new[] { "2026-11-11" }, maxTravelDistanceKm = 30 },
+            activities = new object[] { OutdoorActivity(kayakingId, minTemperatureC: 15) }
+        });
+        var (missingStatus, missingBody) = await PostAsync(new
+        {
+            activities = new object[] { OutdoorActivity(kayakingId, minTemperatureC: 15) }
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, pastStatus);
+        Assert.Equal(["setup.dates[0]"], ErrorKeys(pastBody));
+        Assert.Equal("Dates cannot be in the past.", pastBody.GetProperty("errors").GetProperty("setup.dates[0]")[0].GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, unknownStatus);
+        Assert.Equal(["setup.locationId"], ErrorKeys(unknownBody));
+        Assert.Equal(HttpStatusCode.BadRequest, missingStatus);
+        Assert.Equal(["setup"], ErrorKeys(missingBody));
+        Assert.Equal(calls, factory.Forecast.Calls);
+    }
+
+    [Fact]
+    public async Task OutOfDateActivities_GiveTheActivityKeys()
+    {
+        var place = ScriptPlace();
+        var kayakingId = await AddOutdoorCategoryAsync(PostgreSqlApiFactory.UniqueCategoryName("Forecast stale"));
+        var setup = new { locationId = place.Id, dates = new[] { "2026-11-11" }, maxTravelDistanceKm = 30 };
+        var calls = factory.Forecast.Calls;
+        var tooWindy = new
+        {
+            categoryId = kayakingId,
+            type = "Outdoor",
+            durationHours = 2,
+            requiresDaylight = true,
+            maxWindMs = 31,
+            maxRainMmPerHour = 0.5,
+            minTemperatureC = 15,
+            maxTemperatureC = 35
+        };
+
+        var (windStatus, windBody) = await PostAsync(new { setup, activities = new object[] { tooWindy } });
+        var (goneStatus, goneBody) = await PostAsync(new
+        {
+            setup,
+            activities = new object[] { OutdoorActivity(Guid.NewGuid(), minTemperatureC: 15) }
+        });
+        var (emptyStatus, emptyBody) = await PostAsync(new { setup, activities = Array.Empty<object>() });
+
+        Assert.Equal(HttpStatusCode.BadRequest, windStatus);
+        Assert.Equal(["activities[0].maxWindMs"], ErrorKeys(windBody));
+        Assert.Equal(HttpStatusCode.BadRequest, goneStatus);
+        Assert.Equal(["activities[0]"], ErrorKeys(goneBody));
+        Assert.Equal(HttpStatusCode.BadRequest, emptyStatus);
+        Assert.Equal(["activities"], ErrorKeys(emptyBody));
+        Assert.Equal(calls, factory.Forecast.Calls);
+    }
+
+    [Fact]
+    public async Task UnreadableBody_GivesTheRequestKey()
+    {
+        var calls = factory.Forecast.Calls;
+        using var client = factory.CreateHttpsClient();
+        using var content = new StringContent(
+            """{"setup":{"locationId":"one","dates":["2026-11-11"]},"activities":[]}""",
+            Encoding.UTF8,
+            "application/json");
+
+        using var response = await client.PostAsync(Path, content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(["request"], ErrorKeys(document.RootElement));
+        Assert.Equal(calls, factory.Forecast.Calls);
+    }
+
+    private static List<string> ErrorKeys(JsonElement body) =>
+        body.GetProperty("errors").EnumerateObject().Select(error => error.Name).ToList();
 
     private static List<string?> Reasons(JsonElement hour) =>
         hour.GetProperty("reasons").EnumerateArray().Select(reason => reason.GetString()).ToList();
