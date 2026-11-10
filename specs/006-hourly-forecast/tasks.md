@@ -508,7 +508,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T062 [P] Update `README.md` with a "Places and forecast" section:
+- [X] T062 [P] Update `README.md` with a "Places and forecast" section:
   - the forecast on step 3 for the plan's location;
   - the 06:00–22:00 planning hours;
   - suitable periods, the hourly details and reasons;
@@ -518,19 +518,19 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - the "checked again" notices.
 
   Add to the status line that feature 006 is implemented. No migration step is needed.
-- [ ] T063 [P] Update `docs/ux-design.md`:
+- [X] T063 [P] Update `docs/ux-design.md`:
   - set the Places and Forecast Loading state to "Getting the forecast…" (feature 007 makes it "Getting the forecast and nearby places…");
   - add the states "Forecast updated at HH:MM", "✗ No suitable hours on this date.", "No hours left to plan today.", the indoor message and the weather service error;
   - add the Plan Setup and Activity Selection notices "Your plan setup needs to be checked again. Select Continue." and "Your activities need to be checked again. Select Continue.";
   - check that the traceability rows for Places and Forecast list FR-009 and FR-011 to FR-015 as in `docs/architecture.md`, and fix any difference (constitution VI).
-- [ ] T064 [P] In `docs/architecture.md`, add the forecast client and its 30-minute cache to the `Clients/` and caching rows, and the `service` field to the `Errors/` row.
-- [ ] T065 [P] Check sizes (constitution I):
+- [X] T064 [P] In `docs/architecture.md`, add the forecast client and its 30-minute cache to the `Clients/` and caching rows, and the `service` field to the `Errors/` row.
+- [X] T065 [P] Check sizes (constitution I):
   - every new or changed C# class is under 200 lines, especially `OpenMeteoForecastClient.cs`, `PlanningDays.cs`, `HourSuitabilityRules.cs`, `PlanForecastService.cs` and `ExternalServiceJson.cs`;
   - every new or changed React page or component is under about 200 lines, especially `PlacesAndForecastPage.tsx`, `forecastDateEntry.tsx` and `forecastHoursTable.tsx`.
 
   Split by responsibility if not.
-- [ ] T066 Run `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx` from the repository root. Run `npm run lint`, `npm run format:check`, `npm test` and `npm run build` from `frontend/`; run the frontend tests on their own, not at the same time as the backend tests. Fix any failure without weakening tests or checks.
-- [ ] T067 Review `git diff main...HEAD`. Check that:
+- [X] T066 Run `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx` from the repository root. Run `npm run lint`, `npm run format:check`, `npm test` and `npm run build` from `frontend/`; run the frontend tests on their own, not at the same time as the backend tests. Fix any failure without weakening tests or checks.
+- [X] T067 Review `git diff main...HEAD`. Check that:
   - there are no unintended files (no `bin/`, `obj/`, `node_modules/`, local settings or debug code);
   - there is no migration and no new package;
   - `appsettings.Development.json` is unchanged;
