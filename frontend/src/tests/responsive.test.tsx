@@ -6,6 +6,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import styles from "../styles.css?inline"
 import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
+import { openCategories } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
 
 // jsdom applies stylesheet rules but does no layout, so these tests check the CSS rules
@@ -356,7 +357,9 @@ async function renderPlanSetupWithChip() {
       }),
   })
   renderApp("/plan/setup")
-  await vi.waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+  await vi.waitFor(() =>
+    expect(screen.getByLabelText("Dates", { selector: "input" })).toBeEnabled(),
+  )
 }
 
 describe("Plan setup page at 320 px", () => {
@@ -421,8 +424,10 @@ describe("Plan setup page at 320 px", () => {
     expect(px(getComputedStyle(option).minHeight)).toBeGreaterThanOrEqual(
       minimumTarget,
     )
-    for (const label of ["Location", "Date", "Maximum travel distance (km)"]) {
-      const style = getComputedStyle(screen.getByLabelText(label))
+    for (const label of ["Location", "Dates", "Maximum travel distance (km)"]) {
+      const style = getComputedStyle(
+        screen.getByLabelText(label, { selector: "input" }),
+      )
       expect(px(style.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
       expect(px(style.minHeight)).toBeGreaterThanOrEqual(minimumTarget)
     }
@@ -523,7 +528,7 @@ describe("Activity selection at 320 px", () => {
 
   it("makes Add, Remove and Continue full width", async () => {
     await renderActivitySelection()
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
 
     for (const name of ["Add Kayaking", "Remove Kayaking", "Continue"]) {
       const button = screen.getByRole("button", { name })
@@ -541,7 +546,7 @@ describe("Activity selection at 320 px", () => {
 
   it("makes every link and button a 44 × 44 px target", async () => {
     await renderActivitySelection()
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
 
     for (const target of [
       ...screen.getAllByRole("link"),
@@ -556,7 +561,8 @@ describe("Activity selection at 320 px", () => {
       jsonResponse(200, { categories: [kayaking], maxActivities: 1 }),
     )
 
-    const add = await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
+    const add = screen.getByRole("button", { name: "Add Kayaking" })
     await vi.waitFor(() => expect(add).toBeDisabled())
     expect(getComputedStyle(add).backgroundColor).toBe("rgb(154, 165, 177)")
   })

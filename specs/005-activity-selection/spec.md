@@ -17,6 +17,10 @@
 - Q: If an administrator switches a category between Indoor and Outdoor after a user added it to their plan, what happens on Continue? → A: The check refuses that activity with "This activity's category has changed. Remove it and add it again." and the user stays on the step; nothing is adapted automatically (FR-012, User Story 4 scenario 5).
 - Q: After a successful Continue on Activity selection, where does the user go while features 006 and 007 do not exist yet? → A: To a first version of step 3, "Places and forecast", that shows only the checked setup and activities with a Back button; features 006 and 007 add the forecast and places to it (FR-016 to FR-018).
 
+### Session 2026-11-11 (Requirement Change)
+
+- Q (user testing): All categories are always listed, which gets long when administrators add many. Should the list stay always open? → A: No. "Activity categories" becomes a button that opens and closes the list. The list starts open while the plan has no activities and closed when it already has some, stays open while the user adds activities, and opens again when the last activity is removed. With more than 8 categories, a "Search activities" field filters the list by name (FR-023, User Story 1 scenario 9).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Pick activities for the plan (Priority: P1)
@@ -29,7 +33,7 @@ On the Activity selection step a Visitor or Active Registered User sees the avai
 
 **Acceptance Scenarios**:
 
-1. **Given** a checked setup, **When** the user opens the Activity selection step, **Then** "Loading activity categories…" is shown and announced, followed by every category in alphabetical order with its name, type (Indoor or Outdoor) and default duration, each with an "Add" button.
+1. **Given** a checked setup, **When** the user opens the Activity selection step, **Then** "Loading activity categories…" is shown and announced, followed by every category in alphabetical order with its name, type (Indoor or Outdoor) and default duration, each with an "Add" button, in a list that the "Activity categories" button opens and closes (FR-023).
 2. **Given** the categories are shown and no activity is added yet, **When** the user looks at the plan's activities, **Then** "No activities added yet. Select at least one category to continue." is shown.
 3. **Given** the categories are shown, **When** the user selects "Add" for Kayaking, **Then** Kayaking appears in the plan's activities with duration 2 h, "Requires daylight" checked, max wind 8 m/s, max rain 0.5 mm/h and temperature 15 to 35 °C (its category defaults), "Kayaking added." is announced, and Kayaking's "Add" button stays available.
 8. **Given** Cycling is already in the plan, **When** the user selects "Add" for Cycling again, **Then** a second Cycling activity with the category defaults is added, the two are shown as "Cycling 1" and "Cycling 2", "Cycling 2 added." is announced, and changing one does not change the other.
@@ -37,6 +41,7 @@ On the Activity selection step a Visitor or Active Registered User sees the avai
 5. **Given** the categories cannot be loaded (server error, no answer within 10 seconds, or network failure), **Then** "Error: Activity categories could not be loaded." is shown with a "Retry" button, and the activities already in the plan stay visible.
 6. **Given** there are no categories at all, **Then** the categories area shows "No activity categories are available yet." and "Continue" cannot succeed.
 7. **Given** the plan already has 10 activities, **When** the user looks at the categories, **Then** every "Add" button is disabled and "You can add up to 10 activities." is shown.
+9. **Given** the plan has no activities, **When** the user opens the step, **Then** the category list is open; **When** the plan already has activities, **Then** it is closed and "Activity categories" opens it. After "Add" it stays open, "Activity categories" closes it again, and it opens by itself when the last activity is removed. With more than 8 categories, typing in "Search activities" shows only the categories whose name contains the text, or "No activities match your search." when none does (FR-023).
 
 ---
 
@@ -71,7 +76,7 @@ The user can take an activity out of the plan again, for example after adding th
 
 **Acceptance Scenarios**:
 
-1. **Given** Cycling and Picnic are in the plan, **When** the user selects "Remove" for Cycling, **Then** Cycling disappears from the plan's activities, "Cycling removed." is announced, and keyboard focus moves to the next activity's heading (the previous one when Cycling was last, or the categories list when none is left).
+1. **Given** Cycling and Picnic are in the plan, **When** the user selects "Remove" for Cycling, **Then** Cycling disappears from the plan's activities, "Cycling removed." is announced, and keyboard focus moves to the next activity's heading (the previous one when Cycling was last, or the "Activity categories" button, with the list open, when none is left).
 2. **Given** the user removes an activity whose settings were changed and adds the category again, **Then** the new activity starts with the category defaults.
 3. **Given** the last activity is removed, **Then** "No activities added yet. Select at least one category to continue." is shown.
 4. **Given** "Cycling 1" and "Cycling 2" are in the plan, **When** the user removes "Cycling 1", **Then** only the other one remains, with its own settings, and it is shown as "Cycling" again.
@@ -181,7 +186,7 @@ The step can be completed using only the keyboard and a screen reader, and on a 
 - **FR-006**: A plan MUST have at most 10 activities. When it has 10, every "Add" button MUST be disabled and "You can add up to 10 activities." MUST be shown.
 - **FR-007**: When the plan has no activities, the step MUST show "No activities added yet. Select at least one category to continue."
 - **FR-008**: Each activity in the plan MUST be shown as a labelled group named after the activity, with a "Remove" button and these settings (Form 4): Duration (h); Requires daylight; and only for Outdoor activities Max wind (m/s), Max rain (mm/h), Min temperature (°C) and Max temperature (°C). Each field MUST show its unit and allowed range.
-- **FR-009**: Selecting "Remove" MUST take the activity out of the plan, announce "<name> removed.", and move focus to the next activity's heading (the previous one when the removed activity was last, or the categories list when none is left). An activity added again MUST start with the category defaults.
+- **FR-009**: Selecting "Remove" MUST take the activity out of the plan, announce "<name> removed.", and move focus to the next activity's heading (the previous one when the removed activity was last, or the "Activity categories" button, with the list open, when none is left). An activity added again MUST start with the category defaults.
 - **FR-010**: Changing an activity's settings MUST change only this plan's activity, never the category's defaults (project FR-037).
 
 **Validation**
@@ -207,6 +212,7 @@ The step can be completed using only the keyboard and a screen reader, and on a 
 - **FR-020**: The Activity selection step MUST keep the heading "Activity selection", the browser tab title "Activity selection - Spėk laiku", the summary of the checked setup and the "Back" button from feature 004 FR-024 and FR-025, with the progress bar showing step 2 current and step 1 selectable. On phone-sized screens the progress bar MUST show "Step 2 of 4: Activities" (and "Step 3 of 4: Places and forecast" on step 3) with four segments.
 - **FR-021**: Both steps MUST have exactly one main heading and "Skip to main content" as the first item reached with Tab. Every field MUST have a visible label; "Add" and "Remove" MUST name their activity for screen readers; loading, added, removed, checking and error messages MUST be announced.
 - **FR-022**: On desktop the categories MUST be on the left and the plan's activities with their settings on the right. On phone-sized screens the categories MUST come first and the activities follow in one column, each setting on its own row, with full-width buttons, touch targets of at least 44 × 44 px, input text of at least 16 px, and no horizontal scrolling at 320 px width.
+- **FR-023**: The category heading MUST be an "Activity categories" button that opens and closes the category list (FR-003) and tells screen readers whether the list is open. The list MUST start open when the plan has no activities and closed when it has some, MUST stay open after "Add", and MUST open when the last activity is removed. Loading, error, "No activity categories are available yet.", "You can add up to 10 activities." and the added message MUST stay visible whether the list is open or closed. When there are more than 8 categories, the open list MUST start with a "Search activities" field that shows only the categories whose name contains the typed text, ignoring upper and lower case, and "No activities match your search." when none does.
 
 ### Key Entities
 

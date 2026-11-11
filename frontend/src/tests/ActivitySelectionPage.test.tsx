@@ -6,6 +6,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { PlanCategory } from "../types/planActivity"
 import type { CheckedPlanSetup, PlanLocation } from "../types/planSetup"
 import { jsonResponse, renderAppWithLocation, routeFetch } from "./renderApp"
+import { categoriesLoaded } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
 
 const kaunas: PlanLocation = {
@@ -105,6 +106,10 @@ function addButtons() {
   return within(categoriesRegion()).getAllByRole("button", { name: /^Add / })
 }
 
+function categoriesToggle() {
+  return screen.getByRole("button", { name: "Activity categories" })
+}
+
 describe("Activity selection categories and Add", () => {
   beforeEach(() => {
     acceptSetup()
@@ -121,7 +126,7 @@ describe("Activity selection categories and Add", () => {
   it("lists the categories in the order sent, each with its type, duration and Add", async () => {
     render()
 
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await categoriesLoaded()
     const items = within(categoriesRegion()).getAllByRole("listitem")
     expect(items).toHaveLength(3)
     expect(items[0]).toHaveTextContent("Kayaking")
@@ -216,14 +221,17 @@ describe("Activity selection categories and Add", () => {
   })
 
   it("disables every Add and says so with 10 activities", async () => {
+    const user = userEvent.setup()
     for (let count = 0; count < 10; count++) {
       usePlanActivitiesStore.getState().add(kayaking)
     }
     render()
 
+    // Shown while the list is still closed (FR-023).
     expect(
       await screen.findByText("You can add up to 10 activities."),
-    ).toBeInTheDocument()
+    ).toBeVisible()
+    await user.click(categoriesToggle())
     expect(addButtons()).toHaveLength(3)
     for (const button of addButtons()) {
       expect(button).toBeDisabled()
@@ -237,7 +245,9 @@ describe("Activity selection categories and Add", () => {
     render("/plan/activities", () =>
       jsonResponse(200, { ...categoryList, maxActivities: 3 }),
     )
-    const add = await screen.findByRole("button", { name: "Add Cycling" })
+    await categoriesLoaded()
+    await user.click(categoriesToggle())
+    const add = screen.getByRole("button", { name: "Add Cycling" })
     expect(add).toBeEnabled()
     expect(screen.queryByText(/You can add up to/)).toBeNull()
 
@@ -267,16 +277,19 @@ describe("Activity selection categories and Add", () => {
     answer = jsonResponse(200, categoryList)
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
+    await categoriesLoaded()
+    // The plan already has Museum, so the loaded list stays closed until opened (FR-023).
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "false")
     expect(
-      await screen.findByRole("button", { name: "Add Kayaking" }),
-    ).toBeInTheDocument()
+      screen.getByRole("button", { name: "Add Kayaking", hidden: true }),
+    ).not.toBeVisible()
     expect(
       screen.queryByText("Error: Activity categories could not be loaded."),
     ).toBeNull()
     expect(screen.getByRole("group", { name: "Museum" })).toBeInTheDocument()
   })
 
-  it("moves focus to the categories heading when Add reaches the limit", async () => {
+  it("moves focus to the Activity categories button when Add reaches the limit", async () => {
     const user = userEvent.setup()
     render("/plan/activities", () =>
       jsonResponse(200, { ...categoryList, maxActivities: 1 }),
@@ -285,9 +298,7 @@ describe("Activity selection categories and Add", () => {
     await user.click(await screen.findByRole("button", { name: "Add Museum" }))
 
     expect(screen.getByRole("button", { name: "Add Museum" })).toBeDisabled()
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Activity categories" }),
-    ).toHaveFocus()
+    expect(categoriesToggle()).toHaveFocus()
   })
 
   it("leaves focus on Add below the limit", async () => {
@@ -313,7 +324,7 @@ describe("Activity selection categories and Add", () => {
   it("still shows the setup summary and Back", async () => {
     render()
 
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await categoriesLoaded()
     expect(
       screen.getByText(
         "Kaunas, Kaunas County · Sat 7 Nov 2026, Sun 8 Nov 2026 · Maximum travel distance: 30 km",
@@ -323,6 +334,123 @@ describe("Activity selection categories and Add", () => {
       "href",
       "/plan/setup",
     )
+  })
+})
+
+describe("Activity selection category list opens and closes", () => {
+  beforeEach(() => {
+    acceptSetup()
+  })
+
+  // More than 8 categories, so the search field is shown (FR-023).
+  const manyCategories = {
+    categories: [
+      kayaking,
+      museum,
+      cycling,
+      ...["Picnic", "Heritage site", "Hiking", "Fishing", "Bowling"].map(
+        (name) => ({ ...museum, id: `category-${name}`, name }),
+      ),
+      { ...museum, id: "category-climbing", name: "Climbing wall" },
+    ],
+    maxActivities: 10,
+  }
+
+  it("starts open when the plan has no activities", async () => {
+    render()
+
+    await categoriesLoaded()
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "true")
+    expect(categoriesToggle()).toHaveAttribute(
+      "aria-controls",
+      "plan-categories-panel",
+    )
+    expect(screen.getByRole("button", { name: "Add Kayaking" })).toBeVisible()
+  })
+
+  it("starts closed when the plan already has activities, and opens and closes on click", async () => {
+    const user = userEvent.setup()
+    usePlanActivitiesStore.getState().add(museum)
+    render()
+    await categoriesLoaded()
+
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("button", { name: "Add Kayaking" })).toBeNull()
+
+    await user.click(categoriesToggle())
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: "Add Kayaking" })).toBeVisible()
+
+    await user.click(categoriesToggle())
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "false")
+    expect(screen.queryByRole("button", { name: "Add Kayaking" })).toBeNull()
+  })
+
+  it("stays open after Add and keeps the added message visible after closing", async () => {
+    const user = userEvent.setup()
+    render()
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add Kayaking" }),
+    )
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "true")
+
+    await user.click(categoriesToggle())
+    expect(screen.getByText("Kayaking added.")).toBeVisible()
+  })
+
+  it("shows no search field with exactly 8 categories", async () => {
+    render("/plan/activities", () =>
+      jsonResponse(200, {
+        ...manyCategories,
+        categories: manyCategories.categories.slice(0, 8),
+      }),
+    )
+
+    expect(await categoriesLoaded()).toHaveLength(8)
+    expect(screen.queryByLabelText("Search activities")).toBeNull()
+  })
+
+  it("starts from the full list again when the list reopens after the last Remove", async () => {
+    const user = userEvent.setup()
+    render("/plan/activities", () => jsonResponse(200, manyCategories))
+    await categoriesLoaded()
+    await user.type(screen.getByLabelText("Search activities"), "kay")
+    await user.click(screen.getByRole("button", { name: "Add Kayaking" }))
+    await user.click(categoriesToggle())
+
+    await user.click(screen.getByRole("button", { name: "Remove Kayaking" }))
+
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByLabelText("Search activities")).toHaveValue("")
+    expect(addButtons()).toHaveLength(9)
+  })
+
+  it("filters the categories by name with more than 8, ignoring case", async () => {
+    const user = userEvent.setup()
+    render("/plan/activities", () => jsonResponse(200, manyCategories))
+    await categoriesLoaded()
+
+    await user.type(screen.getByLabelText("Search activities"), "CL")
+
+    expect(
+      addButtons().map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Add Cycling", "Add Climbing wall"])
+  })
+
+  it("says so when no category matches the search", async () => {
+    const user = userEvent.setup()
+    render("/plan/activities", () => jsonResponse(200, manyCategories))
+    await categoriesLoaded()
+
+    await user.type(screen.getByLabelText("Search activities"), "zzz")
+
+    expect(
+      screen.getByText("No activities match your search."),
+    ).toHaveAttribute("role", "status")
+    expect(
+      within(categoriesRegion()).queryAllByRole("button", { name: /^Add / }),
+    ).toHaveLength(0)
   })
 })
 
@@ -371,16 +499,18 @@ describe("Activity selection Remove", () => {
     ).toHaveFocus()
   })
 
-  it("moves focus to the categories and shows the empty text when none is left", async () => {
+  it("opens the categories, focuses their button and shows the empty text when none is left", async () => {
     const user = userEvent.setup()
     addToPlan(museum)
     render()
+    await categoriesLoaded()
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "false")
 
     await user.click(await removeButton("Museum"))
 
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Activity categories" }),
-    ).toHaveFocus()
+    expect(categoriesToggle()).toHaveFocus()
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("button", { name: "Add Museum" })).toBeVisible()
     expect(
       screen.getByText(
         "No activities added yet. Select at least one category to continue.",
@@ -518,7 +648,7 @@ describe("Activity selection Continue", () => {
   it("asks for an activity and sends nothing when there are none", async () => {
     const user = userEvent.setup()
     const { checks } = renderWithCheck(() => jsonResponse(200, acceptedPlan))
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
 
     await user.click(continueButton())
 
@@ -597,7 +727,7 @@ describe("Activity selection Continue", () => {
     const { currentLocation } = renderWithCheck(() =>
       jsonResponse(200, acceptedPlan),
     )
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
 
     await user.click(continueButton())
 
@@ -628,7 +758,7 @@ describe("Activity selection Continue", () => {
         },
       }),
     )
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
 
     await user.click(continueButton())
 
@@ -673,7 +803,7 @@ describe("Activity selection Continue", () => {
         },
       }),
     )
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
 
     await user.click(continueButton())
 
@@ -702,7 +832,7 @@ describe("Activity selection Continue", () => {
         },
       }),
     )
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
     await user.click(continueButton())
     await activityGroup("Museum").findByText(/^Error: Enter a duration/)
 
@@ -721,7 +851,7 @@ describe("Activity selection Continue", () => {
     addCyclingAndMuseum()
     let answer = jsonResponse(500)
     const { checks, currentLocation } = renderWithCheck(() => answer)
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
 
     await user.click(continueButton())
     expect(
@@ -740,7 +870,7 @@ describe("Activity selection Continue", () => {
     const user = userEvent.setup()
     addCyclingAndMuseum()
     renderWithCheck(() => jsonResponse(500))
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
 
     await user.click(continueButton())
     await screen.findByRole("button", { name: "Retry" })
@@ -762,7 +892,7 @@ describe("Activity selection Continue", () => {
           answer = resolve
         }),
     )
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
     await user.click(continueButton())
     const field = activityGroup("Museum").getByLabelText("Duration (h)")
     field.focus()
@@ -777,7 +907,7 @@ describe("Activity selection Continue", () => {
     const user = userEvent.setup()
     addCyclingAndMuseum()
     renderWithCheck(() => jsonResponse(500))
-    await screen.findByRole("button", { name: "Add Museum" })
+    await categoriesLoaded()
     await user.click(continueButton())
     await screen.findByRole("button", { name: "Retry" })
 
@@ -869,7 +999,7 @@ describe("Activity selection settings", () => {
   it("sends the changed values and shows them on step 3", async () => {
     const user = userEvent.setup()
     const { lastCheck } = renderEchoingServer()
-    await screen.findByRole("button", { name: "Add Cycling" })
+    await categoriesLoaded()
     await replaceText("Duration (h)", "2.5")
     await replaceText("Min temperature (°C)", "18")
 
@@ -893,7 +1023,7 @@ describe("Activity selection settings", () => {
   it("keeps the values after going to step 1 and back", async () => {
     const user = userEvent.setup()
     renderEchoingServer()
-    await screen.findByRole("button", { name: "Add Cycling" })
+    await categoriesLoaded()
     await replaceText("Max wind (m/s)", "6.5")
 
     await user.click(screen.getByRole("link", { name: "Back" }))
@@ -912,7 +1042,7 @@ describe("Activity selection settings", () => {
   it("sends false after Requires daylight is cleared", async () => {
     const user = userEvent.setup()
     const { lastCheck } = renderEchoingServer()
-    await screen.findByRole("button", { name: "Add Cycling" })
+    await categoriesLoaded()
 
     await user.click(
       activityGroup("Cycling").getByRole("checkbox", {
@@ -936,7 +1066,7 @@ describe("Activity selection settings", () => {
     ["Max temperature (°C)", "-30 to 45"],
   ])("shows the range next to %s", async (label, hint) => {
     renderEchoingServer()
-    await screen.findByRole("button", { name: "Add Cycling" })
+    await categoriesLoaded()
 
     expect(
       activityGroup("Cycling").getByLabelText(label),
@@ -992,7 +1122,7 @@ describe("Activity selection settings", () => {
             }),
         })
         renderAppWithLocation("/plan/activities")
-        await screen.findByRole("button", { name: "Add Cycling" })
+        await categoriesLoaded()
         const field = await replaceText(label, text)
 
         await user.click(continueButton())
@@ -1027,7 +1157,7 @@ describe("Activity selection settings", () => {
         }),
     })
     renderAppWithLocation("/plan/activities")
-    await screen.findByRole("button", { name: "Add Cycling" })
+    await categoriesLoaded()
     const minimum = await replaceText("Min temperature (°C)", "30")
     const maximum = await replaceText("Max temperature (°C)", "20")
 

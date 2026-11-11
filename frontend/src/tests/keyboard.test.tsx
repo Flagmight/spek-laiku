@@ -10,6 +10,7 @@ import {
   routeFetch,
   signedInUser as routeSignedInUser,
 } from "./renderApp"
+import { openCategories } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
 
 // The visitor is signed out; every registration request gets the given answer.
@@ -411,7 +412,11 @@ describe("keyboard use of the Plan setup page", () => {
     stubPlanSetup()
     const user = userEvent.setup()
     renderApp("/plan/setup")
-    await waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Dates", { selector: "input" }),
+      ).toBeEnabled(),
+    )
 
     const expected = [
       screen.getByRole("link", { name: "Skip to main content" }),
@@ -421,7 +426,7 @@ describe("keyboard use of the Plan setup page", () => {
       screen.getByRole("link", { name: "Register" }),
       // Step 1 of the progress bar is the current page, so it has nothing to focus.
       screen.getByRole("combobox", { name: "Location" }),
-      screen.getByLabelText("Date"),
+      screen.getByLabelText("Dates", { selector: "input" }),
       screen.getByRole("button", { name: "Add date" }),
       screen.getByRole("button", { name: "Remove Sat 7 Nov 2026" }),
       screen.getByLabelText("Maximum travel distance (km)"),
@@ -438,7 +443,11 @@ describe("keyboard use of the Plan setup page", () => {
     const user = userEvent.setup()
     renderApp("/plan/setup")
     const location = await screen.findByRole("combobox", { name: "Location" })
-    await waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Dates", { selector: "input" }),
+      ).toBeEnabled(),
+    )
 
     location.focus()
     await user.keyboard("Kaun")
@@ -447,9 +456,9 @@ describe("keyboard use of the Plan setup page", () => {
     expect(location).toHaveValue("Kaunas, Kaunas County")
 
     await user.tab()
-    expect(screen.getByLabelText("Date")).toHaveFocus()
+    expect(screen.getByLabelText("Dates", { selector: "input" })).toHaveFocus()
     // The browser's own date picker fills the value; it is keyboard operable.
-    fireEvent.change(screen.getByLabelText("Date"), {
+    fireEvent.change(screen.getByLabelText("Dates", { selector: "input" }), {
       target: { value: "2026-11-07" },
     })
     await user.tab()
@@ -539,7 +548,7 @@ describe("keyboard use of the Activity selection page", () => {
     usePlanActivitiesStore.getState().add(kayaking)
     usePlanActivitiesStore.getState().add(museum)
     renderActivitySelection()
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
     const kayakingGroup = within(
       screen.getByRole("group", { name: "Kayaking" }),
     )
@@ -554,6 +563,7 @@ describe("keyboard use of the Activity selection page", () => {
       screen.getByRole("link", { name: "Register" }),
       screen.getByRole("link", { name: "Plan setup" }),
       screen.getByRole("link", { name: "Back" }),
+      screen.getByRole("button", { name: "Activity categories" }),
       screen.getByRole("button", { name: "Add Kayaking" }),
       screen.getByRole("button", { name: "Add Museum" }),
       kayakingGroup.getByLabelText("Duration (h)"),
