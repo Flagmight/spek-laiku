@@ -8,6 +8,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 export const dateInputId = "plan-date"
 const dateErrorId = "plan-date-error"
 const countId = "plan-dates-count"
+const legendId = "plan-dates-legend"
 
 interface PlanDatesFieldProps {
   // The error for the dates as a whole, from Continue (for example "Add at least one date.").
@@ -66,12 +67,13 @@ export function PlanDatesField({
 
   return (
     <fieldset className="form-field plan-dates">
-      <legend>Dates</legend>
+      <legend id={legendId}>Dates</legend>
       <div className="date-picker">
-        <label htmlFor={dateInputId}>Date</label>
+        {/* The legend is the picker's visible label; a second "Date" label would only repeat it (spec FR-021). */}
         <input
           ref={inputRef}
           id={dateInputId}
+          aria-labelledby={legendId}
           type="date"
           min={period?.firstDate}
           max={period?.lastDate}

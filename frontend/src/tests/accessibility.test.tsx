@@ -629,12 +629,20 @@ describe("Plan setup accessibility", () => {
     renderApp("/plan/setup")
     await screen.findByRole("heading", { level: 1, name: "Plan setup" })
 
-    for (const label of ["Location", "Date", "Maximum travel distance (km)"]) {
+    for (const label of ["Location", "Maximum travel distance (km)"]) {
       const input = screen.getByLabelText(label)
       const visibleLabel = document.querySelector(`label[for="${input.id}"]`)
       expect(visibleLabel).toHaveTextContent(label)
     }
-    expect(screen.getByRole("group", { name: "Dates" })).toBeInTheDocument()
+    // The date picker's visible label is the group's own "Dates" legend (feature 004 FR-021).
+    const dates = screen.getByRole("group", { name: "Dates" })
+    const datePicker = screen.getByLabelText("Dates")
+    const legend = document.getElementById(
+      datePicker.getAttribute("aria-labelledby") ?? "",
+    )
+    expect(legend?.tagName).toBe("LEGEND")
+    expect(legend).toHaveTextContent("Dates")
+    expect(dates).toContainElement(legend)
   })
 
   it("makes Location a combobox that points at its list and the highlighted place", async () => {
@@ -677,7 +685,7 @@ describe("Plan setup accessibility", () => {
     answer(jsonResponse(200, planPeriod))
     expect(await screen.findByText("1 date added")).toBeInTheDocument()
     const dates = screen.getByRole("group", { name: "Dates" })
-    expect(descriptionsOf(within(dates).getByLabelText("Date"))).toContain(
+    expect(descriptionsOf(within(dates).getByLabelText("Dates"))).toContain(
       "1 date added",
     )
   })
@@ -686,7 +694,7 @@ describe("Plan setup accessibility", () => {
     stubPlanSetup()
     const user = userEvent.setup()
     renderApp("/plan/setup")
-    await vi.waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+    await vi.waitFor(() => expect(screen.getByLabelText("Dates")).toBeEnabled())
     await user.clear(screen.getByLabelText("Maximum travel distance (km)"))
     await user.type(
       screen.getByLabelText("Maximum travel distance (km)"),
@@ -697,7 +705,7 @@ describe("Plan setup accessibility", () => {
 
     const expectations: [string, string][] = [
       ["Location", "Error: Select a location in Lithuania from the list."],
-      ["Date", "Error: Add at least one date."],
+      ["Dates", "Error: Add at least one date."],
       [
         "Maximum travel distance (km)",
         "Error: Enter a whole number between 1 and 200.",

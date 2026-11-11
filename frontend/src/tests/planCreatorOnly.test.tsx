@@ -199,11 +199,11 @@ describe("plan pages access", () => {
     const user = userEvent.setup()
     renderApp("/plan/setup")
     const location = await screen.findByRole("combobox", { name: "Location" })
-    await waitFor(() => expect(screen.getByLabelText("Date")).toBeEnabled())
+    await waitFor(() => expect(screen.getByLabelText("Dates")).toBeEnabled())
     await user.click(location)
     await user.paste("Kaun")
     await user.click(await screen.findByRole("option"))
-    fireEvent.change(screen.getByLabelText("Date"), {
+    fireEvent.change(screen.getByLabelText("Dates"), {
       target: { value: "2026-11-07" },
     })
     await user.click(screen.getByRole("button", { name: "Add date" }))

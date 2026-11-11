@@ -18,6 +18,10 @@
 - Q: Should the public location search be protected against being used to flood the location search service, or is that out of scope? → A: Protect it in this feature. Location searches and plan setup checks together are limited to 30 per minute per network address, with "Error: Too many requests. Wait a minute and try again." (FR-027).
 - Q (consistency analysis): Where are the date limits worked out? → A: Only on the server, because constitution principle I forbids duplicating business rules. The page gets the forecast period and the maximum number of dates from the server when it opens, and shows a loading and an error state for that (FR-010, User Story 2 scenario 9).
 
+### Session 2026-11-11 (Requirement Change)
+
+- Q (user testing): The Dates group shows its legend "Dates" and, right below it, the date picker's own label "Date". Is the second label needed? → A: No. The two words repeat each other. The date picker has no separate label; the visible "Dates" legend labels it, so screen readers still name it and every input keeps a visible label (FR-021).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Choose a location in Lithuania (Priority: P1)
@@ -216,7 +220,7 @@ As a user who uses a keyboard, a screen reader or a phone, I want to choose a lo
 **Page, accessibility and layout**
 
 - **FR-020**: The page MUST show a progress bar with the four steps "Plan setup", "Activities", "Places and forecast" and "Schedule", with step 1 marked as current; later steps MUST NOT be selectable. On phone-sized screens it MUST show "Step 1 of 4: Plan setup" with four segments.
-- **FR-021**: Location, the date picker, Dates and Maximum travel distance MUST have visible labels; Dates MUST be a labelled group; the suggestion list MUST be usable with the arrow keys, Enter and Escape; loading, success and error messages MUST be announced to screen readers; errors MUST NOT be shown by colour alone.
+- **FR-021**: Location, Dates and Maximum travel distance MUST have visible labels; Dates MUST be a labelled group, and its visible legend "Dates" MUST also label the date picker, with no second "Date" label; the suggestion list MUST be usable with the arrow keys, Enter and Escape; loading, success and error messages MUST be announced to screen readers; errors MUST NOT be shown by colour alone.
 - **FR-022**: The page MUST have exactly one main heading "Plan setup", the browser tab title "Plan setup - Spėk laiku", and "Skip to main content" as the first item reached with Tab.
 - **FR-023**: On desktop the maximum travel distance and date fields MUST be side by side with the date chips in a row; on phone-sized screens the fields MUST be stacked, chips MUST wrap, buttons MUST be full width, touch targets MUST be at least 44 × 44 px, input text at least 16 px, and the page MUST work at 320 px width without horizontal scrolling.
 
