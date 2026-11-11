@@ -604,7 +604,7 @@ description: "Task list for feature 004 Plan Location and Dates"
 
 **Purpose**: Remove the repeated "Date" label under the "Dates" legend, found in user testing (spec FR-021, Clarifications Session 2026-11-11). Behaviour, messages and focus stay the same.
 
-- [X] T079 In `frontend/src/components/planDatesField.tsx`, remove the date picker's `<label>` and label the input with the legend through `aria-labelledby`. Update the frontend tests that find the date picker by the label "Date" to use "Dates", and add a test that the Dates group shows no separate "Date" label.
+- [X] T079 In `frontend/src/components/planDatesField.tsx`, replace the legend and the "Date" label with one `<label>` "Dates" for the date picker, and name the fieldset with it through `aria-labelledby`, so a click on "Dates" still focuses the picker. Update the frontend tests that find the date picker by the label "Date" to use "Dates", and add a test that the Dates group has only that one label.
 - [X] T080 Run frontend lint, format check, tests and production build.
 
 ---

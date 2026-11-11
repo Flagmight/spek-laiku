@@ -357,7 +357,9 @@ async function renderPlanSetupWithChip() {
       }),
   })
   renderApp("/plan/setup")
-  await vi.waitFor(() => expect(screen.getByLabelText("Dates")).toBeEnabled())
+  await vi.waitFor(() =>
+    expect(screen.getByLabelText("Dates", { selector: "input" })).toBeEnabled(),
+  )
 }
 
 describe("Plan setup page at 320 px", () => {
@@ -423,7 +425,9 @@ describe("Plan setup page at 320 px", () => {
       minimumTarget,
     )
     for (const label of ["Location", "Dates", "Maximum travel distance (km)"]) {
-      const style = getComputedStyle(screen.getByLabelText(label))
+      const style = getComputedStyle(
+        screen.getByLabelText(label, { selector: "input" }),
+      )
       expect(px(style.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
       expect(px(style.minHeight)).toBeGreaterThanOrEqual(minimumTarget)
     }

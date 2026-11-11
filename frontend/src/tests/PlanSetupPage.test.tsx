@@ -238,7 +238,7 @@ describe("Plan setup page: location", () => {
 })
 
 function dateInput() {
-  return screen.getByLabelText("Dates")
+  return screen.getByLabelText("Dates", { selector: "input" })
 }
 
 // Picks a date the way the browser's date picker reports it: as a yyyy-MM-dd value.
@@ -345,14 +345,18 @@ describe("Plan setup page: dates", () => {
     ])
   })
 
-  it("labels the date picker with the Dates legend only, with no second Date label", async () => {
+  it("names the group and the date picker with one Dates label, with no second Date label", async () => {
+    const user = userEvent.setup()
     renderPlanSetup()
     await waitFor(() => expect(dateInput()).toBeEnabled())
 
     const group = screen.getByRole("group", { name: "Dates" })
     expect(dateInput()).toHaveAccessibleName("Dates")
-    expect(group.querySelector("label")).toBeNull()
+    expect(group.querySelectorAll("label, legend")).toHaveLength(1)
     expect(within(group).queryByText("Date")).toBeNull()
+
+    await user.click(within(group).getByText("Dates"))
+    expect(dateInput()).toHaveFocus()
   })
 
   it("removes a date, announces it and moves focus back to the date picker", async () => {

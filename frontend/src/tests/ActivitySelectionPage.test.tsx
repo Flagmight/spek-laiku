@@ -399,11 +399,31 @@ describe("Activity selection category list opens and closes", () => {
     expect(screen.getByText("Kayaking added.")).toBeVisible()
   })
 
-  it("shows no search field with 8 categories or fewer", async () => {
-    render()
+  it("shows no search field with exactly 8 categories", async () => {
+    render("/plan/activities", () =>
+      jsonResponse(200, {
+        ...manyCategories,
+        categories: manyCategories.categories.slice(0, 8),
+      }),
+    )
 
-    await categoriesLoaded()
+    expect(await categoriesLoaded()).toHaveLength(8)
     expect(screen.queryByLabelText("Search activities")).toBeNull()
+  })
+
+  it("starts from the full list again when the list reopens after the last Remove", async () => {
+    const user = userEvent.setup()
+    render("/plan/activities", () => jsonResponse(200, manyCategories))
+    await categoriesLoaded()
+    await user.type(screen.getByLabelText("Search activities"), "kay")
+    await user.click(screen.getByRole("button", { name: "Add Kayaking" }))
+    await user.click(categoriesToggle())
+
+    await user.click(screen.getByRole("button", { name: "Remove Kayaking" }))
+
+    expect(categoriesToggle()).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByLabelText("Search activities")).toHaveValue("")
+    expect(addButtons()).toHaveLength(9)
   })
 
   it("filters the categories by name with more than 8, ignoring case", async () => {
@@ -427,7 +447,7 @@ describe("Activity selection category list opens and closes", () => {
 
     expect(
       screen.getByText("No activities match your search."),
-    ).toBeInTheDocument()
+    ).toHaveAttribute("role", "status")
     expect(
       within(categoriesRegion()).queryAllByRole("button", { name: /^Add / }),
     ).toHaveLength(0)

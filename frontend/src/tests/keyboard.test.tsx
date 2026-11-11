@@ -412,7 +412,11 @@ describe("keyboard use of the Plan setup page", () => {
     stubPlanSetup()
     const user = userEvent.setup()
     renderApp("/plan/setup")
-    await waitFor(() => expect(screen.getByLabelText("Dates")).toBeEnabled())
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Dates", { selector: "input" }),
+      ).toBeEnabled(),
+    )
 
     const expected = [
       screen.getByRole("link", { name: "Skip to main content" }),
@@ -422,7 +426,7 @@ describe("keyboard use of the Plan setup page", () => {
       screen.getByRole("link", { name: "Register" }),
       // Step 1 of the progress bar is the current page, so it has nothing to focus.
       screen.getByRole("combobox", { name: "Location" }),
-      screen.getByLabelText("Dates"),
+      screen.getByLabelText("Dates", { selector: "input" }),
       screen.getByRole("button", { name: "Add date" }),
       screen.getByRole("button", { name: "Remove Sat 7 Nov 2026" }),
       screen.getByLabelText("Maximum travel distance (km)"),
@@ -439,7 +443,11 @@ describe("keyboard use of the Plan setup page", () => {
     const user = userEvent.setup()
     renderApp("/plan/setup")
     const location = await screen.findByRole("combobox", { name: "Location" })
-    await waitFor(() => expect(screen.getByLabelText("Dates")).toBeEnabled())
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText("Dates", { selector: "input" }),
+      ).toBeEnabled(),
+    )
 
     location.focus()
     await user.keyboard("Kaun")
@@ -448,9 +456,9 @@ describe("keyboard use of the Plan setup page", () => {
     expect(location).toHaveValue("Kaunas, Kaunas County")
 
     await user.tab()
-    expect(screen.getByLabelText("Dates")).toHaveFocus()
+    expect(screen.getByLabelText("Dates", { selector: "input" })).toHaveFocus()
     // The browser's own date picker fills the value; it is keyboard operable.
-    fireEvent.change(screen.getByLabelText("Dates"), {
+    fireEvent.change(screen.getByLabelText("Dates", { selector: "input" }), {
       target: { value: "2026-11-07" },
     })
     await user.tab()

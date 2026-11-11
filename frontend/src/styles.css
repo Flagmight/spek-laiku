@@ -342,7 +342,8 @@ fieldset.form-field legend {
   align-items: center;
   gap: 8px;
   width: 100%;
-  border-color: #9aa5b1;
+  /* At least 3:1 against the fill and the page, so the bar reads as a button (WCAG 1.4.11). */
+  border-color: #52606d;
   background: #f5f7fa;
   color: #1f2933;
   font-size: inherit;

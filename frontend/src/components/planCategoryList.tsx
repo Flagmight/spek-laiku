@@ -14,12 +14,6 @@ const searchId = "plan-categories-search"
 // business rule, so it lives in the browser.
 const searchFrom = 9
 
-function matches(category: PlanCategory, search: string) {
-  return category.name
-    .toLocaleLowerCase()
-    .includes(search.trim().toLocaleLowerCase())
-}
-
 // The categories to pick from (spec FR-003 to FR-006, FR-023), in a list that opens and closes. The
 // limit comes only from the server, so the browser holds no copy of it (constitution I).
 export function PlanCategoryList() {
@@ -37,15 +31,24 @@ export function PlanCategoryList() {
   if (seenCount !== activityCount) {
     setSeenCount(activityCount)
     if (activityCount === 0) {
-      setOpen(true)
+      toggle(true)
     }
   }
 
   const atLimit = maxActivities !== null && activityCount >= maxActivities
   const showSearch = categories.length >= searchFrom
+  const needle = search.trim().toLocaleLowerCase()
   const shown = showSearch
-    ? categories.filter((category) => matches(category, search))
+    ? categories.filter((category) =>
+        category.name.toLocaleLowerCase().includes(needle),
+      )
     : categories
+
+  // Every opening starts from the full list, so an old search never hides categories.
+  function toggle(next: boolean) {
+    setOpen(next)
+    setSearch("")
+  }
 
   function add(category: PlanCategory) {
     usePlanActivitiesStore.getState().add(category)
@@ -70,7 +73,7 @@ export function PlanCategoryList() {
           className="disclosure-toggle"
           aria-expanded={open}
           aria-controls={panelId}
-          onClick={() => setOpen(!open)}
+          onClick={() => toggle(!open)}
         >
           Activity categories
           <span className="disclosure-icon" aria-hidden="true">
@@ -110,8 +113,11 @@ export function PlanCategoryList() {
             />
           </div>
         )}
-        {showSearch && shown.length === 0 && (
-          <p>No activities match your search.</p>
+        {/* Always rendered with the search field, so screen readers announce the text when it appears. */}
+        {showSearch && (
+          <p role="status">
+            {shown.length === 0 ? "No activities match your search." : ""}
+          </p>
         )}
         {shown.length > 0 && (
           <ul className="category-list">

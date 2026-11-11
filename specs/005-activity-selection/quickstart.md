@@ -34,7 +34,7 @@ The frontend tests must cover:
 
 - The Activity selection step states: "Loading activity categories…", the categories in order with type and duration, the categories error with Retry while the activities stay visible, "No activity categories are available yet.", and "No activities added yet. Select at least one category to continue.".
 - Add: the defaults filled in, "<name> added." announced, the same category twice shown as "Cycling 1" and "Cycling 2", Indoor without weather fields, and all Add buttons disabled at 10 with "You can add up to 10 activities.".
-- Remove: the announcement, focus on the next activity's heading or the categories list, numbering going back to "Cycling", and adding again starting from the defaults.
+- Remove: the announcement, focus on the next activity's heading or, with none left, on the "Activity categories" button with the list open again, numbering going back to "Cycling", and adding again starting from the defaults.
 - Settings and Continue: "Error: Add at least one activity." without a request; "Checking your activities…" with Continue disabled; field and activity errors from the server shown next to the right activity after another one was removed; the error summary with links and focus on the first invalid field; server error and timeout with Retry; an answer for changed activities not kept.
 - Step 3: the setup and activity summary, Back, and the progress links; the redirects without a checked setup or checked activities.
 - The activities store kept in `sessionStorage` across a reload and a login, cleared on logout, kept when the setup changes, and unchecked on any change.
@@ -57,3 +57,4 @@ Start the database, the API and the frontend as in `README.md`, then open the ad
 9. As an Administrator, open `/plan/activities` and `/plan/places`: both show Access denied. As a Suspended user, both go to Account suspended.
 10. Stop the database container and reload Activity selection: "Error: Activity categories could not be loaded." with Retry, and the added activities are still shown. Start the container again and select **Retry**.
 11. At 320 px width with the keyboard only, add two activities, change one setting, remove one and continue, without horizontal scrolling.
+12. With activities in the plan, reload Activity selection: the category list is closed and **Activity categories** opens it; it stays open after **Add**. Remove every activity: the list opens again with focus on **Activity categories**. As an Administrator, add categories until there are 9: **Search activities** appears, filters by name, shows "No activities match your search." for text that matches nothing, and is empty again each time the list opens.

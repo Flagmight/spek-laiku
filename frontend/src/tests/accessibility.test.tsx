@@ -630,20 +630,18 @@ describe("Plan setup accessibility", () => {
     renderApp("/plan/setup")
     await screen.findByRole("heading", { level: 1, name: "Plan setup" })
 
-    for (const label of ["Location", "Maximum travel distance (km)"]) {
-      const input = screen.getByLabelText(label)
+    for (const label of ["Location", "Dates", "Maximum travel distance (km)"]) {
+      const input = screen.getByLabelText(label, { selector: "input" })
       const visibleLabel = document.querySelector(`label[for="${input.id}"]`)
       expect(visibleLabel).toHaveTextContent(label)
     }
-    // The date picker's visible label is the group's own "Dates" legend (feature 004 FR-021).
+    // The same "Dates" label also names the group (feature 004 FR-021).
     const dates = screen.getByRole("group", { name: "Dates" })
-    const datePicker = screen.getByLabelText("Dates")
-    const legend = document.getElementById(
-      datePicker.getAttribute("aria-labelledby") ?? "",
+    expect(dates).toContainElement(
+      document.querySelector(
+        `label[for="${screen.getByLabelText("Dates", { selector: "input" }).id}"]`,
+      ),
     )
-    expect(legend?.tagName).toBe("LEGEND")
-    expect(legend).toHaveTextContent("Dates")
-    expect(dates).toContainElement(legend)
   })
 
   it("makes Location a combobox that points at its list and the highlighted place", async () => {
@@ -686,16 +684,22 @@ describe("Plan setup accessibility", () => {
     answer(jsonResponse(200, planPeriod))
     expect(await screen.findByText("1 date added")).toBeInTheDocument()
     const dates = screen.getByRole("group", { name: "Dates" })
-    expect(descriptionsOf(within(dates).getByLabelText("Dates"))).toContain(
-      "1 date added",
-    )
+    expect(
+      descriptionsOf(
+        within(dates).getByLabelText("Dates", { selector: "input" }),
+      ),
+    ).toContain("1 date added")
   })
 
   it("ties each error to its field, marks the field invalid and starts it with 'Error: '", async () => {
     stubPlanSetup()
     const user = userEvent.setup()
     renderApp("/plan/setup")
-    await vi.waitFor(() => expect(screen.getByLabelText("Dates")).toBeEnabled())
+    await vi.waitFor(() =>
+      expect(
+        screen.getByLabelText("Dates", { selector: "input" }),
+      ).toBeEnabled(),
+    )
     await user.clear(screen.getByLabelText("Maximum travel distance (km)"))
     await user.type(
       screen.getByLabelText("Maximum travel distance (km)"),
@@ -713,7 +717,7 @@ describe("Plan setup accessibility", () => {
       ],
     ]
     for (const [label, message] of expectations) {
-      const field = screen.getByLabelText(label)
+      const field = screen.getByLabelText(label, { selector: "input" })
       expect(field).toHaveAttribute("aria-invalid", "true")
       expect(descriptionsOf(field)).toContain(message)
     }
