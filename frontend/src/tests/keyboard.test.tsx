@@ -10,6 +10,7 @@ import {
   routeFetch,
   signedInUser as routeSignedInUser,
 } from "./renderApp"
+import { openCategories } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
 
 // The visitor is signed out; every registration request gets the given answer.
@@ -539,7 +540,7 @@ describe("keyboard use of the Activity selection page", () => {
     usePlanActivitiesStore.getState().add(kayaking)
     usePlanActivitiesStore.getState().add(museum)
     renderActivitySelection()
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
     const kayakingGroup = within(
       screen.getByRole("group", { name: "Kayaking" }),
     )
@@ -554,6 +555,7 @@ describe("keyboard use of the Activity selection page", () => {
       screen.getByRole("link", { name: "Register" }),
       screen.getByRole("link", { name: "Plan setup" }),
       screen.getByRole("link", { name: "Back" }),
+      screen.getByRole("button", { name: "Activity categories" }),
       screen.getByRole("button", { name: "Add Kayaking" }),
       screen.getByRole("button", { name: "Add Museum" }),
       kayakingGroup.getByLabelText("Duration (h)"),

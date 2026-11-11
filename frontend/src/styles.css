@@ -329,6 +329,36 @@ fieldset.form-field legend {
 }
 
 /*
+  A heading that opens and closes the list below it (feature 005 FR-023). Two classes, so it stays full
+  width on desktop, where the step's other buttons shrink to their text.
+*/
+.disclosure-heading {
+  margin-bottom: 8px;
+}
+
+.disclosure-heading .disclosure-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border-color: #9aa5b1;
+  background: #f5f7fa;
+  color: #1f2933;
+  font-size: inherit;
+  font-weight: inherit;
+  text-align: left;
+}
+
+.disclosure-icon {
+  color: #52606d;
+}
+
+.category-search {
+  margin-bottom: 8px;
+}
+
+/*
   Plan steps (spec FR-020). On phones the compact "Step n of 4" line with four segments is shown and
   the list of steps is hidden visually but still read by screen readers; it reappears while a link in
   it has keyboard focus, so focus is never on something invisible.

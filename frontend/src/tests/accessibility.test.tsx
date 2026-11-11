@@ -11,6 +11,7 @@ import {
   signedInUser,
   stubFetch,
 } from "./renderApp"
+import { openCategories } from "./planCategories"
 import {
   daylightActivityForecast,
   forecastDay,
@@ -512,7 +513,7 @@ describe("Activity selection accessibility", () => {
   it("names the activity in every Add and Remove button", async () => {
     addBoth()
     renderActivities()
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
 
     for (const name of [
       "Add Kayaking",
@@ -581,7 +582,7 @@ describe("Activity selection accessibility", () => {
   it("announces an empty plan in an alert", async () => {
     const user = userEvent.setup()
     renderActivities()
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
 
     await user.click(screen.getByRole("button", { name: "Continue" }))
 
@@ -603,7 +604,7 @@ describe("Activity selection accessibility", () => {
           },
         }),
     )
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
 
     await user.click(screen.getByRole("button", { name: "Continue" }))
 

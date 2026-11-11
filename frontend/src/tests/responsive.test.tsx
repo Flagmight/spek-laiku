@@ -6,6 +6,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import styles from "../styles.css?inline"
 import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
+import { openCategories } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
 
 // jsdom applies stylesheet rules but does no layout, so these tests check the CSS rules
@@ -523,7 +524,7 @@ describe("Activity selection at 320 px", () => {
 
   it("makes Add, Remove and Continue full width", async () => {
     await renderActivitySelection()
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
 
     for (const name of ["Add Kayaking", "Remove Kayaking", "Continue"]) {
       const button = screen.getByRole("button", { name })
@@ -541,7 +542,7 @@ describe("Activity selection at 320 px", () => {
 
   it("makes every link and button a 44 × 44 px target", async () => {
     await renderActivitySelection()
-    await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
 
     for (const target of [
       ...screen.getAllByRole("link"),
@@ -556,7 +557,8 @@ describe("Activity selection at 320 px", () => {
       jsonResponse(200, { categories: [kayaking], maxActivities: 1 }),
     )
 
-    const add = await screen.findByRole("button", { name: "Add Kayaking" })
+    await openCategories()
+    const add = screen.getByRole("button", { name: "Add Kayaking" })
     await vi.waitFor(() => expect(add).toBeDisabled())
     expect(getComputedStyle(add).backgroundColor).toBe("rgb(154, 165, 177)")
   })

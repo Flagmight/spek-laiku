@@ -12,6 +12,7 @@ import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import type { PlanActivityErrors } from "../types/planActivity"
 import { ErrorSummary } from "./errorSummary"
 import { PlanActivitySettings } from "./planActivitySettings"
+import { categoriesToggleId } from "./planCategoryList"
 
 const noErrors: PlanActivityErrors = { byActivity: {} }
 const noActivityErrors = {}
@@ -52,11 +53,10 @@ export function PlanActivitiesForm() {
       activityCount: activities.length - 1,
     }))
     // Both targets stay on the page while the removed activity goes, so focus can move straight away.
+    // With none left, the category list opens by itself (spec FR-023).
     document
       .getElementById(
-        neighbour
-          ? `activity-${neighbour.id}-heading`
-          : "plan-categories-heading",
+        neighbour ? `activity-${neighbour.id}-heading` : categoriesToggleId,
       )
       ?.focus()
   }

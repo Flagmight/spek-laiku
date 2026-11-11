@@ -405,6 +405,17 @@ description: "Task list for feature 005 Activity Selection and Limits"
 
 ---
 
+## Phase 11: Category List Opens and Closes (Requirement Change 2026-11-11)
+
+**Purpose**: Keep the category list short on screen as administrators add categories, found in user testing (spec FR-023, User Story 1 scenario 9, Clarifications Session 2026-11-11). Adding, the limit, messages and the server check stay the same.
+
+- [X] T061 In `frontend/src/components/planCategoryList.tsx`, make the "Activity categories" heading a button with `aria-expanded` and `aria-controls` that opens and closes the list. Start open with no activities, stay open after "Add", and open when the activity count drops to 0. Keep the loading, error, empty, limit and added messages outside the list. With more than 8 categories, show a labelled "Search activities" field and "No activities match your search.".
+- [X] T062 In `frontend/src/components/planActivitiesForm.tsx` and `planCategoryList.tsx`, move focus to the "Activity categories" button instead of the heading when the last activity is removed or the limit is reached. Add the button and search field styles to `frontend/src/styles.css`, with 44 × 44 px targets on phones.
+- [X] T063 Add frontend tests: open with no activities, closed with activities, toggling and `aria-expanded`, staying open after "Add", reopening after the last "Remove" with focus on the button, messages visible while closed, and the search field (shown only above 8 categories, filtering, no match). Update existing tests that add categories when the plan already has activities.
+- [X] T064 Run frontend lint, format check, tests and production build.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
