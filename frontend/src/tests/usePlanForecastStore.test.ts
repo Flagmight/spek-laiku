@@ -239,6 +239,33 @@ describe("usePlanForecastStore failures", () => {
     expect(store().status).toBe("loaded")
   })
 
+  it("is retrying, not loading, while Retry runs, and runs only one request at a time", async () => {
+    const { fetchMock, pending } = stubPendingRequests()
+    let load: Promise<void> = Promise.resolve()
+    act(() => {
+      load = store().load(setup, activities)
+    })
+    await act(async () => {
+      pending[0].resolve(jsonResponse(500))
+      await load
+    })
+
+    let retry: Promise<void> = Promise.resolve()
+    act(() => {
+      retry = store().retry()
+      void store().load(setup, activities)
+      void store().retry()
+    })
+    expect(store().status).toBe("retrying")
+
+    await act(async () => {
+      pending[1].resolve(jsonResponse(200, planForecast(["2026-11-14"], 1)))
+      await retry
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(store().status).toBe("loaded")
+  })
+
   it("does nothing on Retry before any request", async () => {
     const { fetchMock } = routeFetch({})
 

@@ -12,6 +12,13 @@ import {
   forecastDay,
   planForecast,
 } from "./forecastFixtures"
+import { openStreetMapLink } from "../helpers/openStreetMapLink"
+import {
+  answerPlaces,
+  lampedziai,
+  nemunoSlipway,
+  planPlaces,
+} from "./placesFixtures"
 import { jsonResponse, renderAppWithLocation, routeFetch } from "./renderApp"
 import type { RecordedRequest } from "./renderApp"
 
@@ -85,12 +92,14 @@ function acceptActivities(...categories: PlanCategory[]) {
 
 type Handler = (request: RecordedRequest) => Response | Promise<Response>
 
-// By default the forecast is answered for the checked dates, every activity suitable in daylight.
+// By default the forecast is answered for the checked dates, every activity suitable in daylight, and every
+// category has two places.
 function render(
   answer: Handler = answerForecast,
   moreRoutes: Record<string, Handler> = {},
 ) {
   const routes = routeFetch({
+    "POST /api/plan-places": answerPlaces,
     ...moreRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
@@ -159,6 +168,7 @@ describe("Places and forecast page (first version)", () => {
     acceptActivities(cycling, museum)
     render()
     await heading("Places and forecast")
+    await screen.findByText("Places updated at 14:05")
 
     expect(
       screen.getByText(
@@ -185,6 +195,7 @@ describe("Places and forecast page (first version)", () => {
     acceptActivities(cycling, museum, cycling)
     render()
     await heading("Places and forecast")
+    await screen.findByText("Places updated at 14:05")
 
     const [first, , second] = activityItems()
     expect(first).toHaveTextContent("Cycling 1")
@@ -236,21 +247,23 @@ describe("Places and forecast page (first version)", () => {
 
 describe("Places and forecast page: the forecast", () => {
   function status() {
-    return screen.getByRole("status", { name: "Forecast" })
+    return screen.getByRole("status", { name: "Places and forecast" })
   }
 
   function activityRegion(name: string) {
     return screen.getByRole("region", { name })
   }
 
-  it("shows 'Getting the forecast…' while loading and asks only once", async () => {
+  it("shows 'Getting the forecast and nearby places…' while loading and asks only once", async () => {
     acceptSetup()
     acceptActivities(cycling)
     const { requests } = render(() => new Promise<Response>(() => {}))
     await heading("Places and forecast")
 
     await waitFor(() =>
-      expect(status()).toHaveTextContent("Getting the forecast…"),
+      expect(status()).toHaveTextContent(
+        "Getting the forecast and nearby places…",
+      ),
     )
     expect(forecastRequests(requests)).toHaveLength(1)
     expect(forecastRequests(requests)[0].body).toEqual({
@@ -437,9 +450,12 @@ describe("Places and forecast page: the forecast", () => {
     expect(region).toHaveTextContent(
       "Weather does not affect this indoor activity. Every hour from 06:00 to 22:00 is suitable.",
     )
+    // No date entries: the only level 3 heading is the activity's "Places" (feature 007 FR-017).
     expect(
-      within(region).queryByRole("heading", { level: 3 }),
-    ).not.toBeInTheDocument()
+      within(region)
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Places"])
     expect(region).not.toHaveTextContent("Sunrise")
   })
 })
@@ -611,7 +627,7 @@ describe("Places and forecast page: the hours of a date", () => {
 
 describe("Places and forecast page: when the forecast cannot be shown", () => {
   function forecastStatus() {
-    return screen.getByRole("status", { name: "Forecast" })
+    return screen.getByRole("status", { name: "Places and forecast" })
   }
 
   it.each([
@@ -702,7 +718,9 @@ describe("Places and forecast page: when the forecast cannot be shown", () => {
       },
     )
     await waitFor(() =>
-      expect(forecastStatus()).toHaveTextContent("Getting the forecast…"),
+      expect(forecastStatus()).toHaveTextContent(
+        "Getting the forecast and nearby places…",
+      ),
     )
 
     await user.click(screen.getByRole("link", { name: "Back" }))
@@ -781,5 +799,230 @@ describe("Places and forecast page: when the plan is out of date", () => {
     expect(
       await screen.findByText("Error: Something went wrong. Try again."),
     ).toBeInTheDocument()
+  })
+})
+
+describe("Places and forecast page: the places", () => {
+  function status() {
+    return screen.getByRole("status", { name: "Places and forecast" })
+  }
+
+  function placesRequests(requests: RecordedRequest[]) {
+    return requests.filter((request) => request.path === "/api/plan-places")
+  }
+
+  // The activity's list of places, the list right after its "Places" heading.
+  function placesList(activityName: string) {
+    const region = within(screen.getByRole("region", { name: activityName }))
+    const placesHeading = region.getByRole("heading", {
+      level: 3,
+      name: "Places",
+    })
+    return placesHeading.nextElementSibling as HTMLElement
+  }
+
+  // A request that waits until the test answers it.
+  function deferred() {
+    let answer: (response: Response) => void = () => {}
+    const handler = () =>
+      new Promise<Response>((resolve) => {
+        answer = resolve
+      })
+    return { handler, answer: (response: Response) => answer(response) }
+  }
+
+  it.each(["places", "forecast"])(
+    "shows only the loading message until both have answered, when the %s answer first",
+    async (first) => {
+      acceptSetup()
+      acceptActivities(cycling)
+      const forecast = deferred()
+      const places = deferred()
+      const { requests } = render(forecast.handler, {
+        "POST /api/plan-places": places.handler,
+      })
+      await waitFor(() =>
+        expect(status()).toHaveTextContent(
+          "Getting the forecast and nearby places…",
+        ),
+      )
+      await waitFor(() => expect(placesRequests(requests)).toHaveLength(1))
+
+      const forecastAnswer = jsonResponse(200, planForecast(["2026-11-07"], 1))
+      const placesAnswer = jsonResponse(200, planPlaces(["category-cycling"]))
+      if (first === "places") {
+        places.answer(placesAnswer)
+      } else {
+        forecast.answer(forecastAnswer)
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(status()).toHaveTextContent(
+        "Getting the forecast and nearby places…",
+      )
+      expect(
+        screen.queryByRole("list", { name: "Plan activities" }),
+      ).not.toBeInTheDocument()
+      expect(screen.queryByText(/updated at/)).not.toBeInTheDocument()
+      expect(screen.queryByText("Nemuno slipway")).not.toBeInTheDocument()
+      expect(screen.queryByText(/Suitable hours/)).not.toBeInTheDocument()
+
+      if (first === "places") {
+        forecast.answer(forecastAnswer)
+      } else {
+        places.answer(placesAnswer)
+      }
+      expect(await screen.findByText("Nemuno slipway")).toBeInTheDocument()
+      expect(screen.getByText(/Suitable hours/)).toBeInTheDocument()
+      expect(status()).not.toHaveTextContent("Getting")
+    },
+  )
+
+  it("asks once for each, both with the checked setup and activities", async () => {
+    acceptSetup()
+    acceptActivities(cycling, museum)
+    const { requests } = render()
+    await screen.findByText("Places updated at 14:05")
+
+    expect(forecastRequests(requests)).toHaveLength(1)
+    expect(placesRequests(requests)).toHaveLength(1)
+    expect(placesRequests(requests)[0].body).toEqual(
+      forecastRequests(requests)[0].body,
+    )
+    expect(placesRequests(requests)[0].body).toMatchObject({
+      setup: {
+        locationId: 598316,
+        dates: ["2026-11-07"],
+        maxTravelDistanceKm: 30,
+      },
+      activities: [
+        { categoryId: "category-cycling", type: "Outdoor" },
+        { categoryId: "category-museum", type: "Indoor" },
+      ],
+    })
+  })
+
+  it("lists each activity's places with name, distance, area and a map link", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    render()
+    await screen.findByText("Places updated at 14:05")
+
+    const [first, second] = within(placesList("Cycling")).getAllByRole(
+      "listitem",
+    )
+    expect(first).toHaveTextContent("Nemuno slipway")
+    expect(first).toHaveTextContent("3.4 km away · Kaunas")
+    expect(second).toHaveTextContent("Lampėdžių valčių nuleidimo vieta")
+    expect(second).toHaveTextContent("4.1 km away")
+    expect(second).not.toHaveTextContent("·")
+
+    const link = within(first).getByRole("link", { name: /View on map/ })
+    expect(link).toHaveTextContent("View on map")
+    expect(link).toHaveAttribute(
+      "href",
+      openStreetMapLink(nemunoSlipway.latitude, nemunoSlipway.longitude),
+    )
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveAttribute("rel", "noopener noreferrer")
+  })
+
+  it("lists the same places for two activities of the same category", async () => {
+    acceptSetup()
+    acceptActivities(cycling, museum, cycling)
+    render(answerForecast, {
+      "POST /api/plan-places": () =>
+        jsonResponse(
+          200,
+          planPlaces(
+            ["category-cycling", "category-museum"],
+            {},
+            { "category-museum": [lampedziai] },
+          ),
+        ),
+    })
+    await screen.findByText("Places updated at 14:05")
+
+    const names = (activityName: string) =>
+      within(placesList(activityName))
+        .getAllByRole("listitem")
+        .map((item) => item.querySelector(".place-name")?.textContent)
+    expect(names("Cycling 1")).toEqual([
+      "Nemuno slipway",
+      "Lampėdžių valčių nuleidimo vieta",
+    ])
+    expect(names("Cycling 2")).toEqual(names("Cycling 1"))
+    expect(names("Museum")).toEqual(["Lampėdžių valčių nuleidimo vieta"])
+  })
+
+  it("says when the places and the forecast were received", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    render(answerForecast, {
+      "POST /api/plan-places": () =>
+        jsonResponse(
+          200,
+          planPlaces(["category-cycling"], { updatedAt: "09:30" }),
+        ),
+    })
+
+    expect(
+      await screen.findByText("Places updated at 09:30"),
+    ).toBeInTheDocument()
+    expect(status()).toHaveTextContent("Forecast updated at 14:05")
+    expect(status()).toHaveTextContent("Places updated at 09:30")
+  })
+
+  it("keeps no place in the browser session", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    render()
+    await screen.findByText("Places updated at 14:05")
+
+    const saved = Object.keys(sessionStorage)
+      .map((key) => sessionStorage.getItem(key) ?? "")
+      .join("\n")
+    expect(saved).not.toContain("Nemuno slipway")
+    expect(saved).not.toContain("Lampėdžių")
+  })
+
+  it("asks for the places again when the step is opened again", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const user = userEvent.setup()
+    const { requests } = render(answerForecast, {
+      "POST /api/plan-activities/check": (request) =>
+        jsonResponse(200, {
+          activities: (
+            request.body as { activities: Record<string, unknown>[] }
+          ).activities.map((activity) => ({ ...activity, name: "Cycling" })),
+        }),
+    })
+    await screen.findByText("Places updated at 14:05")
+
+    await user.click(screen.getByRole("link", { name: "Back" }))
+    await heading("Activity selection")
+    await user.click(screen.getByRole("button", { name: "Continue" }))
+    await heading("Places and forecast")
+
+    await screen.findByText("Places updated at 14:05")
+    expect(placesRequests(requests)).toHaveLength(2)
+  })
+
+  it("still shows the places when the forecast fails, with the forecast's Retry", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    render(() => jsonResponse(503, { status: 503, service: "forecast" }))
+
+    await waitFor(() =>
+      expect(status()).toHaveTextContent(
+        "Error: The weather service is unavailable. No forecast is shown.",
+      ),
+    )
+    expect(
+      within(status()).getByRole("button", { name: "Retry" }),
+    ).toBeInTheDocument()
+    expect(status()).toHaveTextContent("Places updated at 14:05")
+    expect(screen.getByText("Nemuno slipway")).toBeInTheDocument()
   })
 })

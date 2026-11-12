@@ -8,6 +8,7 @@ import type { CheckedPlanSetup, PlanLocation } from "../types/planSetup"
 import { jsonResponse, renderAppWithLocation, routeFetch } from "./renderApp"
 import { categoriesLoaded } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
+import { placesRoutes } from "./placesFixtures"
 
 const kaunas: PlanLocation = {
   id: 598316,
@@ -82,6 +83,7 @@ function render(
 ) {
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -633,6 +635,7 @@ describe("Activity selection Continue", () => {
   ) {
     const { requests } = routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": categoriesAnswer,
       [checkRoute]: check,
@@ -956,6 +959,7 @@ describe("Activity selection settings", () => {
   function renderEchoingServer() {
     const { requests } = routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
         jsonResponse(200, {
@@ -1113,6 +1117,7 @@ describe("Activity selection settings", () => {
         const user = userEvent.setup()
         const { requests } = routeFetch({
           ...forecastRoutes,
+          ...placesRoutes,
           "GET /api/auth/me": () => jsonResponse(401),
           "GET /api/plan-activities/categories": () =>
             jsonResponse(200, categoryList),
@@ -1148,6 +1153,7 @@ describe("Activity selection settings", () => {
       "Minimum temperature must be lower than maximum temperature."
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": () =>
         jsonResponse(200, categoryList),
@@ -1262,6 +1268,7 @@ describe("Activity selection: 'checked again' notice", () => {
   function renderWith(check: () => Response | Promise<Response>) {
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
         jsonResponse(200, {

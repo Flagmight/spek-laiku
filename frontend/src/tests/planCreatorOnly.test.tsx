@@ -13,6 +13,7 @@ import {
   signedInUser,
 } from "./renderApp"
 import { forecastRoutes } from "./forecastFixtures"
+import { placesRoutes } from "./placesFixtures"
 
 const period = { firstDate: "2026-11-04", lastDate: "2026-11-10", maxDates: 7 }
 
@@ -41,6 +42,7 @@ function planRequests(requests: { path: string }[]) {
 function stubUser(user: CurrentUser | null) {
   return routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () =>
       user ? jsonResponse(200, user) : jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, period),
@@ -160,6 +162,7 @@ describe("plan pages access", () => {
     let administrator = false
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(
           200,
@@ -182,6 +185,7 @@ describe("plan pages access", () => {
     let administrator = false
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(
           200,

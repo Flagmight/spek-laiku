@@ -12,6 +12,7 @@ import {
 } from "./renderApp"
 import { openCategories } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
+import { placesRoutes } from "./placesFixtures"
 
 // The visitor is signed out; every registration request gets the given answer.
 function stubApi(answer: () => Response) {
@@ -271,6 +272,7 @@ describe("keyboard use of the Activity categories page", () => {
   function stubAdministrator() {
     return routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(200, routeSignedInUser("Administrator")),
       "GET /api/admin/categories": () => jsonResponse(200, [kayaking, museum]),
@@ -385,6 +387,7 @@ function stubPlanSetup() {
   const found = () => jsonResponse(200, { locations: [kaunas] })
   return routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -517,6 +520,7 @@ describe("keyboard use of the Activity selection page", () => {
     })
     const fetch = routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": () =>
         jsonResponse(200, {
@@ -675,16 +679,25 @@ describe("keyboard use of the Places and forecast page", () => {
     }
   }
 
+  // The activity's "View on map" links, one per place.
+  function mapLinks(activity: string) {
+    return within(screen.getByRole("region", { name: activity })).getAllByRole(
+      "link",
+      { name: /View on map/ },
+    )
+  }
+
   function showButton(date: string, activity: string) {
     return screen.getByRole("button", {
       name: `Show hours for ${date}, ${activity}`,
     })
   }
 
-  it("reaches the skip link, the navigation, the progress links, each 'Show hours' button in date order, then Back", async () => {
+  it("reaches the skip link, the navigation, the progress links, each activity's map links and 'Show hours' buttons in order, then Back", async () => {
     acceptPlan()
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
     })
     const user = userEvent.setup()
@@ -699,8 +712,10 @@ describe("keyboard use of the Places and forecast page", () => {
       screen.getByRole("link", { name: "Register" }),
       screen.getByRole("link", { name: "Plan setup" }),
       screen.getByRole("link", { name: "Activities" }),
+      ...mapLinks("Kayaking"),
       showButton(saturday, "Kayaking"),
       showButton(sunday, "Kayaking"),
+      ...mapLinks("Museum"),
       showButton(saturday, "Museum"),
       showButton(sunday, "Museum"),
       screen.getByRole("link", { name: "Back" }),
@@ -715,6 +730,7 @@ describe("keyboard use of the Places and forecast page", () => {
     acceptPlan()
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
     })
     const user = userEvent.setup()
@@ -744,6 +760,7 @@ describe("keyboard use of the Places and forecast page", () => {
         failing
           ? jsonResponse(500)
           : forecastRoutes["POST /api/plan-forecast"](request),
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
     })
     const user = userEvent.setup()

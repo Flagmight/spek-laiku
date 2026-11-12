@@ -16,7 +16,10 @@ export const planForecastTimeoutMs = planRequestTimeoutMs
 
 export type PlanForecastStatus =
   | "idle"
+  // The first request when step 3 opens; the page shows only its loading message.
   | "loading"
+  // A Retry; the rest of step 3 stays in place (feature 007 FR-016).
+  | "retrying"
   | "loaded"
   | "weatherUnavailable"
   | "tooManyRequests"
@@ -35,12 +38,12 @@ export interface PlanForecastState {
   // What was last asked for, so Retry sends the same plan.
   lastSetup: CheckedPlanSetup | null
   lastActivities: CheckedPlanActivity[] | null
-  // Ignored while a request runs, so only one runs at a time.
+  // Ignored while a request (a load or a Retry) runs, so only one runs at a time.
   load: (
     setup: CheckedPlanSetup,
     activities: CheckedPlanActivity[],
   ) => Promise<void>
-  // Asks again for the last setup and activities.
+  // Asks again for the last setup and activities, with the status "retrying". Also ignored while one runs.
   retry: () => Promise<void>
   // Aborts a pending request and starts again from idle, for example when the page closes.
   reset: () => void
@@ -85,17 +88,19 @@ function toResult(outcome: PlanForecastOutcome | null): Result {
   }
 }
 
-export const usePlanForecastStore = create<PlanForecastState>()((set, get) => ({
-  ...initialPlanForecastState,
-  load: async (setup, activities) => {
-    // get() reads the current state, so a second call in the same render is still ignored.
-    if (get().status === "loading") {
-      return
-    }
+function isRunning(status: PlanForecastStatus) {
+  return status === "loading" || status === "retrying"
+}
 
+export const usePlanForecastStore = create<PlanForecastState>()((set, get) => {
+  async function request(
+    setup: CheckedPlanSetup,
+    activities: CheckedPlanActivity[],
+    status: "loading" | "retrying",
+  ) {
     const abort = new AbortController()
     set({
-      status: "loading",
+      status,
       forecast: null,
       controller: abort,
       lastSetup: setup,
@@ -120,15 +125,27 @@ export const usePlanForecastStore = create<PlanForecastState>()((set, get) => ({
     }
 
     set({ ...toResult(outcome), controller: null })
-  },
-  retry: async () => {
-    const { lastSetup, lastActivities, load } = get()
-    if (lastSetup && lastActivities) {
-      await load(lastSetup, lastActivities)
-    }
-  },
-  reset: () => {
-    get().controller?.abort()
-    set(initialPlanForecastState)
-  },
-}))
+  }
+
+  return {
+    ...initialPlanForecastState,
+    load: async (setup, activities) => {
+      // get() reads the current state, so a second call in the same render is still ignored.
+      if (isRunning(get().status)) {
+        return
+      }
+
+      await request(setup, activities, "loading")
+    },
+    retry: async () => {
+      const { lastSetup, lastActivities, status } = get()
+      if (lastSetup && lastActivities && !isRunning(status)) {
+        await request(lastSetup, lastActivities, "retrying")
+      }
+    },
+    reset: () => {
+      get().controller?.abort()
+      set(initialPlanForecastState)
+    },
+  }
+})

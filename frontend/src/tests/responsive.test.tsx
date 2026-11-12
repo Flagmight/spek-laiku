@@ -8,6 +8,7 @@ import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
 import { openCategories } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
+import { placesRoutes } from "./placesFixtures"
 
 // jsdom applies stylesheet rules but does no layout, so these tests check the CSS rules
 // behind the 320 px requirements. The real size check is the manual quickstart step at 320 px.
@@ -234,6 +235,7 @@ describe("Account Suspended page at 320 px", () => {
 async function renderCategoriesPageWithForm() {
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(200, signedInUser("Administrator")),
     "GET /api/admin/categories": () =>
       jsonResponse(200, [
@@ -336,6 +338,7 @@ async function renderPlanSetupWithChip() {
   usePlanSetupStore.getState().addDate("2026-11-07")
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -483,6 +486,7 @@ async function renderActivitySelection(
   usePlanActivitiesStore.getState().add(kayaking)
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-activities/categories": categories,
   })
@@ -607,6 +611,7 @@ describe("Places and forecast at 320 px", () => {
     ])
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
     })
     renderApp("/plan/places")
@@ -678,6 +683,7 @@ describe("Places and forecast hours at 320 px", () => {
     ])
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
     })
     const user = userEvent.setup()

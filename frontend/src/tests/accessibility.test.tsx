@@ -17,6 +17,7 @@ import {
   forecastDay,
   forecastRoutes,
 } from "./forecastFixtures"
+import { placesRoutes } from "./placesFixtures"
 
 function stubRegistration(answer: () => Promise<Response>) {
   vi.stubGlobal(
@@ -263,6 +264,7 @@ describe("Activity categories and Access denied page structure", () => {
     async (role, heading) => {
       routeFetch({
         ...forecastRoutes,
+        ...placesRoutes,
         "GET /api/auth/me": () => jsonResponse(200, signedInUser(role)),
         "GET /api/admin/categories": () => jsonResponse(200, []),
       })
@@ -283,6 +285,7 @@ describe("Activity categories form accessibility", () => {
   async function openOutdoorForm(save: () => Promise<Response>) {
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(200, signedInUser("Administrator")),
       "GET /api/admin/categories": () => jsonResponse(200, []),
@@ -351,6 +354,7 @@ describe("Activity categories form accessibility", () => {
     let respond: (response: Response) => void = () => {}
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(200, signedInUser("Administrator")),
       "GET /api/admin/categories": () =>
@@ -386,6 +390,7 @@ const kaunasPlace = {
 function stubPlanSetup() {
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, planPeriod),
     "GET /api/locations?query=Kaun": () =>
@@ -466,6 +471,7 @@ describe("Activity selection accessibility", () => {
     })
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": categories,
       "POST /api/plan-activities/check": check,
@@ -670,6 +676,7 @@ describe("Plan setup accessibility", () => {
     let answer: (response: Response) => void = () => {}
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
         new Promise<Response>((resolve) => (answer = resolve)),
@@ -755,6 +762,7 @@ describe("Places and forecast accessibility", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-forecast": answer,
+      ...placesRoutes,
     })
     renderApp("/plan/places")
   }
@@ -795,7 +803,11 @@ describe("Places and forecast accessibility", () => {
   })
 
   it.each([
-    ["loading", () => new Promise<Response>(() => {}), "Getting the forecast…"],
+    [
+      "loading",
+      () => new Promise<Response>(() => {}),
+      "Getting the forecast and nearby places…",
+    ],
     [
       "loaded",
       () => jsonResponse(200, forecast()),
@@ -807,11 +819,13 @@ describe("Places and forecast accessibility", () => {
       "Error: The weather service is unavailable. No forecast is shown.",
     ],
   ] as const)(
-    "announces the %s message in the one forecast status region without moving focus",
+    "announces the %s message in the one status region of step 3 without moving focus",
     async (_case, answer, message) => {
       renderPlaces(answer)
 
-      const region = await screen.findByRole("status", { name: "Forecast" })
+      const region = await screen.findByRole("status", {
+        name: "Places and forecast",
+      })
       await vi.waitFor(() => expect(region).toHaveTextContent(message))
       expect(region).not.toHaveFocus()
       expect(region).not.toContainElement(document.activeElement as HTMLElement)
