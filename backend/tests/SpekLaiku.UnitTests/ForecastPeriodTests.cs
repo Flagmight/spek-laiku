@@ -43,4 +43,16 @@ public sealed class ForecastPeriodTests
         Assert.Equal(expected.Offset, now.Offset);
         Assert.Equal(expected.Hour, now.Hour);
     }
+
+    [Theory]
+    // Winter, UTC+2; the seconds are dropped, not rounded.
+    [InlineData("2026-11-10T12:05:59Z", 14, 5)]
+    // Summer, UTC+3.
+    [InlineData("2026-07-01T12:05:59Z", 15, 5)]
+    // An instant with another offset is converted, not read as it is.
+    [InlineData("2026-11-10T09:30:00-05:00", 16, 30)]
+    public void ToLithuanianMinute_GivesTheLithuanianTimeToTheMinute(string instant, int hour, int minute)
+    {
+        Assert.Equal(new TimeOnly(hour, minute), ForecastPeriod.ToLithuanianMinute(DateTimeOffset.Parse(instant)));
+    }
 }

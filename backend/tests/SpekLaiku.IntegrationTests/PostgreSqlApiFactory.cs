@@ -53,6 +53,13 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     public FakeForecastClient Forecast { get; } = new();
 
     /// <summary>
+    /// The map data service the API sees. The API reuses places per location id, radius and tags, and the
+    /// cache is shared by the collection, so every test uses its own place id and position (feature 007
+    /// research section 5).
+    /// </summary>
+    public FakeMapPlacesClient MapPlaces { get; } = new();
+
+    /// <summary>
     /// The clock behind <see cref="ForecastPeriod"/> only: the forecast period, and "now" and the received time
     /// of the forecast services, which read the time through it. Tests set it before checking dates and set
     /// it back afterwards, because the collection shares it.
@@ -160,6 +167,8 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
             services.AddSingleton<IGeocodingClient>(Geocoding);
             services.RemoveAll<IForecastClient>();
             services.AddSingleton<IForecastClient>(Forecast);
+            services.RemoveAll<IMapPlacesClient>();
+            services.AddSingleton<IMapPlacesClient>(MapPlaces);
             // Only the forecast period gets the fixed clock; cookies and Identity keep the real one. The forecast
             // services read the time through ForecastPeriod, so they follow this clock too.
             services.RemoveAll<ForecastPeriod>();

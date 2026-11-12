@@ -49,6 +49,32 @@ public class ApiExceptionHandlerTests
         Assert.DoesNotContain(kind.ToString(), response);
     }
 
+    [Theory]
+    [InlineData(FailureKind.Timeout)]
+    [InlineData(FailureKind.Network)]
+    [InlineData(FailureKind.UnexpectedStatus)]
+    [InlineData(FailureKind.InvalidResponse)]
+    public async Task MapDataFailure_Answers503WithTheMapDataMessageAndPlacesService(FailureKind kind)
+    {
+        var (status, response) = await HandleAsync(new ExternalServiceException(ExternalService.MapData, kind, 504));
+
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, status);
+        Assert.Contains("\"title\":\"Service unavailable.\"", response);
+        Assert.Contains("\"detail\":\"The map data service is unavailable. No places are shown.\"", response);
+        Assert.Contains("\"service\":\"places\"", response);
+        Assert.DoesNotContain(kind.ToString(), response);
+    }
+
+    [Fact]
+    public async Task UnknownExternalService_KeepsTheLocationSearchAnswer()
+    {
+        var (status, response) = await HandleAsync(
+            new ExternalServiceException((ExternalService)99, FailureKind.Timeout));
+
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, status);
+        Assert.Contains("\"service\":\"locationSearch\"", response);
+    }
+
     [Fact]
     public async Task OtherFailure_HasNoServiceField()
     {
