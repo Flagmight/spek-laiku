@@ -669,13 +669,13 @@ There is no horizontal scrolling at any point.
 
 ### Tests for User Story 7 ⚠️
 
-- [ ] T069 [P] [US7] Extend `web/tests/responsive.test.tsx`:
+- [X] T069 [P] [US7] Extend `web/tests/responsive.test.tsx`:
   - below the 40em breakpoint, the overview rows are cards (the `plan-overview` table uses the card class rules) and the cell labels are visible ("Place: Nemuno slipway", "Sat 14 Nov: ★ 10:00–14:00 (4 h)");
   - the places list, Remove, Change activity, Retry and "Show forecast details" are full width with a minimum height and width of 44 px;
   - no element is wider than 320 px.
 
   Follow the existing card checks for the hours table.
-- [ ] T070 [P] [US7] Extend `web/tests/accessibility.test.tsx` and `web/tests/keyboard.test.tsx`. Cover:
+- [X] T070 [P] [US7] Extend `web/tests/accessibility.test.tsx` and `web/tests/keyboard.test.tsx`. Cover:
   - **Structure**:
     - one `h1`;
     - the overview is a table with a caption, column headers and row headers;
@@ -690,8 +690,8 @@ There is no horizontal scrolling at any point.
 
 ### Implementation for User Story 7
 
-- [ ] T071 [US7] Change `web/components/placeListItem.tsx`: the link's `aria-label` is "View on map, <name> (opens in a new tab)" (spec FR-018). Check that every other name from T070 is in place, and fix any that is not.
-- [ ] T072 [US7] Update `frontend/src/styles.css`.
+- [X] T071 [US7] Change `web/components/placeListItem.tsx`: the link's `aria-label` is "View on map, <name> (opens in a new tab)" (spec FR-018). Check that every other name from T070 is in place, and fix any that is not.
+- [X] T072 [US7] Update `frontend/src/styles.css`.
   - **The overview**: `.plan-overview` as a table on desktop; below the existing 40em breakpoint, each row a card with the `th` as its title and each cell as "Label: value" with the `.cell-label` shown. Reuse the `forecast-hours` card rules where possible instead of copying them.
   - **The places**: `.places-list` with no bullets and the distance and area on the line under the name, and the no-place flag.
   - **Buttons**: on phones, Remove, Change activity, Retry and the details button are full width, with `min-height` and `min-width` of 44px.
