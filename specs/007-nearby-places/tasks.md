@@ -47,11 +47,15 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 **Purpose**: Confirm the starting point. No new package, no migration and no new folder.
 
-- [ ] T001 Confirm the baseline after feature 006 and the plan UI tweaks (PR #9) passes before any change.
+- [X] T001 Confirm the baseline after feature 006 and the plan UI tweaks (PR #9) passes before any change.
   - From the repository root, run `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx`.
   - From `frontend/`, run `npm run lint`, `npm test` and `npm run build`.
   - Record the test counts and any pre-existing failure in this task, instead of fixing it in this feature.
   - If the first `npm test` fails with "Failed to start forks worker", re-run it once before investigating.
+  - **Result (2026-11-12, commit `b7c0ace`)**: no pre-existing failure.
+    - Backend build: 0 warnings, 0 errors.
+    - Backend tests: 480 unit and 224 integration tests passed, none failed or skipped.
+    - Frontend: lint clean, 59 test files with 767 tests passed, build succeeded.
 
 ---
 
@@ -70,7 +74,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: shared client code and the 503 answer
 
-- [ ] T002 Extend the shared client code (research section 7, `data-model.md` ExternalServiceJson).
+- [X] T002 Extend the shared client code (research section 7, `data-model.md` ExternalServiceJson).
   - In `Api/Clients/ExternalService.cs`, add `MapData` with the comment "The OpenStreetMap Overpass API (feature 007)", and update the class comment.
   - In `Api/Clients/ExternalServiceJson.cs`:
     - Move the body of `GetAsync<T>` into a private `SendAsync<T>(HttpClient httpClient, HttpRequestMessage request, ExternalService service, ILogger logger, bool badRequestMeansNotFound, CancellationToken cancellationToken)`. Keep the timeout, network, status, JSON and empty-body handling exactly as now.
@@ -78,20 +82,20 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - Add `public static Task<T?> PostFormAsync<T>(HttpClient httpClient, string path, IEnumerable<KeyValuePair<string, string>> fields, ExternalService service, ILogger logger, CancellationToken cancellationToken) where T : class`. It sends `POST` with `FormUrlEncodedContent(fields)` and `badRequestMeansNotFound: false`.
     - Add the display name `ExternalService.MapData => "Map data service"`.
   - Every existing test must pass unchanged, especially `UnitTests/OpenMeteoGeocodingClientTests.cs`, `OpenMeteoForecastClientTests.cs` and the integration failure tests.
-- [ ] T003 [P] Change `Api/Errors/ApiExceptionHandler.cs` so that `ExternalService.MapData` gives `503` with `Title` "Service unavailable.", `Detail` "The map data service is unavailable. No places are shown." and `Extensions["service"] = "places"`.
+- [X] T003 [P] Change `Api/Errors/ApiExceptionHandler.cs` so that `ExternalService.MapData` gives `503` with `Title` "Service unavailable.", `Detail` "The map data service is unavailable. No places are shown." and `Extensions["service"] = "places"`.
   - Make the `switch` name `LocationSearch` explicitly, so no service falls to it by default. An unknown value keeps the location search answer.
   - Update the class comment.
   - Extend `UnitTests/ApiExceptionHandlerTests.cs`: `MapData` gives the status, detail and `service: "places"`; the existing `forecast` and `locationSearch` cases still pass.
 
 ### Backend: the map data client
 
-- [ ] T004 [P] Create `Api/Clients/IMapPlacesClient.cs` and `Api/Clients/MapElement.cs` (`data-model.md`, Client models).
+- [X] T004 [P] Create `Api/Clients/IMapPlacesClient.cs` and `Api/Clients/MapElement.cs` (`data-model.md`, Client models).
   - `IMapPlacesClient`: `Task<IReadOnlyList<MapElement>> FindAsync(double latitude, double longitude, int radiusKm, IReadOnlyList<string> tags, CancellationToken cancellationToken)`.
     - Comment that it returns the named points, lines and areas with at least one of the `key=value` tags within the radius, each once, in no defined order.
     - Comment that it throws `ExternalServiceException` for `ExternalService.MapData` on every failure.
     - Comment that the interface exists so tests replace the external service with fake responses (constitution III).
   - `MapElement`: `public sealed record MapElement(string Key, double Latitude, double Longitude, IReadOnlyDictionary<string, string> Tags)`. `Key` is `"node/123"`, `"way/456"` or `"relation/789"`; comment that it is never sent to the browser.
-- [ ] T005 Create `Api/Clients/OverpassQuery.cs`, `Api/Clients/OverpassResponse.cs` and `Api/Clients/OverpassMapPlacesClient.cs` (research sections 4 and 7). This depends on T002 and T004.
+- [X] T005 Create `Api/Clients/OverpassQuery.cs`, `Api/Clients/OverpassResponse.cs` and `Api/Clients/OverpassMapPlacesClient.cs` (research sections 4 and 7). This depends on T002 and T004.
   - **`OverpassQuery`** (`internal static`), `Build(double latitude, double longitude, int radiusKm, IReadOnlyList<string> tags)`:
     - The text starts with `[out:json][timeout:4];`.
     - Then `(`, then for each distinct tag (split once at `=`) `nwr["<key>"="<value>"]["name"](around:<radiusKm * 1000>,<lat>,<lon>);`, then `);`, then `out tags center qt;`.
@@ -110,7 +114,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - In `Api/Program.cs`:
     - `AddHttpClient<IMapPlacesClient, OverpassMapPlacesClient>(client => { client.BaseAddress = …; client.Timeout = …; client.DefaultRequestHeaders.UserAgent.ParseAdd(OverpassMapPlacesClient.UserAgent); })`;
     - `.RemoveAllLoggers()`, with the comment "The request body holds the plan's position; only the client's own warning is logged."
-- [ ] T006 Add `UnitTests/OverpassMapPlacesClientTests.cs` with `FakeHttpMessageHandler` and `CapturingLoggerProvider`, following `OpenMeteoForecastClientTests.cs`. Cover:
+- [X] T006 Add `UnitTests/OverpassMapPlacesClientTests.cs` with `FakeHttpMessageHandler` and `CapturingLoggerProvider`, following `OpenMeteoForecastClientTests.cs`. Cover:
   - **The request**:
     - a `POST` to `api/interpreter` with a form field `data`;
     - for latitude 54.8972, longitude 23.8861, radius 30 and the tags `leisure=slipway`, `sport=canoe` and `leisure=slipway`, the exact query text with two statements, `around:30000,54.89720,23.88610`, `["name"]` and `out tags center qt;`;
@@ -127,7 +131,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: options, distance and place rules
 
-- [ ] T007 [P] Create `Api/Services/PlacesOptions.cs` (research section 6), following `ForecastOptions.cs`:
+- [X] T007 [P] Create `Api/Services/PlacesOptions.cs` (research section 6), following `ForecastOptions.cs`:
   - `SectionName = "Places"`;
   - `MaxRadiusKm` = 50: "1 ≤ value ≤ 200";
   - `MaxPlacesPerActivity` = 5: "1 ≤ value ≤ 20";
@@ -136,13 +140,13 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - Add `"Places": { "MaxRadiusKm": 50, "MaxPlacesPerActivity": 5, "MaxAgeHours": 24 }` to `Api/appsettings.json`.
   - Register it in `Api/Program.cs` with `AddOptions<PlacesOptions>().Bind(...).Validate(PlacesOptions.IsValid, PlacesOptions.InvalidMessage).ValidateOnStart()`.
   - Add `UnitTests/PlacesOptionsTests.cs`: the defaults are valid, each bound is valid, and 0 and 201 km, 0 and 21 places, and 0 hours are invalid.
-- [ ] T008 [P] Create `Api/Services/GeoDistance.cs`: `public static double Kilometres(double latitude1, double longitude1, double latitude2, double longitude2)` using haversine and `EarthRadiusKm = 6371.0088` (research section 3).
+- [X] T008 [P] Create `Api/Services/GeoDistance.cs`: `public static double Kilometres(double latitude1, double longitude1, double latitude2, double longitude2)` using haversine and `EarthRadiusKm = 6371.0088` (research section 3).
   - Add `UnitTests/GeoDistanceTests.cs`:
     - zero for the same point;
     - 0.01° of latitude along a meridian ≈ 1.112 km (±0.001);
     - a pair of fixed positions checked against an independently computed value to within 0.01 km;
     - symmetry.
-- [ ] T009 Create `Api/Services/NearbyPlace.cs` and `Api/Services/NearbyPlaceRules.cs` (`data-model.md` NearbyPlace and NearbyPlaceRules; research sections 3 and 4). This depends on T004 and T008.
+- [X] T009 Create `Api/Services/NearbyPlace.cs` and `Api/Services/NearbyPlaceRules.cs` (`data-model.md` NearbyPlace and NearbyPlaceRules; research sections 3 and 4). This depends on T004 and T008.
   - **`NearbyPlace`**: `public sealed record NearbyPlace(string Name, double Latitude, double Longitude, decimal DistanceKm, string? Area, string Key)`.
   - **`NearbyPlaceRules.For(IReadOnlyList<MapElement> elements, IReadOnlyList<string> categoryTags, PlaceLocation origin, int radiusKm, int maxPlaces)`**:
     1. Keep elements where some `$"{key}={value}"` of its tags exactly equals one of `categoryTags` (ordinal).
@@ -154,7 +158,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     7. Take `maxPlaces`.
     8. Round the latitude and longitude to 5 decimal places (`Math.Round(…, 5, MidpointRounding.AwayFromZero)`).
   - Comment that the shown distance is the one compared and ordered (research section 3). Keep it under 200 lines.
-- [ ] T010 Add `UnitTests/NearbyPlaceRulesTests.cs` with hand-built `MapElement` lists and an origin `PlaceLocation`. Cover:
+- [X] T010 Add `UnitTests/NearbyPlaceRulesTests.cs` with hand-built `MapElement` lists and an origin `PlaceLocation`. Cover:
   - **Edge of the circle**: places inside, exactly on the edge (a position whose rounded distance equals the radius) and just outside (rounded distance radius + 0.1).
   - **Names**:
     - an element without `name`;
@@ -174,10 +178,10 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: shared plan check and clock
 
-- [ ] T011 Add to `Api/Services/ForecastPeriod.cs` `public static TimeOnly ToLithuanianMinute(DateTimeOffset instant)` (the conversion now private in `PlanForecastService.ToMinute`).
+- [X] T011 Add to `Api/Services/ForecastPeriod.cs` `public static TimeOnly ToLithuanianMinute(DateTimeOffset instant)` (the conversion now private in `PlanForecastService.ToMinute`).
   - Make `PlanForecastService` use it and delete `ToMinute`.
   - Extend `UnitTests/ForecastPeriodTests.cs`: 12:05:59 UTC in winter gives 14:05, and in summer gives 15:05.
-- [ ] T012 Create `Api/Services/PlanRecheckResult.cs` and `Api/Services/PlanRecheckService.cs` (research section 2, `data-model.md` PlanRecheckService). This depends on T011 because it touches `PlanForecastService`.
+- [X] T012 Create `Api/Services/PlanRecheckResult.cs` and `Api/Services/PlanRecheckService.cs` (research section 2, `data-model.md` PlanRecheckService). This depends on T011 because it touches `PlanForecastService`.
   - **The result**: `Succeeded` (with `[MemberNotNullWhen(true, nameof(Setup))]`), `Setup` (`CheckedPlanSetup?`), `Activities`, and `Errors`. It follows `PlanForecastResult.cs`.
   - **`PlanRecheckService(PlanSetupService, PlanActivityService)`**, `CheckAsync(PlanSetupCheckRequest? setup, List<PlanActivityRequest>? activities, CancellationToken)`. The logic moves from `PlanForecastService` unchanged:
     1. a missing setup gives `("setup", "The request is invalid.")`;
@@ -192,10 +196,10 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Backend: test fakes
 
-- [ ] T013 [P] Create `UnitTests/RecordingMapPlacesClient.cs`, following `RecordingForecastClient.cs`:
+- [X] T013 [P] Create `UnitTests/RecordingMapPlacesClient.cs`, following `RecordingForecastClient.cs`:
   - it records each call's latitude, longitude, radius and tags;
   - it returns a scripted element list, or throws a scripted `ExternalServiceException(ExternalService.MapData, kind)`.
-- [ ] T014 [P] Create `IntegrationTests/FakeMapPlacesClient.cs`, following `FakeForecastClient.cs`:
+- [X] T014 [P] Create `IntegrationTests/FakeMapPlacesClient.cs`, following `FakeForecastClient.cs`:
   - answers are scripted per position (`Script(latitude, longitude, IReadOnlyList<MapElement>)`), and the client returns only the scripted elements that have at least one of the requested tags;
   - `ScriptFailure(latitude, longitude, FailureKind)` and `ScriptRecovery(...)`;
   - an unscripted position throws `InvalidResponse`;
@@ -206,17 +210,17 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Frontend
 
-- [ ] T015 [P] Create `web/types/planPlaces.ts` with `NearbyPlace`, `CategoryPlaces`, `PlanPlaces` and `type PlanPlacesRequest = PlanForecastRequest`, exactly as in `data-model.md` (Frontend types).
-- [ ] T016 [P] Rename `web/helpers/planForecastRequest.ts` to `web/helpers/checkedPlanRequest.ts`, and the function to `checkedPlanRequest`.
+- [X] T015 [P] Create `web/types/planPlaces.ts` with `NearbyPlace`, `CategoryPlaces`, `PlanPlaces` and `type PlanPlacesRequest = PlanForecastRequest`, exactly as in `data-model.md` (Frontend types).
+- [X] T016 [P] Rename `web/helpers/planForecastRequest.ts` to `web/helpers/checkedPlanRequest.ts`, and the function to `checkedPlanRequest`.
   - Comment that it builds the body of both step 3 requests.
   - Rename `web/tests/planForecastRequest.test.ts` to `web/tests/checkedPlanRequest.test.ts`.
   - Update the import in `web/stores/usePlanForecastStore.ts`. No behaviour changes.
-- [ ] T017 Create `web/helpers/timedRequest.ts`. This depends on T016 because it touches `usePlanForecastStore.ts`.
+- [X] T017 Create `web/helpers/timedRequest.ts`. This depends on T016 because it touches `usePlanForecastStore.ts`.
   - It exports `planRequestTimeoutMs = 10_000` and `startTimeout(controller: AbortController): () => void`, which starts a timer that aborts the controller after `planRequestTimeoutMs` and returns a function that clears it.
   - Make `web/stores/usePlanForecastStore.ts` use it. Keep `planForecastTimeoutMs` as a re-export only if existing tests import it; otherwise update them.
   - Add `web/tests/timedRequest.test.ts` with fake timers: it aborts at 10 s, and does not abort when cleared earlier.
   - `web/tests/usePlanForecastStore.test.ts` must pass unchanged in behaviour.
-- [ ] T018 [P] Create `web/helpers/placeText.ts` and `web/helpers/openStreetMapLink.ts`, with `web/tests/placeText.test.ts` and `web/tests/openStreetMapLink.test.ts`.
+- [X] T018 [P] Create `web/helpers/placeText.ts` and `web/helpers/openStreetMapLink.ts`, with `web/tests/placeText.test.ts` and `web/tests/openStreetMapLink.test.ts`.
   - `placeDistanceText(distanceKm)` returns `"3.4 km away"`, always one decimal place (`3` gives `"3.0 km away"`).
   - `openStreetMapLink(latitude, longitude)` returns `https://www.openstreetmap.org/?mlat=<lat>&mlon=<lon>#map=17/<lat>/<lon>` with the numbers as given.
 
