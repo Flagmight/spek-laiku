@@ -596,19 +596,19 @@ Each is refused or ignored as described, and the map data service is not contact
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T062 [P] [US5] Extend `UnitTests/PlanPlacesServiceTests.cs` (error paths):
+- [X] T062 [P] [US5] Extend `UnitTests/PlanPlacesServiceTests.cs` (error paths):
   - a missing setup gives `setup`;
   - a past date gives `setup.dates[0]`, an unknown location gives `setup.locationId`, and no activity check runs;
   - an invalid wind limit gives `activities[0].maxWindMs`, and an unknown category gives `activities[0]`;
   - in every case `RecordingMapPlacesClient` has no call;
   - a category removed from the database between the check and the tag query gets an empty list.
-- [ ] T063 [P] [US5] Extend `IntegrationTests/PlanPlacesEndpointTests.cs` (`400` and tags):
+- [X] T063 [P] [US5] Extend `IntegrationTests/PlanPlacesEndpointTests.cs` (`400` and tags):
   - the `400` keys above;
   - a string for a number gives `request`;
   - `FakeMapPlacesClient.Calls` is unchanged after each refused request;
   - a request body with an extra `"placeTags": ["amenity=bench"]` on an activity is answered with the stored tags (`LastTags`), and the JSON has no `placeTags`;
   - after an administrator changes the category's tags through `PUT /api/admin/categories/{id}`, the next request asks the client for the new tags.
-- [ ] T064 [P] [US5] Extend `web/tests/planPlacesApi.test.ts`, `web/tests/usePlanPlacesStore.test.ts` and `web/tests/PlacesAndForecastPage.test.tsx`:
+- [X] T064 [P] [US5] Extend `web/tests/planPlacesApi.test.ts`, `web/tests/usePlanPlacesStore.test.ts` and `web/tests/PlacesAndForecastPage.test.tsx`:
   - a `400` with a `setup…` key gives `setupOutdated`, calls `usePlanSetupStore.markOutdated()` and leads to Plan setup with "Your plan setup needs to be checked again. Select Continue.";
   - a `400` with an `activities…` key gives `activitiesOutdated`, calls `usePlanActivitiesStore.markOutdated()` and leads to Activity selection with "Your activities need to be checked again. Select Continue.";
   - a `400` with only `request` throws `ApiError`;
@@ -617,7 +617,7 @@ Each is refused or ignored as described, and the map data service is not contact
 
 ### Implementation for User Story 5
 
-- [ ] T065 [US5] Move the private `outdatedPart` and `failedService` functions from `web/api/planForecastApi.ts` into a new `web/api/planStepAnswer.ts`, exported, so both step 3 APIs read `400` and `503` bodies the same way (DRY). Use them in both files.
+- [X] T065 [US5] Move the private `outdatedPart` and `failedService` functions from `web/api/planForecastApi.ts` into a new `web/api/planStepAnswer.ts`, exported, so both step 3 APIs read `400` and `503` bodies the same way (DRY). Use them in both files.
   - In `web/api/planPlacesApi.ts`, map `400` to `setupOutdated` or `activitiesOutdated`.
   - In `web/stores/usePlanPlacesStore.ts`, handle them as the forecast store does: call `markOutdated()` and set the status. The page guards then redirect.
   - `web/tests/planForecastApi.test.ts` must pass unchanged.
