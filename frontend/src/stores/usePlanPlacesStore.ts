@@ -6,6 +6,7 @@ import { startTimeout } from "../helpers/timedRequest"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanPlaces } from "../types/planPlaces"
 import type { CheckedPlanSetup } from "../types/planSetup"
+import { useCurrentUserStore } from "./useCurrentUserStore"
 import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
 import { usePlanSetupStore } from "./usePlanSetupStore"
 
@@ -71,6 +72,11 @@ function toResult(outcome: PlanPlacesOutcome | null): Result {
     case "activitiesOutdated":
       usePlanActivitiesStore.getState().markOutdated()
       return { status: "activitiesOutdated", places: null }
+    case "forbidden":
+      // The role or status changed: reading the user again lets the page guard show the right page. Until
+      // it does, or if that fails, the page shows the server error with Retry instead of an empty step.
+      void useCurrentUserStore.getState().refresh()
+      return { status: "serverError", places: null }
     case "mapUnavailable":
       return { status: "mapUnavailable", places: null }
     case "tooManyRequests":

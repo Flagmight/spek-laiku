@@ -1,6 +1,7 @@
 import { act } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { planRequestTimeoutMs } from "../helpers/timedRequest"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanPlacesStore } from "../stores/usePlanPlacesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
@@ -344,6 +345,20 @@ describe("usePlanPlacesStore when the plan is out of date", () => {
     expect(store().status).toBe("activitiesOutdated")
     expect(usePlanActivitiesStore.getState().checked).toBeNull()
     expect(usePlanActivitiesStore.getState().recheckNotice).toBe(true)
+  })
+
+  it("reads the current user again on a 403 and offers Retry meanwhile", async () => {
+    const refresh = vi
+      .spyOn(useCurrentUserStore.getState(), "refresh")
+      .mockResolvedValue()
+    routeFetch({ [placesRoute]: () => jsonResponse(403) })
+
+    await act(() => store().load(setup, activities))
+
+    expect(refresh).toHaveBeenCalledOnce()
+    // Not an empty step: if reading the user fails, the page still shows the error with Retry.
+    expect(store().status).toBe("serverError")
+    expect(store().places).toBeNull()
   })
 
   it("reports a server error for a 400 that names neither part", async () => {

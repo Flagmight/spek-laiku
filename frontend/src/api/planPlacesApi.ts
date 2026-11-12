@@ -8,6 +8,7 @@ export type PlanPlacesOutcome =
   | { kind: "places"; places: PlanPlaces }
   | { kind: "setupOutdated" }
   | { kind: "activitiesOutdated" }
+  | { kind: "forbidden" }
   | { kind: "mapUnavailable" }
   | { kind: "tooManyRequests" }
 
@@ -36,6 +37,8 @@ export async function getPlanPlaces(
       }
       break
     }
+    case 403:
+      return { kind: "forbidden" }
     case 429:
       return { kind: "tooManyRequests" }
     case 503:

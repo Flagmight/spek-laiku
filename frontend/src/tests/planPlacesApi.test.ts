@@ -92,6 +92,14 @@ describe("getPlanPlaces failures", () => {
   })
 })
 
+describe("getPlanPlaces access", () => {
+  it("maps 403 to forbidden", async () => {
+    routeFetch({ [placesRoute]: () => jsonResponse(403) })
+
+    expect(await getPlanPlaces(request)).toEqual({ kind: "forbidden" })
+  })
+})
+
 describe("getPlanPlaces when the plan is out of date", () => {
   it("maps a 400 with a setup key to setupOutdated", async () => {
     routeFetch({
