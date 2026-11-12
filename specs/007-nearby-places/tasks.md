@@ -704,7 +704,7 @@ There is no horizontal scrolling at any point.
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T073 [P] Update `README.md`'s "Places and forecast" section:
+- [X] T073 [P] Update `README.md`'s "Places and forecast" section:
   - **Places**: the nearest named places per activity from the OpenStreetMap Overpass API, the 50 km cap on the maximum travel distance, 5 places, and the 24-hour reuse with "Places updated at";
   - **The step**: the overview table, the closed forecast details, and the no-place flag with Remove and Change activity;
   - **Settings**: the `Places` section (`MaxRadiusKm`, `MaxPlacesPerActivity`, `MaxAgeHours`), changeable with environment variables such as `$env:Places__MaxRadiusKm = "20"`;
@@ -712,7 +712,7 @@ There is no horizontal scrolling at any point.
   - **Internet**: the running API needs internet access to `overpass-api.de`.
 
   Replace "Places come in a later feature." Add to the status line that feature 007 is implemented. No migration step is needed.
-- [ ] T074 [P] Update `docs/ux-design.md`, Places and Forecast states (section 6) and layout (section 8):
+- [X] T074 [P] Update `docs/ux-design.md`, Places and Forecast states (section 6) and layout (section 8):
   - the Loading state "Getting the forecast and nearby places…" (no Generate schedule yet: feature 008);
   - "Places updated at HH:MM";
   - the "✗ No place found within <radius> km." row with Remove and Change activity;
@@ -722,32 +722,55 @@ There is no horizontal scrolling at any point.
   - each overview row and place becomes a card on phones.
 
   Check the traceability rows for Places and Forecast (FR-010, FR-036), and fix any difference (constitution VI).
-- [ ] T075 [P] Update `docs/architecture.md`:
+- [X] T075 [P] Update `docs/architecture.md`:
   - the `Clients/` row: the Overpass client, `ExternalServiceJson` shared by all three clients, and the 24-hour per-category place cache;
   - the `Errors/` row: `"places"` among the `service` values;
   - the `RateLimiting/` row: place requests.
-- [ ] T076 [P] Check sizes (constitution I):
+- [X] T076 [P] Check sizes (constitution I):
   - every new or changed C# class is under 200 lines, especially `OverpassMapPlacesClient.cs`, `NearbyPlaceRules.cs`, `NearbyPlacesService.cs`, `PlanPlacesService.cs` and `ExternalServiceJson.cs`;
   - every new or changed React page or component is under about 200 lines, especially `PlacesAndForecastPage.tsx`, `planActivitiesSummary.tsx`, `planOverview.tsx` and `placesAndForecastStatus.tsx`.
 
   Split by responsibility if not.
-- [ ] T077 Run all the checks, and fix any failure without weakening tests or checks.
+- [X] T077 Run all the checks, and fix any failure without weakening tests or checks.
   - From the repository root: `dotnet format .\SpekLaiku.slnx --verify-no-changes`, `dotnet build .\SpekLaiku.slnx` and `dotnet test .\SpekLaiku.slnx`.
   - From `frontend/`: `npm run lint`, `npm run format:check`, `npm test` and `npm run build`. Run the frontend tests on their own, not at the same time as the backend tests.
-- [ ] T078 Review `git diff main...HEAD`. Check that:
+- [X] T078 Review `git diff main...HEAD`. Check that:
   - there are no unintended files (no `bin/`, `obj/`, `node_modules/`, `frontend/src/node_modules/`, local settings or debug code);
   - there is no migration and no new package;
   - `appsettings.Development.json` is unchanged;
   - no test calls a live Overpass or Open-Meteo address.
 
   Then list the quickstart Manual Validation steps for the user to run before the Pull Request.
-- [ ] T079 Run a separate AI-assisted review of the branch (for example `/code-review` and `/security-review`), and apply or reject each finding with a short reason. Record the result in this task. Then prepare the Pull Request description for the user (constitution V, VII and Quality Gates). It must include:
+- [X] T079 Run a separate AI-assisted review of the branch (for example `/code-review` and `/security-review`), and apply or reject each finding with a short reason. Record the result in this task. Then prepare the Pull Request description for the user (constitution V, VII and Quality Gates). It must include:
   - a link to `specs/007-nearby-places/spec.md` and a summary of the change;
   - the tests and checks run (T077 and the manual quickstart steps), and "no migration";
   - screenshots of Places and forecast at desktop and 320 px: the overview, places, an open forecast details, a no-place flag, and the map data service error;
   - the review tool, important findings, changes made and findings not applied.
 
   The user opens and merges the Pull Request.
+
+  **Result (2026-11-12)**:
+  - **`/code-review` (medium, Claude Code), 10 findings:**
+    - **Applied**:
+      1. A forecast Retry still running when an activity is removed returned an answer for the old list, so a later activity showed the removed one's forecast. The forecast store now drops the removed activities' entries from such an answer, without a new request (`withoutRemoved`), with a store test.
+      2. The same race, reported from the Remove handler: fixed by 1.
+      3. `planForecastTimeoutMs` was an alias kept only for tests: removed, and the tests use `planRequestTimeoutMs`.
+      4. The place list's React key (name and position) could repeat for two map elements: now the list position, since the list is never reordered.
+    - **Not applied**:
+      - Matching forecast entries by activity id instead of position: it would change the feature 006 contract, and the two places where the lists change (Remove and a late answer) now keep them aligned.
+      - Places with only `name:lt` are not fetched: intended (spec Assumptions, "Named places only").
+      - Lines and areas filtered by their centre point: intended (spec FR-007, research section 3).
+      - The server-side `[timeout:4]` equals the client timeout, so a "timed out" remark rarely arrives: both paths give the same `Timeout` failure and the same 503, and the remark handling still covers memory errors.
+      - A second category query for the tags: kept so the feature 005 activity check stays unchanged (research section 2); one small indexed query.
+      - The places and forecast stores share request, retry and abort code: the timer and request body are already shared helpers, and the stores now differ (the forecast drops removed activities). A generic store factory is the kind of abstraction constitution VIII warns against.
+  - **`/security-review` (Claude Code): no findings.** It checked:
+    - the Overpass query (tags only from the database, restricted by `PlaceTagParser` and escaped again; fixed host);
+    - the `PlanCreator` policy and the request limit on the controller;
+    - the response fields (no tags or element ids);
+    - the error answers and logs;
+    - reading the Overpass answer;
+    - cache keys and the database query;
+    - the "View on map" link (numeric coordinates, `rel="noopener noreferrer"`, React escaping).
 
 ---
 
