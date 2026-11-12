@@ -440,12 +440,12 @@ Each activity section has one settings line, its summary, and closed forecast de
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T045 [P] [US3] Extend the backend forecast tests (`contracts/plan-forecast-api-changes.md` section 1):
+- [X] T045 [P] [US3] Extend the backend forecast tests (`contracts/plan-forecast-api-changes.md` section 1):
   - `UnitTests/SuitablePeriodsTests.cs`: `Longest` of an empty list is `null`; a single period; 08–10 and 12–16 give 12–16; 08–10 and 12–14 give 08–10 (the earliest on equal length); the longest last.
   - `UnitTests/ActivityForecastsTests.cs`: each day has `LongestPeriod`; it is `null` without periods.
   - `UnitTests/PlanForecastMappingTests.cs`: `longestPeriod` is mapped, including `null`.
   - `IntegrationTests/PlanForecastEndpointTests.cs`: each activity date has `longestPeriod` in the JSON, and an Indoor activity without daylight gets 06:00–22:00 (16 h).
-- [ ] T046 [P] [US3] Add helper tests:
+- [X] T046 [P] [US3] Add helper tests:
   - `web/tests/overviewCellText.test.ts`:
     - "★ 10:00–14:00 (4 h)";
     - "★ 10:00–11:00 (1 h), too short";
@@ -454,7 +454,7 @@ Each activity section has one settings line, its summary, and closed forecast de
     - the place cell gives the nearest name or "✗ No place found".
   - `web/tests/activitySettingsText.test.ts`: the Outdoor line "Outdoor · 2 h · Requires daylight · Wind up to 8 m/s · Rain up to 0.5 mm/h · 15 to 35 °C", and the Indoor lines with and without daylight.
   - Extend `web/tests/formatPlanDate.test.ts`: `formatPlanDateShort("2026-11-14")` is "Sat 14 Nov".
-- [ ] T047 [P] [US3] Extend `web/tests/PlacesAndForecastPage.test.tsx` (overview part). Cover:
+- [X] T047 [P] [US3] Extend `web/tests/PlacesAndForecastPage.test.tsx` (overview part). Cover:
   - **The table**:
     - a table with the caption "Plan overview" above the activities;
     - column headings "Activity", "Place" and one per date ("Sat 14 Nov · Sunrise 07:42 · Sunset 16:21") in date order;
@@ -469,32 +469,32 @@ Each activity section has one settings line, its summary, and closed forecast de
 
 ### Implementation for User Story 3
 
-- [ ] T048 [US3] Change the backend forecast models:
+- [X] T048 [US3] Change the backend forecast models:
   - Add `public static SuitablePeriod? Longest(IReadOnlyList<SuitablePeriod> periods)` to `Api/Services/SuitablePeriods.cs`: the first period with the greatest `LengthHours`, or `null`.
   - Add `SuitablePeriod? LongestPeriod` to `Api/Services/ActivityDayForecast.cs`, and set it in `ActivityForecasts.ForDay`.
   - Add `SuitablePeriodResponse? LongestPeriod` to `Api/DTOs/Responses/ActivityDayForecastResponse.cs`. AutoMapper maps it by name; confirm with T045.
-- [ ] T049 [P] [US3] In `web/types/planForecast.ts`, add `longestPeriod: SuitablePeriod | null` to `ActivityDayForecast`, with a comment that the server picks it. Update `web/tests/forecastFixtures.ts` so every activity date has the right `longestPeriod`.
-- [ ] T050 [P] [US3] Create the helpers:
+- [X] T049 [P] [US3] In `web/types/planForecast.ts`, add `longestPeriod: SuitablePeriod | null` to `ActivityDayForecast`, with a comment that the server picks it. Update `web/tests/forecastFixtures.ts` so every activity date has the right `longestPeriod`.
+- [X] T050 [P] [US3] Create the helpers:
   - add `formatPlanDateShort` to `web/helpers/formatPlanDate.ts` (weekday, day and short month; no year);
   - create `web/helpers/overviewCellText.ts` with `dateCellText(day: ForecastDay, activityDay: ActivityDayForecast)` (", too short" comes from the server's `shorterThanDuration`, not from comparing with the duration) and `placeCellText(places: NearbyPlace[])`, as in `data-model.md` (Helpers);
   - create `web/helpers/activitySettingsText.ts`.
 
   They only word server values.
-- [ ] T051 [US3] Create `web/components/planOverview.tsx` (research section 12).
+- [X] T051 [US3] Create `web/components/planOverview.tsx` (research section 12).
   - **Props**: `activities`, `names`, `forecast?: PlanForecast`, `places?: PlanPlaces`.
   - **Table**: `<table className="plan-overview">` with `<caption>Plan overview</caption>`.
     - `<thead>`: `<th scope="col">Activity</th>`, `<th scope="col">Place</th>`, then one `<th scope="col">` per `forecast.days` entry: "`formatPlanDateShort` · Sunrise HH:MM · Sunset HH:MM".
     - `<tbody>`: one row per activity, with `<th scope="row">` holding the shown name, then the place cell and the date cells.
   - **Cell labels**: each cell starts with a `<span className="cell-label">` ("Place: ", "Sat 14 Nov: ") that is visually hidden on desktop, as in `forecastHoursTable.tsx`.
   - US4 adds the states without a forecast or places. Keep it under about 200 lines.
-- [ ] T052 [US3] Change `web/components/activityForecast.tsx` and `web/components/forecastDateEntry.tsx`.
+- [X] T052 [US3] Change `web/components/activityForecast.tsx` and `web/components/forecastDateEntry.tsx`.
   - **`activityForecast.tsx`**:
     - Keep the summary line or the indoor message.
     - Add a `<button type="button" aria-expanded aria-controls>`. Its visible text is "Show forecast details" or "Hide forecast details", and its `aria-label` is the visible text followed by ", <name>". It is closed at first (local state).
     - The date list is rendered inside its controlled element only while open.
   - **`forecastDateEntry.tsx`**: remove the "Sunrise HH:MM · Sunset HH:MM" line (spec FR-017).
-- [ ] T053 [US3] In `web/components/planActivitiesSummary.tsx` (or `activitySection.tsx`), replace the two settings paragraphs with one `<p>{activitySettingsText(activity)}</p>`, placed after the places and before the forecast (spec FR-017).
-- [ ] T054 [US3] In `web/pages/PlacesAndForecastPage.tsx`, render `<PlanOverview>` between the status region and the activities, after the first load. Pass the same `forecast` and `places` as the activities get.
+- [X] T053 [US3] In `web/components/planActivitiesSummary.tsx` (or `activitySection.tsx`), replace the two settings paragraphs with one `<p>{activitySettingsText(activity)}</p>`, placed after the places and before the forecast (spec FR-017).
+- [X] T054 [US3] In `web/pages/PlacesAndForecastPage.tsx`, render `<PlanOverview>` between the status region and the activities, after the first load. Pass the same `forecast` and `places` as the activities get.
 
 **Checkpoint**: The step answers "which activity suits which day, and where" at a glance, and the details stay closed until opened.
 
