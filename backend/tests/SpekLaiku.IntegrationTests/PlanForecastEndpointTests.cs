@@ -80,7 +80,7 @@ public class PlanForecastEndpointTests(PostgreSqlApiFactory factory)
         Assert.True(kayaking.GetProperty("hasLongEnoughPeriod").GetBoolean());
 
         var kayakingToday = kayaking.GetProperty("days")[0];
-        Assert.Equal(["date", "periods", "hours"], Keys(kayakingToday));
+        Assert.Equal(["date", "periods", "longestPeriod", "hours"], Keys(kayakingToday));
         Assert.Equal("2026-11-10", kayakingToday.GetProperty("date").GetString());
         var shortPeriod = Assert.Single(kayakingToday.GetProperty("periods").EnumerateArray());
         Assert.Equal(["start", "end", "lengthHours", "shorterThanDuration"], Keys(shortPeriod));
@@ -99,9 +99,21 @@ public class PlanForecastEndpointTests(PostgreSqlApiFactory factory)
         Assert.Equal(8, longPeriod.GetProperty("lengthHours").GetInt32());
         Assert.False(longPeriod.GetProperty("shorterThanDuration").GetBoolean());
 
+        // The longest period of each date is one of its periods, chosen on the server (feature 007).
+        Assert.Equal(shortPeriod.GetRawText(), kayakingToday.GetProperty("longestPeriod").GetRawText());
+        Assert.Equal(longPeriod.GetRawText(), kayaking.GetProperty("days")[1].GetProperty("longestPeriod").GetRawText());
+
         var museum = activities[1];
         Assert.True(museum.GetProperty("weatherIndependent").GetBoolean());
         Assert.Equal(7 + 16, museum.GetProperty("suitableHours").GetInt32());
+        // An Indoor activity without daylight: the whole planning window of a later date.
+        var museumLongest = museum.GetProperty("days")[1].GetProperty("longestPeriod");
+        Assert.Equal("06:00", museumLongest.GetProperty("start").GetString());
+        Assert.Equal("22:00", museumLongest.GetProperty("end").GetString());
+        Assert.Equal(16, museumLongest.GetProperty("lengthHours").GetInt32());
+
+        // No suitable hour: no longest period.
+        Assert.Equal(JsonValueKind.Null, activities[2].GetProperty("days")[1].GetProperty("longestPeriod").ValueKind);
 
         // The same category with a minimum of 20 °C has no suitable hour at 18 °C.
         Assert.Equal(0, activities[2].GetProperty("suitableHours").GetInt32());

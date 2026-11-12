@@ -61,6 +61,30 @@ public sealed class SuitablePeriodsTests
         Assert.Equal(shorter, period.ShorterThanDuration);
     }
 
+    [Fact]
+    public void Longest_OfNoPeriod_IsNull()
+    {
+        Assert.Null(SuitablePeriods.Longest([]));
+    }
+
+    [Theory]
+    // A single period.
+    [InlineData("..xx..", 10, 2)]
+    // 08–10 and 12–16: the longer one.
+    [InlineData("xx..xxxx", 12, 4)]
+    // 08–10 and 12–14: equally long, so the earlier one.
+    [InlineData("xx..xx", 8, 2)]
+    // The longest one last.
+    [InlineData("x.xx.xxx", 13, 3)]
+    public void Longest_IsTheLongestPeriodOrTheEarliestOfEquallyLongOnes(string pattern, int startHour, int lengthHours)
+    {
+        var longest = SuitablePeriods.Longest(SuitablePeriods.From(Hours(8, pattern), 1m));
+
+        Assert.NotNull(longest);
+        Assert.Equal(new TimeOnly(startHour, 0), longest.Start);
+        Assert.Equal(lengthHours, longest.LengthHours);
+    }
+
     /// <summary>One hour per character from <paramref name="firstHour"/>: "x" suitable, "." unsuitable.</summary>
     internal static HourSuitability[] Hours(int firstHour, string pattern) =>
         pattern

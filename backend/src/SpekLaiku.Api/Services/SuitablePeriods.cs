@@ -41,6 +41,26 @@ public static class SuitablePeriods
         return periods;
     }
 
+    /// <summary>
+    /// The longest period, the earliest of equally long ones, or <c>null</c> without any (feature 007 FR-016,
+    /// research section 8). The step 3 overview shows it; the page does not pick it.
+    /// </summary>
+    /// <param name="periods">One date's periods in time order.</param>
+    public static SuitablePeriod? Longest(IReadOnlyList<SuitablePeriod> periods)
+    {
+        SuitablePeriod? longest = null;
+        foreach (var period in periods)
+        {
+            // Strictly longer, so the earlier of two equally long periods is kept.
+            if (longest is null || period.LengthHours > longest.LengthHours)
+            {
+                longest = period;
+            }
+        }
+
+        return longest;
+    }
+
     private static SuitablePeriod Period(TimeOnly start, TimeOnly end, decimal durationHours)
     {
         var length = (end - start).Hours;
