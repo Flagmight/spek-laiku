@@ -381,13 +381,15 @@ area.
 |  | No categories | "No activity categories are available yet." |
 |  | Limit reached | "You can add up to 10 activities." and every **Add** is disabled. |
 |  | Checking | "Checking your activities…" and **Continue** is disabled. |
-| Places and Forecast | Loading | "Getting the forecast…" (feature 006). Feature 007 makes it "Getting the forecast and nearby places…" with **Generate schedule** disabled. |
-|  | Success | "Forecast updated at HH:MM", then per activity a summary ("Suitable hours: 9 on 2 of 3 dates.") and per date the sunrise, sunset and "★ Suitable 10:00–14:00 (4 h)" periods; a period shorter than the activity's duration adds ", shorter than this activity's 2 h". **Show hours** opens the date's hours with "★ Suitable" or "✗ Unsuitable" and every reason. |
+| Places and Forecast | Loading | "Getting the forecast and nearby places…" until both the forecast and the places have answered or failed; nothing else of the step is shown until then (feature 007). **Generate schedule** comes with the schedule (feature 008). |
+|  | Success | "Forecast updated at HH:MM" and "Places updated at HH:MM" (the oldest receive time of the places shown). Then the **Plan overview** table: a row per activity with its nearest place, and a column per date headed "Sat 14 Nov · Sunrise 07:42 · Sunset 16:21", each cell "★ 10:00–14:00 (4 h)" (", too short" when shorter than the activity), "✗ None" or "No hours left". Below it, per activity: its places (name, "3.4 km away", the town, **View on map**), one settings line, the summary ("Suitable hours: 9 on 2 of 3 dates.") and **Show forecast details**, closed at first. The details list per date the "★ Suitable 10:00–14:00 (4 h)" periods (", shorter than this activity's 2 h" when too short) without sunrise and sunset, and **Show hours** opens the date's hours with "★ Suitable" or "✗ Unsuitable" and every reason. |
 |  | Empty (per date) | "✗ No suitable hours on this date." On today's date with no hour left: "No hours left to plan today." |
-|  | Empty (per activity) | "No suitable hours on any of your dates. Try other dates or change this activity's limits." An indoor activity without a daylight requirement shows only "Weather does not affect this indoor activity. Every hour from 06:00 to 22:00 is suitable." Feature 007 adds the "No place found" row with **Remove** and **Change activity**. |
-|  | Service unavailable | "Error: The weather service is unavailable. No forecast is shown." with Retry, and no forecast values. Feature 007 adds the map data service message and disables **Generate schedule**. |
-|  | Too many requests | "Error: Too many requests. Wait a minute and try again." with Retry. |
-|  | Server error | "Error: Something went wrong. Try again." with Retry (also after 10 seconds without an answer). |
+|  | Empty (per activity) | "No suitable hours on any of your dates. Try other dates or change this activity's limits." An indoor activity without a daylight requirement shows only "Weather does not affect this indoor activity. Every hour from 06:00 to 22:00 is suitable." |
+|  | No place found | "✗ No place found within 30 km." (the search radius) under the activity, with **Remove** and **Change activity**, and "✗ No place found" in its overview row. **Remove** takes the activity out without a new request, announces "<name> removed." and moves focus to the next activity; removing the last one opens Activity Selection. **Change activity** opens Activity Selection on that activity. |
+|  | Service unavailable | Weather: "Error: The weather service is unavailable. No forecast is shown." with its own Retry; the overview stays, its date headings show only the date and every date cell "Not available". Map data: "Error: The map data service is unavailable. No places are shown." with its own Retry; every Place cell and places area shows "Not available", and no activity is flagged. Both can show at once. |
+|  | Retrying | The rest of the step stays. The status region, and the cells and areas of that part, show "Getting the forecast…" or "Getting nearby places…". |
+|  | Too many requests | "Error: Too many requests. Wait a minute and try again." with Retry, for the forecast or the places. |
+|  | Server error | "Error: Something went wrong. Try again." with Retry (also after 10 seconds without an answer), for the forecast or the places. |
 |  | Plan out of date | The server found the setup or the activities no longer valid: the user goes back to Plan Setup or Activity Selection, which shows the "checked again" notice below. |
 | Plan Setup and Activity Selection | Checked again | "Your plan setup needs to be checked again. Select Continue." (Plan Setup) or "Your activities need to be checked again. Select Continue." (Activity Selection), at the top in a framed box, until the next successful **Continue**. |
 | Schedule Overview | Loading | "Generating your schedule…" |
@@ -514,7 +516,7 @@ until it is unreadable.
 | Register / Log in | Single centred-width form | Same form, full-width fields and buttons |
 | Plan Setup | Distance and date fields side by side, date chips in a row | Fields stacked, date chips wrap onto new lines |
 | Activity Selection | Categories on the left, activity settings on the right | Categories first, then the settings, all in one column. Each setting is on its own row. |
-| Places and Forecast | Tables grouped by activity | Each place or hour becomes a card. Suitable and unsuitable still use ★ and ✗ with words. |
+| Places and Forecast | The Plan overview table (activities by dates), then each activity with its places as a list, and its forecast details and hours tables when opened | Each overview row becomes a card titled with the activity, each value as "Place: …" or "Sat 14 Nov: …"; each hour becomes a card. Buttons are full width. Suitable and unsuitable still use ★ and ✗ with words. |
 | Schedule Overview | Table grouped by day, columns Time / Activity / Place / Weather / Travel | Day heading, then one card per activity with the time shown first |
 | Plan Problems and Alternatives | Option table with details | Options as cards. Choosing one is a large tap target. |
 | My Plans | Table with Open, Duplicate, Delete in the last column | Plan name as card title, the buttons below it. Delete still asks for confirmation. |
@@ -675,7 +677,7 @@ Independent Work 1 before implementation.
 | FR-033 | Detect plan problems after a forecast change | Plan Problems and Alternatives |
 | FR-034 | Recalculate saved plan with latest forecast. | Plan Details / Edit |
 | FR-035 | Calculate travel distance and enforce maximum | Plan Setup / Schedule |
-| FR-036 | Flag an activity as unscheduled, with the reason | Places and Forecast |
+| FR-036 | Flag an activity as unscheduled, with the reason | Places and Forecast (no place found, feature 007), Schedule Overview (unscheduled list, feature 008) |
 | FR-037 | Change duration and weather limits inside a plan | Activity Selection |
 | FR-038 | Keep a visitor's plan when they log in or register | Schedule Overview |
 | FR-039 | Confirm before deleting a plan or account, or suspending an account | My Plans, Admin: User Accounts |
