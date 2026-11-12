@@ -213,3 +213,90 @@ describe("usePlanPlacesStore removing an activity", () => {
     expect(store().lastActivities).toBe(activities)
   })
 })
+
+describe("usePlanPlacesStore failures and Retry", () => {
+  it.each([
+    [
+      "mapUnavailable",
+      () => jsonResponse(503, { status: 503, service: "places" }),
+    ],
+    ["tooManyRequests", () => jsonResponse(429, { status: 429 })],
+    [
+      "serverError",
+      () => jsonResponse(503, { status: 503, service: "locationSearch" }),
+    ],
+  ] as const)("sets %s and keeps no places", async (status, answer) => {
+    routeFetch({ [placesRoute]: answer })
+
+    await act(() => store().load(setup, activities))
+
+    expect(store().status).toBe(status)
+    expect(store().places).toBeNull()
+  })
+
+  it("is retrying, not loading, while Retry runs, sends the last plan and runs one request at a time", async () => {
+    const { fetchMock, pending } = stubPendingRequests()
+    let load: Promise<void> = Promise.resolve()
+    act(() => {
+      load = store().load(setup, activities)
+    })
+    await act(async () => {
+      pending[0].resolve(jsonResponse(503, { status: 503, service: "places" }))
+      await load
+    })
+
+    let retry: Promise<void> = Promise.resolve()
+    act(() => {
+      retry = store().retry()
+      void store().retry()
+      void store().load(setup, activities)
+    })
+    expect(store().status).toBe("retrying")
+    expect(store().places).toBeNull()
+
+    const places = planPlaces(["category-kayaking"])
+    await act(async () => {
+      pending[1].resolve(jsonResponse(200, places))
+      await retry
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[1][1]?.body).toBe(
+      fetchMock.mock.calls[0][1]?.body,
+    )
+    expect(store().status).toBe("loaded")
+    expect(store().places).toEqual(places)
+  })
+
+  it("reports a server error when Retry gets no answer within 10 seconds", async () => {
+    vi.useFakeTimers()
+    routeFetch({ [placesRoute]: () => jsonResponse(500) })
+    await act(() => store().load(setup, activities))
+    stubPendingRequests()
+
+    act(() => {
+      void store().retry()
+    })
+    await act(() => vi.advanceTimersByTimeAsync(planRequestTimeoutMs))
+
+    expect(store().status).toBe("serverError")
+  })
+
+  it("drops a Retry's late answer after reset", async () => {
+    routeFetch({ [placesRoute]: () => jsonResponse(500) })
+    await act(() => store().load(setup, activities))
+    const { pending } = stubPendingRequests()
+
+    let retry: Promise<void> = Promise.resolve()
+    act(() => {
+      retry = store().retry()
+    })
+    act(() => store().reset())
+    await act(async () => {
+      pending[0].resolve(jsonResponse(200, planPlaces(["category-kayaking"])))
+      await retry
+    })
+
+    expect(store().status).toBe("idle")
+    expect(store().places).toBeNull()
+  })
+})

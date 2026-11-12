@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { dateCellText, placeCellText } from "../helpers/overviewCellText"
+import {
+  dateCellText,
+  missingCellText,
+  placeCellText,
+} from "../helpers/overviewCellText"
 import type { ActivityDayForecast, SuitablePeriod } from "../types/planForecast"
 import { forecastDay } from "./forecastFixtures"
 import { lampedziai, nemunoSlipway } from "./placesFixtures"
@@ -64,5 +68,19 @@ describe("placeCellText", () => {
 
   it("flags an activity without a place", () => {
     expect(placeCellText([])).toBe("✗ No place found")
+  })
+})
+
+describe("missingCellText", () => {
+  it("says what is being asked for again during a Retry", () => {
+    expect(missingCellText("retrying", "Getting nearby places…")).toBe(
+      "Getting nearby places…",
+    )
+  })
+
+  it("says Not available after a failure", () => {
+    expect(missingCellText("unavailable", "Getting the forecast…")).toBe(
+      "Not available",
+    )
   })
 })

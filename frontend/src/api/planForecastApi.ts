@@ -75,8 +75,8 @@ async function outdatedPart(
     : undefined
 }
 
-// The service named in a 503 answer, or undefined when the body cannot be read.
-async function failedService(response: Response): Promise<unknown> {
+// The service named in a 503 answer, or undefined when the body cannot be read. Also read by the places API.
+export async function failedService(response: Response): Promise<unknown> {
   try {
     const problem = (await response.json()) as { service?: unknown }
     return problem.service

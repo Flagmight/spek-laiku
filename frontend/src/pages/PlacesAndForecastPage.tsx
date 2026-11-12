@@ -7,6 +7,7 @@ import { PlanProgress } from "../components/planProgress"
 import { PlanSetupSummary } from "../components/planSetupSummary"
 import { isFirstLoad } from "../helpers/isFirstLoad"
 import { planActivityNames } from "../helpers/planActivityNames"
+import { stepPartState } from "../helpers/stepPartState"
 import { usePageTitle } from "../hooks/usePageTitle"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanForecastStore } from "../stores/usePlanForecastStore"
@@ -72,12 +73,16 @@ export function PlacesAndForecastPage() {
           <PlanOverview
             activities={activities}
             names={planActivityNames(activities)}
+            dates={setup.dates}
+            forecastState={stepPartState(forecastStatus, forecast !== null)}
             forecast={forecast ?? undefined}
+            placesState={stepPartState(placesStatus, places !== null)}
             places={places ?? undefined}
           />
           <PlanActivitiesSummary
             activities={activities}
             forecast={forecast ?? undefined}
+            placesState={stepPartState(placesStatus, places !== null)}
             places={places ?? undefined}
           />
         </>

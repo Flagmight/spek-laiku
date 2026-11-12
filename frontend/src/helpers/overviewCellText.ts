@@ -1,3 +1,4 @@
+import type { StepPartState } from "./stepPartState"
 import type { ActivityDayForecast, ForecastDay } from "../types/planForecast"
 import type { NearbyPlace } from "../types/planPlaces"
 
@@ -24,4 +25,13 @@ export function dateCellText(
 // A "Place" cell: the nearest place's name, or the no-place flag (feature 007 FR-016, FR-019).
 export function placeCellText(places: NearbyPlace[]): string {
   return places[0]?.name ?? "✗ No place found"
+}
+
+// A cell whose part of the step has no data: being asked for again, or not available (feature 007 FR-009,
+// FR-016).
+export function missingCellText(
+  state: Exclude<StepPartState, "loaded">,
+  retryingText: string,
+): string {
+  return state === "retrying" ? retryingText : "Not available"
 }

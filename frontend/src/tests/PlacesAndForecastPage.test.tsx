@@ -1,7 +1,15 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanPlacesStore } from "../stores/usePlanPlacesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CheckedPlanActivity, PlanCategory } from "../types/planActivity"
 import type { PlanForecast } from "../types/planForecast"
@@ -1475,5 +1483,298 @@ describe("Places and forecast page: the overview", () => {
     expect(
       screen.queryByRole("button", { name: /Generate schedule/ }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe("Places and forecast page: when places or the forecast cannot be shown", () => {
+  const mapUnavailable = () =>
+    jsonResponse(503, { status: 503, service: "places" })
+  const weatherUnavailable = () =>
+    jsonResponse(503, { status: 503, service: "forecast" })
+
+  function status() {
+    return screen.getByRole("status", { name: "Places and forecast" })
+  }
+
+  function overview() {
+    return screen.getByRole("table", { name: "Plan overview" })
+  }
+
+  function placeCells() {
+    return within(overview())
+      .getAllByRole("cell")
+      .filter((cell) => cell.textContent?.startsWith("Place: "))
+      .map((cell) => cell.textContent)
+  }
+
+  function dateCells() {
+    return within(overview())
+      .getAllByRole("cell")
+      .filter((cell) => !cell.textContent?.startsWith("Place: "))
+      .map((cell) => cell.textContent)
+  }
+
+  function placesAreas() {
+    return screen
+      .getAllByRole("heading", { level: 3, name: "Places" })
+      .map((heading) => heading.nextElementSibling?.textContent)
+  }
+
+  // A places answer the test gives when it wants; earlier answers come from the given list.
+  function placesAnswers(...answers: (() => Response)[]) {
+    let release: (response: Response) => void = () => {}
+    let index = 0
+    const handler = () => {
+      const answer = answers[index++]
+      return answer
+        ? answer()
+        : new Promise<Response>((resolve) => {
+            release = resolve
+          })
+    }
+    return { handler, release: (response: Response) => release(response) }
+  }
+
+  function placesRequests(requests: RecordedRequest[]) {
+    return requests.filter((request) => request.path === "/api/plan-places")
+  }
+
+  it("shows the map data service error once above the overview, no places and the forecast", async () => {
+    acceptSetup()
+    acceptActivities(cycling, museum)
+    render(answerForecast, { "POST /api/plan-places": mapUnavailable })
+
+    await waitFor(() =>
+      expect(status()).toHaveTextContent(
+        "Error: The map data service is unavailable. No places are shown.",
+      ),
+    )
+    expect(
+      screen.getAllByText(
+        "Error: The map data service is unavailable. No places are shown.",
+      ),
+    ).toHaveLength(1)
+    expect(
+      within(status()).getByRole("button", { name: "Retry" }),
+    ).toBeInTheDocument()
+    expect(
+      status().compareDocumentPosition(overview()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(placeCells()).toEqual([
+      "Place: Not available",
+      "Place: Not available",
+    ])
+    expect(placesAreas()).toEqual(["Not available", "Not available"])
+    expect(screen.queryByText(/No place found/)).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: /View on map/ }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Places updated/)).not.toBeInTheDocument()
+    expect(status()).toHaveTextContent("Forecast updated at 14:05")
+    expect(dateCells()).toEqual([
+      "Sat 7 Nov: ★ 08:00–16:00 (8 h)",
+      "Sat 7 Nov: ★ 08:00–16:00 (8 h)",
+    ])
+  })
+
+  it("keeps the step on places Retry, says it is getting the places, then shows them without a new forecast", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const places = placesAnswers(mapUnavailable)
+    const { requests } = render(answerForecast, {
+      "POST /api/plan-places": places.handler,
+    })
+    await waitFor(() =>
+      expect(status()).toHaveTextContent(
+        "The map data service is unavailable.",
+      ),
+    )
+
+    // Two quick clicks: the second finds the request already running.
+    const retry = within(status()).getByRole("button", { name: "Retry" })
+    fireEvent.click(retry)
+    fireEvent.click(retry)
+
+    expect(status()).toHaveTextContent("Getting nearby places…")
+    expect(status()).toHaveTextContent("Forecast updated at 14:05")
+    expect(placeCells()).toEqual(["Place: Getting nearby places…"])
+    expect(placesAreas()).toEqual(["Getting nearby places…"])
+    expect(dateCells()).toEqual(["Sat 7 Nov: ★ 08:00–16:00 (8 h)"])
+    expect(screen.getByText(/Suitable hours/)).toBeInTheDocument()
+    expect(placesRequests(requests)).toHaveLength(2)
+
+    places.release(jsonResponse(200, planPlaces(["category-cycling"])))
+
+    expect(
+      await screen.findByText("Places updated at 14:05"),
+    ).toBeInTheDocument()
+    expect(placeCells()).toEqual(["Place: Nemuno slipway"])
+    expect(forecastRequests(requests)).toHaveLength(1)
+    expect(placesRequests(requests)).toHaveLength(2)
+  })
+
+  it("keeps the overview without the forecast, with plain date headings and the places", async () => {
+    usePlanSetupStore.getState().setChecked({
+      location: kaunas,
+      dates: ["2026-11-07", "2026-11-08"],
+      maxTravelDistanceKm: 30,
+    })
+    acceptActivities(cycling)
+    render(weatherUnavailable)
+
+    await waitFor(() =>
+      expect(status()).toHaveTextContent(
+        "Error: The weather service is unavailable. No forecast is shown.",
+      ),
+    )
+    expect(
+      status().compareDocumentPosition(overview()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      within(overview())
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Activity", "Place", "Sat 7 Nov", "Sun 8 Nov"])
+    expect(dateCells()).toEqual([
+      "Sat 7 Nov: Not available",
+      "Sun 8 Nov: Not available",
+    ])
+    expect(placeCells()).toEqual(["Place: Nemuno slipway"])
+    expect(status()).toHaveTextContent("Places updated at 14:05")
+  })
+
+  it("says it is getting the forecast in the date cells during the forecast's Retry", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const user = userEvent.setup()
+    let release: (response: Response) => void = () => {}
+    let failing = true
+    render((request) =>
+      failing
+        ? weatherUnavailable()
+        : new Promise<Response>((resolve) => {
+            release = (response) => resolve(response)
+            void request
+          }),
+    )
+    await waitFor(() =>
+      expect(status()).toHaveTextContent("The weather service is unavailable."),
+    )
+
+    failing = false
+    await user.click(within(status()).getByRole("button", { name: "Retry" }))
+
+    expect(status()).toHaveTextContent("Getting the forecast…")
+    expect(dateCells()).toEqual(["Sat 7 Nov: Getting the forecast…"])
+    expect(placeCells()).toEqual(["Place: Nemuno slipway"])
+    release(jsonResponse(200, planForecast(["2026-11-07"], 1)))
+    await waitFor(() =>
+      expect(dateCells()).toEqual(["Sat 7 Nov: ★ 08:00–16:00 (8 h)"]),
+    )
+  })
+
+  it("shows both errors, each with its own Retry, and Not available everywhere", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    render(weatherUnavailable, { "POST /api/plan-places": mapUnavailable })
+
+    await waitFor(() =>
+      expect(status()).toHaveTextContent(
+        "Error: The map data service is unavailable. No places are shown.",
+      ),
+    )
+    expect(status()).toHaveTextContent(
+      "Error: The weather service is unavailable. No forecast is shown.",
+    )
+    expect(
+      within(status()).getAllByRole("button", { name: "Retry" }),
+    ).toHaveLength(2)
+    expect(placeCells()).toEqual(["Place: Not available"])
+    expect(dateCells()).toEqual(["Sat 7 Nov: Not available"])
+  })
+
+  it.each([
+    [
+      "too many requests",
+      () => jsonResponse(429, { status: 429 }),
+      "Error: Too many requests. Wait a minute and try again.",
+    ],
+    [
+      "a server error",
+      () => jsonResponse(500),
+      "Error: Something went wrong. Try again.",
+    ],
+    [
+      "the location search service failing",
+      () => jsonResponse(503, { status: 503, service: "locationSearch" }),
+      "Error: Something went wrong. Try again.",
+    ],
+  ])(
+    "shows the places error with Retry for %s",
+    async (_case, answer, message) => {
+      acceptSetup()
+      acceptActivities(cycling)
+      render(answerForecast, { "POST /api/plan-places": answer })
+
+      await waitFor(() => expect(status()).toHaveTextContent(message))
+      expect(
+        within(status()).getByRole("button", { name: "Retry" }),
+      ).toBeInTheDocument()
+      expect(status()).toHaveTextContent("Forecast updated at 14:05")
+      expect(placeCells()).toEqual(["Place: Not available"])
+    },
+  )
+
+  it("shows the server error when the places do not answer within 10 seconds", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      acceptSetup()
+      acceptActivities(cycling)
+      render(answerForecast, {
+        "POST /api/plan-places": (request) =>
+          new Promise<Response>(() => {
+            void request
+          }),
+      })
+      await waitFor(() =>
+        expect(status()).toHaveTextContent(
+          "Getting the forecast and nearby places…",
+        ),
+      )
+
+      await act(() => vi.advanceTimersByTimeAsync(10_000))
+
+      await waitFor(() =>
+        expect(status()).toHaveTextContent(
+          "Error: Something went wrong. Try again.",
+        ),
+      )
+      expect(status()).toHaveTextContent("Forecast updated at 14:05")
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("ignores places that arrive after the user has left the step", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const user = userEvent.setup()
+    const places = placesAnswers()
+    render(answerForecast, { "POST /api/plan-places": places.handler })
+    await waitFor(() =>
+      expect(status()).toHaveTextContent(
+        "Getting the forecast and nearby places…",
+      ),
+    )
+
+    await user.click(screen.getByRole("link", { name: "Back" }))
+    await heading("Activity selection")
+    places.release(jsonResponse(200, planPlaces(["category-cycling"])))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(usePlanPlacesStore.getState().status).toBe("idle")
+    expect(usePlanPlacesStore.getState().places).toBeNull()
   })
 })

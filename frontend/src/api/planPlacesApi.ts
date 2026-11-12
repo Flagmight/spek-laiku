@@ -1,13 +1,17 @@
 import type { PlanPlaces, PlanPlacesRequest } from "../types/planPlaces"
 import { ApiError, apiFetch } from "./apiClient"
+import { failedService } from "./planForecastApi"
 
 const path = "/api/plan-places"
 
-export type PlanPlacesOutcome = { kind: "places"; places: PlanPlaces }
+export type PlanPlacesOutcome =
+  | { kind: "places"; places: PlanPlaces }
+  | { kind: "mapUnavailable" }
+  | { kind: "tooManyRequests" }
 
-// The places for the checked plan (contracts/plan-places-api.md). Every answer other than 200 throws
-// ApiError for now; the stories for the out-of-date plan, access and the map data service add their own
-// outcomes. Network and abort errors pass through, so callers treat them all as a server error.
+// The places for the checked plan (contracts/plan-places-api.md). A 503 counts as the map data service only
+// when the answer names it. Anything else, including a 503 from the location search service, throws
+// ApiError. Network and abort errors pass through, so callers treat them all as a server error.
 export async function getPlanPlaces(
   request: PlanPlacesRequest,
   signal?: AbortSignal,
@@ -19,8 +23,16 @@ export async function getPlanPlaces(
     signal,
   })
 
-  if (response.status === 200) {
-    return { kind: "places", places: (await response.json()) as PlanPlaces }
+  switch (response.status) {
+    case 200:
+      return { kind: "places", places: (await response.json()) as PlanPlaces }
+    case 429:
+      return { kind: "tooManyRequests" }
+    case 503:
+      if ((await failedService(response)) === "places") {
+        return { kind: "mapUnavailable" }
+      }
+      break
   }
 
   throw new ApiError(response.status)

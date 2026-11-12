@@ -53,3 +53,41 @@ describe("getPlanPlaces", () => {
     await expect(getPlanPlaces(request)).rejects.toBeInstanceOf(TypeError)
   })
 })
+
+describe("getPlanPlaces failures", () => {
+  it("maps a 503 for the map data service to mapUnavailable", async () => {
+    routeFetch({
+      [placesRoute]: () =>
+        jsonResponse(503, {
+          status: 503,
+          title: "Service unavailable.",
+          detail: "The map data service is unavailable. No places are shown.",
+          service: "places",
+        }),
+    })
+
+    expect(await getPlanPlaces(request)).toEqual({ kind: "mapUnavailable" })
+  })
+
+  it("maps 429 to tooManyRequests", async () => {
+    routeFetch({ [placesRoute]: () => jsonResponse(429, { status: 429 }) })
+
+    expect(await getPlanPlaces(request)).toEqual({ kind: "tooManyRequests" })
+  })
+
+  it.each([
+    [
+      "a 503 from another service",
+      () => jsonResponse(503, { service: "locationSearch" }),
+    ],
+    [
+      "a 503 without a readable body",
+      () => new Response("oops", { status: 503 }),
+    ],
+    ["a 500", () => jsonResponse(500)],
+  ])("throws ApiError for %s", async (_case, answer) => {
+    routeFetch({ [placesRoute]: answer })
+
+    await expect(getPlanPlaces(request)).rejects.toBeInstanceOf(ApiError)
+  })
+})

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { activitySettingsText } from "../helpers/activitySettingsText"
 import { planActivityNames } from "../helpers/planActivityNames"
+import type { StepPartState } from "../helpers/stepPartState"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanForecastStore } from "../stores/usePlanForecastStore"
 import { usePlanPlacesStore } from "../stores/usePlanPlacesStore"
@@ -16,6 +17,8 @@ interface PlanActivitiesSummaryProps {
   activities: CheckedPlanActivity[]
   // When given, each activity's forecast area follows its settings; the server answers in the same order.
   forecast?: PlanForecast
+  // Whether the places arrived, are being asked for again, or could not be loaded (feature 007 FR-009).
+  placesState: StepPartState
   // When given, each activity lists the places of its category (feature 007 FR-017).
   places?: PlanPlaces
 }
@@ -31,6 +34,7 @@ function headingId(activityId: string) {
 export function PlanActivitiesSummary({
   activities,
   forecast,
+  placesState,
   places,
 }: PlanActivitiesSummaryProps) {
   const names = planActivityNames(activities)
@@ -75,6 +79,7 @@ export function PlanActivitiesSummary({
                   {names[activity.id]}
                 </h2>
                 <ActivityPlaces
+                  state={placesState}
                   places={
                     places?.categories.find(
                       (category) => category.categoryId === activity.categoryId,
