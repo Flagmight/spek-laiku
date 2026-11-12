@@ -383,11 +383,11 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T037 [P] [US2] Extend the store tests.
+- [X] T037 [P] [US2] Extend the store tests.
   - `web/tests/usePlanActivitiesStore.test.ts`: `removeChecked(id)` removes the activity from `activities` and from `checked`, keeps the others checked and in order, persists, and sets `checked` to `null` only when the last one is removed.
   - `web/tests/usePlanForecastStore.test.ts`: `removeActivity(id)` drops the matching `forecast.activities` entry and the `lastActivities` entry, so Retry sends the shorter list.
   - `web/tests/usePlanPlacesStore.test.ts`: `removeActivity(id)` drops the `lastActivities` entry and keeps `places`.
-- [ ] T038 [P] [US2] Extend `web/tests/PlacesAndForecastPage.test.tsx` (no place part), with a places answer whose Kayaking category has `places: []` and `radiusKm: 30`. Cover:
+- [X] T038 [P] [US2] Extend `web/tests/PlacesAndForecastPage.test.tsx` (no place part), with a places answer whose Kayaking category has `places: []` and `radiusKm: 30`. Cover:
   - "✗ No place found within 30 km." with buttons "Remove" and "Change activity", whose accessible names are "Remove, Kayaking" and "Change activity, Kayaking";
   - **Remove**:
     - "Kayaking removed." in a status region, and focus on the next activity's `h2` (the previous one when Kayaking was last);
@@ -396,16 +396,16 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - removing the only activity leads to `/plan/activities` with "No activities added yet. Select at least one category to continue.";
   - **Change activity** leads to `/plan/activities` with every activity kept and focus on Kayaking's heading;
   - an activity the user keeps stays flagged after a reload of step 3.
-- [ ] T039 [P] [US2] Extend `web/tests/ActivitySelectionPage.test.tsx`: with router state `{ focusActivityId }`, the page focuses `activity-<id>-heading` once after it renders. Without the state, focus is unchanged. An unknown id does nothing.
+- [X] T039 [P] [US2] Extend `web/tests/ActivitySelectionPage.test.tsx`: with router state `{ focusActivityId }`, the page focuses `activity-<id>-heading` once after it renders. Without the state, focus is unchanged. An unknown id does nothing.
 
 ### Implementation for User Story 2
 
-- [ ] T040 [US2] Add `removeChecked(id)` to `web/stores/usePlanActivitiesStore.ts`, as in research section 11 and `data-model.md` (Plan activities store). Comment that the existing `remove(id)` also unchecks the list, which step 3 must not do (spec FR-020).
-- [ ] T041 [P] [US2] Add `removeActivity(id)` to `web/stores/usePlanForecastStore.ts` and to `web/stores/usePlanPlacesStore.ts`, as in `data-model.md`. Both find the index in `lastActivities` by `id` and do nothing when it is not there.
-- [ ] T042 [US2] Extend `web/components/activityPlaces.tsx`.
+- [X] T040 [US2] Add `removeChecked(id)` to `web/stores/usePlanActivitiesStore.ts`, as in research section 11 and `data-model.md` (Plan activities store). Comment that the existing `remove(id)` also unchecks the list, which step 3 must not do (spec FR-020).
+- [X] T041 [P] [US2] Add `removeActivity(id)` to `web/stores/usePlanForecastStore.ts` and to `web/stores/usePlanPlacesStore.ts`, as in `data-model.md`. Both find the index in `lastActivities` by `id` and do nothing when it is not there.
+- [X] T042 [US2] Extend `web/components/activityPlaces.tsx`.
   - Add the props `radiusKm`, `activityName`, `onRemove` and `onChange`.
   - When `places` is an empty array, render `<p>✗ No place found within {radiusKm} km.</p>` and two `<button type="button">`: "Remove" with `aria-label="Remove, <name>"`, and "Change activity" with `aria-label="Change activity, <name>"`.
-- [ ] T043 [US2] Change `web/components/planActivitiesSummary.tsx`:
+- [X] T043 [US2] Change `web/components/planActivitiesSummary.tsx`:
   - give each `<h2>` `tabIndex={-1}`;
   - pass `radiusKm`, the shown name and the handlers to `ActivityPlaces`;
   - **Remove**:
@@ -415,7 +415,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - focus the remembered heading in an effect after the render.
   - **Change activity**: `navigate("/plan/activities", { state: { focusActivityId: id } })`.
   - Keep it under about 200 lines. Move the section body into `web/components/activitySection.tsx` if needed.
-- [ ] T044 [P] [US2] Add `focusActivityId?: string` to `web/types/navigationState.ts`, with a comment. In `web/pages/ActivitySelectionPage.tsx`, read it with `useLocation()`, and in an effect after the activities render, focus `document.getElementById(\`activity-${id}-heading\`)` once.
+- [X] T044 [P] [US2] Add `focusActivityId?: string` to `web/types/navigationState.ts`, with a comment. In `web/pages/ActivitySelectionPage.tsx`, read it with `useLocation()`, and in an effect after the activities render, focus `document.getElementById(\`activity-${id}-heading\`)` once.
 
 **Checkpoint**: Activities without a place are flagged with the reason, and the user can remove or change them without losing the rest of the step.
 
