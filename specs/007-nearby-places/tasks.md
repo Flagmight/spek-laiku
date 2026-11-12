@@ -641,14 +641,14 @@ Each is refused or ignored as described, and the map data service is not contact
 
 ### Tests for User Story 6 ⚠️
 
-- [ ] T066 [P] [US6] Add `IntegrationTests/PlanPlacesAuthorizationTests.cs`, following `PlanForecastAuthorizationTests.cs`: every row of the table in `contracts/plan-places-api.md`. For each refused caller, `FakeMapPlacesClient.Calls` and the geocoding calls are unchanged.
-- [ ] T067 [P] [US6] Extend `web/tests/planPlacesApi.test.ts`, `web/tests/usePlanPlacesStore.test.ts` and `web/tests/planCreatorOnly.test.tsx`:
+- [X] T066 [P] [US6] Add `IntegrationTests/PlanPlacesAuthorizationTests.cs`, following `PlanForecastAuthorizationTests.cs`: every row of the table in `contracts/plan-places-api.md`. For each refused caller, `FakeMapPlacesClient.Calls` and the geocoding calls are unchanged.
+- [X] T067 [P] [US6] Extend `web/tests/planPlacesApi.test.ts`, `web/tests/usePlanPlacesStore.test.ts` and `web/tests/planCreatorOnly.test.tsx`:
   - `403` gives `{ kind: "forbidden" }`, and the store refreshes the current user and shows the server error with Retry;
   - an Active Administrator opening `/plan/places` sees Access denied, a Suspended user sees Account suspended, and neither page sends a request to `/api/plan-places`.
 
 ### Implementation for User Story 6
 
-- [ ] T068 [US6] Map `403` to `{ kind: "forbidden" }` in `web/api/planPlacesApi.ts`. In `web/stores/usePlanPlacesStore.ts`, call `useCurrentUserStore.getState().refresh()` and set `serverError`, as the forecast store does. The server side needs no change: T030 already applies the `PlanCreator` policy. Confirm it with T066.
+- [X] T068 [US6] Map `403` to `{ kind: "forbidden" }` in `web/api/planPlacesApi.ts`. In `web/stores/usePlanPlacesStore.ts`, call `useCurrentUserStore.getState().refresh()` and set `serverError`, as the forecast store does. The server side needs no change: T030 already applies the `PlanCreator` policy. Confirm it with T066.
 
 **Checkpoint**: Access is enforced on the server and shown correctly in the browser.
 
