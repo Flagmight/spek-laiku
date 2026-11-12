@@ -1,5 +1,6 @@
 import type { PlanForecast, PlanForecastRequest } from "../types/planForecast"
 import { ApiError, apiFetch } from "./apiClient"
+import { failedService, outdatedPart } from "./planStepAnswer"
 
 const path = "/api/plan-forecast"
 
@@ -52,35 +53,4 @@ export async function getPlanForecast(
   }
 
   throw new ApiError(response.status)
-}
-
-// Which part of the plan a 400 answer refuses, or undefined when it names neither.
-async function outdatedPart(
-  response: Response,
-): Promise<"setupOutdated" | "activitiesOutdated" | undefined> {
-  let keys: string[]
-  try {
-    const problem = (await response.json()) as { errors?: object }
-    keys = Object.keys(problem.errors ?? {})
-  } catch {
-    return undefined
-  }
-
-  if (keys.some((key) => key.startsWith("setup"))) {
-    return "setupOutdated"
-  }
-
-  return keys.some((key) => key.startsWith("activities"))
-    ? "activitiesOutdated"
-    : undefined
-}
-
-// The service named in a 503 answer, or undefined when the body cannot be read. Also read by the places API.
-export async function failedService(response: Response): Promise<unknown> {
-  try {
-    const problem = (await response.json()) as { service?: unknown }
-    return problem.service
-  } catch {
-    return undefined
-  }
 }

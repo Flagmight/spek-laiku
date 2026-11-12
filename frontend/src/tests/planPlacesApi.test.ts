@@ -91,3 +91,44 @@ describe("getPlanPlaces failures", () => {
     await expect(getPlanPlaces(request)).rejects.toBeInstanceOf(ApiError)
   })
 })
+
+describe("getPlanPlaces when the plan is out of date", () => {
+  it("maps a 400 with a setup key to setupOutdated", async () => {
+    routeFetch({
+      [placesRoute]: () =>
+        jsonResponse(400, {
+          errors: { "setup.dates[0]": ["Dates cannot be in the past."] },
+        }),
+    })
+
+    expect(await getPlanPlaces(request)).toEqual({ kind: "setupOutdated" })
+  })
+
+  it("maps a 400 with only activity keys to activitiesOutdated", async () => {
+    routeFetch({
+      [placesRoute]: () =>
+        jsonResponse(400, {
+          errors: {
+            "activities[0].maxWindMs": [
+              "Enter a wind limit between 0 and 30 m/s.",
+            ],
+          },
+        }),
+    })
+
+    expect(await getPlanPlaces(request)).toEqual({ kind: "activitiesOutdated" })
+  })
+
+  it.each([
+    [
+      "only request",
+      () =>
+        jsonResponse(400, { errors: { request: ["The request is invalid."] } }),
+    ],
+    ["an unreadable body", () => new Response("oops", { status: 400 })],
+  ])("throws ApiError for a 400 with %s", async (_case, answer) => {
+    routeFetch({ [placesRoute]: answer })
+
+    await expect(getPlanPlaces(request)).rejects.toEqual(new ApiError(400))
+  })
+})

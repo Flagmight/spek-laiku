@@ -6,6 +6,8 @@ import { startTimeout } from "../helpers/timedRequest"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanPlaces } from "../types/planPlaces"
 import type { CheckedPlanSetup } from "../types/planSetup"
+import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
+import { usePlanSetupStore } from "./usePlanSetupStore"
 
 export type PlanPlacesStatus =
   | "idle"
@@ -17,6 +19,9 @@ export type PlanPlacesStatus =
   | "mapUnavailable"
   | "tooManyRequests"
   | "serverError"
+  // The server found the setup or the activities out of date; the page's guards send the user back.
+  | "setupOutdated"
+  | "activitiesOutdated"
 
 // The places on step 3 (data-model.md, Plan places store). They are never kept in the session: the page
 // asks again each time it opens (spec FR-023), and places are held only while the status is "loaded", so no
@@ -59,6 +64,13 @@ function toResult(outcome: PlanPlacesOutcome | null): Result {
   switch (outcome?.kind) {
     case "places":
       return { status: "loaded", places: outcome.places }
+    case "setupOutdated":
+      // Unchecking the setup makes step 3 send the user to Plan setup, which shows the notice (spec FR-004).
+      usePlanSetupStore.getState().markOutdated()
+      return { status: "setupOutdated", places: null }
+    case "activitiesOutdated":
+      usePlanActivitiesStore.getState().markOutdated()
+      return { status: "activitiesOutdated", places: null }
     case "mapUnavailable":
       return { status: "mapUnavailable", places: null }
     case "tooManyRequests":

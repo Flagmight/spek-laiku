@@ -1,7 +1,9 @@
 import { act } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { planRequestTimeoutMs } from "../helpers/timedRequest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanPlacesStore } from "../stores/usePlanPlacesStore"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { CheckedPlanSetup } from "../types/planSetup"
 import { planPlaces } from "./placesFixtures"
@@ -298,5 +300,60 @@ describe("usePlanPlacesStore failures and Retry", () => {
 
     expect(store().status).toBe("idle")
     expect(store().places).toBeNull()
+  })
+})
+
+describe("usePlanPlacesStore when the plan is out of date", () => {
+  it("marks the setup as out of date for a setup key and keeps no places", async () => {
+    usePlanSetupStore.getState().setChecked(setup)
+    routeFetch({
+      [placesRoute]: () =>
+        jsonResponse(400, {
+          errors: {
+            "setup.locationId": [
+              "Select a location in Lithuania from the list.",
+            ],
+          },
+        }),
+    })
+
+    await act(() => store().load(setup, activities))
+
+    expect(store().status).toBe("setupOutdated")
+    expect(store().places).toBeNull()
+    expect(usePlanSetupStore.getState().checked).toBeNull()
+    expect(usePlanSetupStore.getState().recheckNotice).toBe(true)
+    expect(usePlanActivitiesStore.getState().recheckNotice).toBe(false)
+  })
+
+  it("marks the activities as out of date for an activity key", async () => {
+    usePlanActivitiesStore.getState().setChecked(activities)
+    routeFetch({
+      [placesRoute]: () =>
+        jsonResponse(400, {
+          errors: {
+            "activities[0]": [
+              "This activity is no longer available. Remove it.",
+            ],
+          },
+        }),
+    })
+
+    await act(() => store().load(setup, activities))
+
+    expect(store().status).toBe("activitiesOutdated")
+    expect(usePlanActivitiesStore.getState().checked).toBeNull()
+    expect(usePlanActivitiesStore.getState().recheckNotice).toBe(true)
+  })
+
+  it("reports a server error for a 400 that names neither part", async () => {
+    routeFetch({
+      [placesRoute]: () =>
+        jsonResponse(400, { errors: { request: ["The request is invalid."] } }),
+    })
+
+    await act(() => store().load(setup, activities))
+
+    expect(store().status).toBe("serverError")
   })
 })
