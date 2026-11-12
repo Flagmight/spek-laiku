@@ -240,7 +240,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T019 [P] [US1] Add `UnitTests/NearbyPlacesServiceTests.cs` with `RecordingMapPlacesClient`, a real `MemoryCache` and a `ForecastPeriod` built on `FixedTimeProvider`. Cover:
+- [X] T019 [P] [US1] Add `UnitTests/NearbyPlacesServiceTests.cs` with `RecordingMapPlacesClient`, a real `MemoryCache` and a `ForecastPeriod` built on `FixedTimeProvider`. Cover:
   - **One call**: two uncached categories with overlapping tags give one client call with the distinct tags, at the location's position and radius, and each category gets only its own matches.
   - **No call when cached**: a second call within 23 h 59 min makes no client call and returns the same `ReceivedAt`. At 24 h it calls again.
   - **Partly cached**: one cached and one new category asks the client only for the new category's tags.
@@ -250,7 +250,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - a category's changed tags ask again.
   - **No tags**: a category with no tags gets an empty list without a call.
   - **Failures**: a failure is not cached, and the next call reaches the client.
-- [ ] T020 [P] [US1] Add `UnitTests/PlanPlacesServiceTests.cs`. Build `PlanRecheckService` with `RecordingGeocodingClient` and the EF Core in-memory database, as in `PlanForecastServiceTests.cs`, and seed categories with `PlaceTags`. Use `NearbyPlacesService` with `RecordingMapPlacesClient`. Cover the success path:
+- [X] T020 [P] [US1] Add `UnitTests/PlanPlacesServiceTests.cs`. Build `PlanRecheckService` with `RecordingGeocodingClient` and the EF Core in-memory database, as in `PlanForecastServiceTests.cs`, and seed categories with `PlaceTags`. Use `NearbyPlacesService` with `RecordingMapPlacesClient`. Cover the success path:
   - `Categories` has one entry per distinct category in order of first appearance;
   - two activities of the same category give one entry;
   - the tags come from the database;
@@ -258,12 +258,12 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   - `UpdatedAt` is the oldest `ReceivedAt` in Lithuanian time to the minute (one category received at 09:00, then a new one at 10:30, gives 09:00).
 
   The error paths come in US5 (T062).
-- [ ] T021 [P] [US1] Add `UnitTests/PlanPlacesMappingTests.cs`:
+- [X] T021 [P] [US1] Add `UnitTests/PlanPlacesMappingTests.cs`:
   - build the configuration with both `PlanPlacesMappingProfile` and `PlanForecastMappingProfile`, because the one `TimeOnly` to `"HH:mm"` conversion lives in the forecast profile (T029);
   - the configuration is valid;
   - a `PlanPlaces` maps to `PlanPlacesResponse` with `updatedAt` as `"HH:mm"`, `radiusKm`, `categoryId`, and each place's `name`, `latitude`, `longitude`, `distanceKm` and `area` (including `null`);
   - `NearbyPlace.Key` is not in the response type.
-- [ ] T022 [P] [US1] Add `IntegrationTests/PlanPlacesEndpointTests.cs` (collection `PostgreSqlCollection`).
+- [X] T022 [P] [US1] Add `IntegrationTests/PlanPlacesEndpointTests.cs` (collection `PostgreSqlCollection`).
   - Use your own place id and position, scripted in `FakeGeocodingClient` and `FakeMapPlacesClient`, and your own categories with `UniqueCategoryName` and their own tags.
   - Set `Clock` to a fixed time and set it back at the end.
   - As a Visitor, cover the `200` contract in `contracts/plan-places-api.md`:
@@ -276,14 +276,14 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - `radiusKm` 10 for a 10 km plan and 50 for an 80 km plan;
     - `updatedAt` `"HH:mm"` in Lithuanian time;
     - the raw JSON has only the documented keys (no `tags`, `key` or element ids).
-- [ ] T023 [P] [US1] Add `web/tests/planPlacesApi.test.ts` and `web/tests/usePlanPlacesStore.test.ts` (loading part), with `routeFetch`, following the forecast tests. Cover:
+- [X] T023 [P] [US1] Add `web/tests/planPlacesApi.test.ts` and `web/tests/usePlanPlacesStore.test.ts` (loading part), with `routeFetch`, following the forecast tests. Cover:
   - `getPlanPlaces` sends `POST /api/plan-places` with the body from `checkedPlanRequest` and maps `200` to `{ kind: "places" }`;
   - any other status not yet handled throws `ApiError`;
   - the store goes `loading` → `loaded` with `places`;
   - a second `load` while loading sends no request;
   - `reset` aborts and drops a late answer;
   - a thrown error sets `serverError`.
-- [ ] T024 [P] [US1] Extend `web/tests/PlacesAndForecastPage.test.tsx` (places part).
+- [X] T024 [P] [US1] Extend `web/tests/PlacesAndForecastPage.test.tsx` (places part).
   - Add a shared `placesRoutes` answer for `POST /api/plan-places` in a new `web/tests/placesFixtures.ts`, next to `forecastFixtures.ts`.
   - Add it to the route stubs of every older test file that passes through step 3: `ActivitySelectionPage`, `keyboard`, `responsive`, `accessibility`, `planCreatorOnly` and `layout`. Where a test counts every `POST`, make it count only its own path. Do not remove or weaken any assertion.
   - Cover:
@@ -301,7 +301,7 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
 
 ### Implementation for User Story 1
 
-- [ ] T025 [US1] Create `Api/Services/CategoryTags.cs` (`record CategoryTags(Guid CategoryId, IReadOnlyList<string> Tags)`), `Api/Services/ReceivedPlaces.cs` (`record ReceivedPlaces(IReadOnlyList<NearbyPlace> Places, DateTimeOffset ReceivedAt)`) and `Api/Services/NearbyPlacesService.cs`. The service takes `IMapPlacesClient`, `IMemoryCache`, `ForecastPeriod` and `IOptions<PlacesOptions>`, and no `TimeProvider`.
+- [X] T025 [US1] Create `Api/Services/CategoryTags.cs` (`record CategoryTags(Guid CategoryId, IReadOnlyList<string> Tags)`), `Api/Services/ReceivedPlaces.cs` (`record ReceivedPlaces(IReadOnlyList<NearbyPlace> Places, DateTimeOffset ReceivedAt)`) and `Api/Services/NearbyPlacesService.cs`. The service takes `IMapPlacesClient`, `IMemoryCache`, `ForecastPeriod` and `IOptions<PlacesOptions>`, and no `TimeProvider`.
   - `GetAsync(PlaceLocation location, int radiusKm, IReadOnlyList<CategoryTags> categories, CancellationToken)` follows `data-model.md` (NearbyPlacesService) exactly:
     - the key is `places:<location.Id>:<radiusKm>:<string.Join(",", tags.Order(StringComparer.Ordinal))>`;
     - an entry is used while `forecastPeriod.GetNow() − ReceivedAt < MaxAgeHours`;
@@ -310,12 +310,12 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
     - failures pass through and nothing new is stored;
     - a category with no tags gets an empty list, with no call and no entry.
   - Register `AddScoped<NearbyPlacesService>()`. Keep it under 200 lines.
-- [ ] T026 [P] [US1] Create the request and service records:
+- [X] T026 [P] [US1] Create the request and service records:
   - `Api/DTOs/Requests/PlanPlacesRequest.cs`: `record PlanPlacesRequest(PlanSetupCheckRequest? Setup, List<PlanActivityRequest>? Activities)`, with a comment that it is the same body as the forecast request (research section 1);
   - `Api/Services/CategoryPlaces.cs`: `record CategoryPlaces(Guid CategoryId, IReadOnlyList<NearbyPlace> Places)`;
   - `Api/Services/PlanPlaces.cs`: `record PlanPlaces(TimeOnly UpdatedAt, int RadiusKm, IReadOnlyList<CategoryPlaces> Categories)`;
   - `Api/Services/PlanPlacesResult.cs`, following `PlanForecastResult.cs`.
-- [ ] T027 [US1] Create `Api/Services/PlanPlacesService.cs`. It takes `PlanRecheckService`, `ApplicationDbContext`, `NearbyPlacesService` and `IOptions<PlacesOptions>`, and follows `data-model.md` (PlanPlacesService):
+- [X] T027 [US1] Create `Api/Services/PlanPlacesService.cs`. It takes `PlanRecheckService`, `ApplicationDbContext`, `NearbyPlacesService` and `IOptions<PlacesOptions>`, and follows `data-model.md` (PlanPlacesService):
   1. Recheck; return its errors unchanged.
   2. Read `Id` and `PlaceTags` for the distinct checked category ids in one `AsNoTracking` query. A missing category gets no tags.
   3. `radiusKm = Math.Min(setup.MaxTravelDistanceKm, MaxRadiusKm)`.
@@ -323,42 +323,42 @@ Commands are in `AGENTS.md`. Backend commands run from the repository root with 
   5. `UpdatedAt = ForecastPeriod.ToLithuanianMinute(oldest ReceivedAt)`.
 
   Register `AddScoped<PlanPlacesService>()`. Keep it under 200 lines.
-- [ ] T028 [P] [US1] Create the response DTOs in `Api/DTOs/Responses/` as in `contracts/plan-places-api.md`:
+- [X] T028 [P] [US1] Create the response DTOs in `Api/DTOs/Responses/` as in `contracts/plan-places-api.md`:
   - `PlanPlacesResponse(string UpdatedAt, int RadiusKm, IReadOnlyList<CategoryPlacesResponse> Categories)`;
   - `CategoryPlacesResponse(Guid CategoryId, IReadOnlyList<NearbyPlaceResponse> Places)`;
   - `NearbyPlaceResponse(string Name, double Latitude, double Longitude, decimal DistanceKm, string? Area)`.
-- [ ] T029 [US1] Create `Api/Mapping/PlanPlacesMappingProfile.cs`: `PlanPlaces`, `CategoryPlaces` and `NearbyPlace` to their responses. No rules.
+- [X] T029 [US1] Create `Api/Mapping/PlanPlacesMappingProfile.cs`: `PlanPlaces`, `CategoryPlaces` and `NearbyPlace` to their responses. No rules.
   - Do **not** add a second `CreateMap<TimeOnly, string>()`. The existing one in `PlanForecastMappingProfile` applies to every profile, because `AddAutoMapper` loads them all into one configuration. A duplicate map would fail configuration validation.
   - Add a comment pointing to it.
-- [ ] T030 [US1] Create `Api/Controllers/PlanPlacesController.cs`, following `PlanForecastController.cs`:
+- [X] T030 [US1] Create `Api/Controllers/PlanPlacesController.cs`, following `PlanForecastController.cs`:
   - `[ApiController]`, `[Route("api/plan-places")]`, `[Authorize(Policy = AuthorizationPolicies.PlanCreator)]`, `[EnableRateLimiting(RateLimitPolicies.PlanSetup)]` and `[ProducesResponseType(StatusCodes.Status403Forbidden)]`;
   - one `[HttpPost]` returning `200` with `mapper.Map<PlanPlacesResponse>(result.Places)`, or `400` `ValidationProblemDetails` (keys in result order);
   - `ProducesResponseType` for `200`, `400`, `429` and `503`.
 
   In `Api/RateLimiting/RateLimitPolicies.cs`, change the comment to "Location searches, plan setup checks, forecast requests and place requests together".
-- [ ] T031 [US1] Create `web/api/planPlacesApi.ts` with `getPlanPlaces(request: PlanPlacesRequest, signal?: AbortSignal)`. `200` gives `{ kind: "places"; places }`, and every other status throws `ApiError(status)` for now (US4 to US6 add the other kinds). Follow `planForecastApi.ts`.
-- [ ] T032 [US1] Create `web/stores/usePlanPlacesStore.ts` (not persisted, `data-model.md` Plan places store), following `usePlanForecastStore.ts` and using `checkedPlanRequest` and `startTimeout`.
+- [X] T031 [US1] Create `web/api/planPlacesApi.ts` with `getPlanPlaces(request: PlanPlacesRequest, signal?: AbortSignal)`. `200` gives `{ kind: "places"; places }`, and every other status throws `ApiError(status)` for now (US4 to US6 add the other kinds). Follow `planForecastApi.ts`.
+- [X] T032 [US1] Create `web/stores/usePlanPlacesStore.ts` (not persisted, `data-model.md` Plan places store), following `usePlanForecastStore.ts` and using `checkedPlanRequest` and `startTimeout`.
   - For now the statuses are `idle`, `loading`, `loaded` and `serverError`.
   - `load` is ignored while `loading`.
   - `reset()` aborts and drops a late answer.
   - Export `initialPlanPlacesState` and reset the store in `web/tests/setup.ts`.
-- [ ] T033 [P] [US1] Create `web/components/placeListItem.tsx` and `web/components/activityPlaces.tsx` (research section 12).
+- [X] T033 [P] [US1] Create `web/components/placeListItem.tsx` and `web/components/activityPlaces.tsx` (research section 12).
   - **`PlaceListItem`** (`place: NearbyPlace`) renders an `<li>` with:
     - the name;
     - `placeDistanceText` and, when there is one, the area (for example "Nemuno slipway · 3.4 km away · Kaunas");
     - an `<a href={openStreetMapLink(…)} target="_blank" rel="noopener noreferrer">View on map</a>`. US7 adds the accessible name.
   - **`ActivityPlaces`** (`places: NearbyPlace[] | undefined`) renders `<h3>Places</h3>` and a `<ul className="places-list">` of `PlaceListItem`. Nothing is rendered when `places` is `undefined`. US2 adds the empty case, and US4 adds "Not available" and "Getting nearby places…".
-- [ ] T034 [US1] Create `web/components/placesAndForecastStatus.tsx` to replace `web/components/planForecastStatus.tsx`, which is deleted along with its imports (research section 12). It is one `<div role="status" aria-label="Places and forecast" className="forecast-status">`:
+- [X] T034 [US1] Create `web/components/placesAndForecastStatus.tsx` to replace `web/components/planForecastStatus.tsx`, which is deleted along with its imports (research section 12). It is one `<div role="status" aria-label="Places and forecast" className="forecast-status">`:
   - **First load**: while either store is `idle` or `loading`, only "Getting the forecast and nearby places…".
   - **Afterwards**, the forecast line and then the places line:
     - "Forecast updated at HH:MM" or the feature 006 forecast error with its Retry, unchanged in wording and behaviour;
     - "Places updated at HH:MM" when the places store is `loaded`. US4 adds the places errors.
   - Move any test that targeted `PlanForecastStatus` to the new component, without weakening it. Keep it under about 200 lines.
-- [ ] T035 [US1] Change `web/components/planActivitiesSummary.tsx`:
+- [X] T035 [US1] Change `web/components/planActivitiesSummary.tsx`:
   - add an optional prop `places?: PlanPlaces`;
   - in each section, render `<ActivityPlaces>` right after the `<h2>`, with the places of the `categories` entry whose `categoryId` equals the activity's `categoryId`;
   - keep everything else as it is (US3 changes the settings and the forecast).
-- [ ] T036 [US1] Change `web/pages/PlacesAndForecastPage.tsx` (research section 10):
+- [X] T036 [US1] Change `web/pages/PlacesAndForecastPage.tsx` (research section 10):
   - The effect depends on `hasSetup` and `hasActivities` (booleans), and reads the checked values with `getState()` inside the effect. It calls `load` on both stores and `reset` on both in the cleanup.
   - While either store is `idle` or `loading`, render only the heading, progress, setup summary, `PlacesAndForecastStatus` and Back.
   - Then render the activities with `forecast` (when `loaded`) and `places` (when `loaded`).
@@ -562,6 +562,7 @@ Each activity section has one settings line, its summary, and closed forecast de
   - **The forecast store**:
     - `retry()` sets `retrying` instead of `loading`, and `load` is ignored while `retrying` too;
     - update `PlanForecastStatus`'s union type and comments.
+    - **Done early in US1 (T034, T036)**: without it, a forecast Retry after the first load would hide the whole step behind the first-load message and break the feature 006 Retry test. `usePlanForecastStore.test.ts` has a test for it, and the status region already shows "Getting the forecast…" while `retrying`.
 - [ ] T060 [US4] Extend `web/components/placesAndForecastStatus.tsx`.
   - **The places line**:
     - "Getting nearby places…" while `retrying`;
