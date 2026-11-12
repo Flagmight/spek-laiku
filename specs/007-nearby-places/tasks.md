@@ -512,16 +512,16 @@ Each activity section has one settings line, its summary, and closed forecast de
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T055 [P] [US4] Add `IntegrationTests/PlanPlacesFailureTests.cs` (collection `PostgreSqlCollection`, `CapturingLoggerProvider`). Cover:
+- [X] T055 [P] [US4] Add `IntegrationTests/PlanPlacesFailureTests.cs` (collection `PostgreSqlCollection`, `CapturingLoggerProvider`). Cover:
   - each `FailureKind` scripted in `FakeMapPlacesClient` gives `503` with `detail` "The map data service is unavailable. No places are shown." and `service: "places"`;
   - **all or nothing**: with one category cached and a second new category whose call fails, the answer is `503` with no places;
   - each failure writes exactly one warning containing "Map data service failed" and the kind, and no coordinates, tags or location id;
   - a failure is not cached: after `ScriptRecovery` the next request reaches the client and answers `200`;
   - a geocoding failure during the setup check (uncached location) gives `service: "locationSearch"`, and the map client is not called.
-- [ ] T056 [P] [US4] Extend `IntegrationTests/PlanSetupRateLimitTests.cs`:
+- [X] T056 [P] [US4] Extend `IntegrationTests/PlanSetupRateLimitTests.cs`:
   - location searches, setup checks, forecast requests and place requests from one address together get `429` on the 31st request in the window;
   - a refused place request does not reach `FakeMapPlacesClient` and is not logged as a service failure.
-- [ ] T057 [P] [US4] Extend `web/tests/planPlacesApi.test.ts` and `web/tests/usePlanPlacesStore.test.ts` (error part), and `web/tests/usePlanForecastStore.test.ts`. Cover:
+- [X] T057 [P] [US4] Extend `web/tests/planPlacesApi.test.ts` and `web/tests/usePlanPlacesStore.test.ts` (error part), and `web/tests/usePlanForecastStore.test.ts`. Cover:
   - `429` gives `{ kind: "tooManyRequests" }`;
   - `503` with `service: "places"` gives `{ kind: "mapUnavailable" }`;
   - a `503` with another service, a `500` and an unreadable `503` body throw `ApiError`;
@@ -531,7 +531,7 @@ Each activity section has one settings line, its summary, and closed forecast de
     - a second `retry()` while `retrying` sends nothing;
     - a late answer after `reset()` is dropped;
   - **the forecast store**: `retry()` sets `retrying` (not `loading`), and `load` is ignored while `retrying`.
-- [ ] T058 [P] [US4] Extend `web/tests/PlacesAndForecastPage.test.tsx` (error part). Cover:
+- [X] T058 [P] [US4] Extend `web/tests/PlacesAndForecastPage.test.tsx` (error part). Cover:
   - **The map data service unavailable**:
     - "Error: The map data service is unavailable. No places are shown." once above the overview, with Retry;
     - no "Places" lists and no "No place found";
@@ -553,7 +553,7 @@ Each activity section has one settings line, its summary, and closed forecast de
 
 ### Implementation for User Story 4
 
-- [ ] T059 [US4] Extend `web/api/planPlacesApi.ts` and `web/stores/usePlanPlacesStore.ts`, and change `web/stores/usePlanForecastStore.ts`.
+- [X] T059 [US4] Extend `web/api/planPlacesApi.ts` and `web/stores/usePlanPlacesStore.ts`, and change `web/stores/usePlanForecastStore.ts`.
   - **The API**: `429` gives `tooManyRequests`, and `503` with `service: "places"` gives `mapUnavailable`, reading the body as `planForecastApi.ts` does. Anything else throws.
   - **The places store**:
     - add `retrying`, `mapUnavailable` and `tooManyRequests`;
@@ -563,13 +563,13 @@ Each activity section has one settings line, its summary, and closed forecast de
     - `retry()` sets `retrying` instead of `loading`, and `load` is ignored while `retrying` too;
     - update `PlanForecastStatus`'s union type and comments.
     - **Done early in US1 (T034, T036)**: without it, a forecast Retry after the first load would hide the whole step behind the first-load message and break the feature 006 Retry test. `usePlanForecastStore.test.ts` has a test for it, and the status region already shows "Getting the forecast…" while `retrying`.
-- [ ] T060 [US4] Extend `web/components/placesAndForecastStatus.tsx`.
+- [X] T060 [US4] Extend `web/components/placesAndForecastStatus.tsx`.
   - **The places line**:
     - "Getting nearby places…" while `retrying`;
     - otherwise "Error: The map data service is unavailable. No places are shown.", "Error: Too many requests. Wait a minute and try again." or "Error: Something went wrong. Try again.", each in a `server-error` block with its own Retry calling `usePlanPlacesStore.getState().retry()`.
   - **The forecast line**: "Getting the forecast…" while `retrying`.
   - Use `formatErrorMessage` as now. Both errors can show together.
-- [ ] T061 [US4] Show the states without data (spec FR-009, FR-015, FR-016).
+- [X] T061 [US4] Show the states without data (spec FR-009, FR-015, FR-016).
   - In `web/components/activityPlaces.tsx`, add a `state` prop: `"loaded"`, `"retrying"` ("Getting nearby places…") or `"unavailable"` ("Not available"). The no-place flag is shown only when `"loaded"`.
   - In `web/components/planOverview.tsx` and `web/helpers/overviewCellText.ts`:
     - without places, the Place cells show "Not available", or "Getting nearby places…" while `retrying`;
