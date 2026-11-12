@@ -45,9 +45,8 @@ export function daylightActivityForecast(
     suitableHours: 8 * days.length,
     datesWithSuitableHours: days.length,
     hasLongEnoughPeriod: true,
-    days: days.map((day) => ({
-      date: day.date,
-      periods:
+    days: days.map((day) => {
+      const periods =
         day.hours.length === 0
           ? []
           : [
@@ -57,13 +56,18 @@ export function daylightActivityForecast(
                 lengthHours: 8,
                 shorterThanDuration: false,
               },
-            ],
-      hours: day.hours.map((hour) => ({
-        start: hour.start,
-        suitable: hour.daylight,
-        reasons: hour.daylight ? [] : ["Outside daylight"],
-      })),
-    })),
+            ]
+      return {
+        date: day.date,
+        periods,
+        longestPeriod: periods[0] ?? null,
+        hours: day.hours.map((hour) => ({
+          start: hour.start,
+          suitable: hour.daylight,
+          reasons: hour.daylight ? [] : ["Outside daylight"],
+        })),
+      }
+    }),
     ...changes,
   }
 }

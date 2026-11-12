@@ -11,6 +11,7 @@ import {
   stubFetch,
 } from "./renderApp"
 import { forecastRoutes } from "./forecastFixtures"
+import { placesRoutes } from "./placesFixtures"
 
 describe("shared layout", () => {
   beforeEach(() => {
@@ -100,6 +101,7 @@ describe.each([
   it(`makes 'Skip to main content' the first focusable item on the ${heading} page`, async () => {
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(200, signedInUser(role)),
       "GET /api/admin/categories": () => jsonResponse(200, []),
     })
@@ -135,6 +137,7 @@ describe.each([
     })
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
         jsonResponse(200, {

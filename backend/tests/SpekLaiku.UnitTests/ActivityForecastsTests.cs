@@ -39,6 +39,24 @@ public sealed class ActivityForecastsTests
     }
 
     [Fact]
+    public void For_EachDayHasItsLongestPeriodOrNone()
+    {
+        // Saturday: 10:00–11:00 and 13:00–16:00; Sunday: cold all day.
+        var days = new[]
+        {
+            Day(Saturday, hour => hour is 10 or >= 13 and < 16 ? 20m : 5m),
+            Day(Sunday, _ => 5m)
+        };
+
+        var forecast = ActivityForecasts.For(Kayaking, days);
+
+        Assert.Equal(
+            new SuitablePeriod(new TimeOnly(13, 0), new TimeOnly(16, 0), 3, false),
+            forecast.Days[0].LongestPeriod);
+        Assert.Null(forecast.Days[1].LongestPeriod);
+    }
+
+    [Fact]
     public void For_EveryPeriodShorterThanTheDuration_HasNoLongEnoughPeriod()
     {
         var days = new[] { Day(Saturday, hour => hour is 10 or 14 ? 20m : 5m) };
@@ -92,6 +110,8 @@ public sealed class ActivityForecastsTests
         Assert.Equal(16, forecast.SuitableHours);
         var period = Assert.Single(forecast.Days[0].Periods);
         Assert.Equal(16, period.LengthHours);
+        // The whole planning window, so the overview needs no special case (feature 007 FR-016).
+        Assert.Equal(period, forecast.Days[0].LongestPeriod);
     }
 
     // 06:00 to 22:00 with the given temperature, no rain, 3 m/s, and daylight from 08:00 to 16:00.

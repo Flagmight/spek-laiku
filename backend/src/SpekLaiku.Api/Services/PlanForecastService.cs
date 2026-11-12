@@ -5,60 +5,38 @@ namespace SpekLaiku.Api.Services;
 
 /// <summary>
 /// The forecast for a plan (spec FR-003 to FR-005, research section 8). The setup and the activities are
-/// checked again with the feature 004 and 005 services before the weather service is contacted, so the
+/// checked again with <see cref="PlanRecheckService"/> before the weather service is contacted, so the
 /// forecast always belongs to a valid plan and to the position the location search service gives for the
 /// location's id. The time comes only from <see cref="ForecastPeriod"/> (research section 3).
 /// </summary>
 public sealed class PlanForecastService(
-    PlanSetupService planSetupService,
-    PlanActivityService planActivityService,
+    PlanRecheckService planRecheckService,
     WeatherForecastService weatherForecastService,
     ForecastPeriod forecastPeriod,
     IOptions<ForecastOptions> options)
 {
-    public const string SetupKey = "setup";
-    public const string MissingSetupMessage = "The request is invalid.";
-
     public async Task<PlanForecastResult> GetAsync(PlanForecastRequest request, CancellationToken cancellationToken)
     {
-        if (request.Setup is null)
+        var plan = await planRecheckService.CheckAsync(request.Setup, request.Activities, cancellationToken);
+        if (!plan.Succeeded)
         {
-            return PlanForecastResult.Invalid([new(SetupKey, MissingSetupMessage)]);
+            return PlanForecastResult.Invalid(plan.Errors);
         }
 
-        var setup = await planSetupService.CheckAsync(request.Setup, cancellationToken);
-        if (!setup.Succeeded)
-        {
-            return PlanForecastResult.Invalid(
-                setup.Errors.Select(error => new KeyValuePair<string, string>($"{SetupKey}.{error.Key}", error.Value)).ToList());
-        }
-
-        var activities = await planActivityService.CheckAsync(
-            new PlanActivitiesCheckRequest(request.Activities),
-            cancellationToken);
-        if (!activities.Succeeded)
-        {
-            return PlanForecastResult.Invalid(activities.Errors);
-        }
-
-        var received = await weatherForecastService.GetAsync(setup.Setup.Location, cancellationToken);
+        var received = await weatherForecastService.GetAsync(plan.Setup.Location, cancellationToken);
 
         // Midnight in Lithuania can pass between the setup check and the forecast request, so a date the
         // check accepted may already be outside the period the forecast covers: the setup is then out of date.
-        if (setup.Setup.Dates.Any(date => received.Data.Days.All(day => day.Date != date)))
+        if (plan.Setup.Dates.Any(date => received.Data.Days.All(day => day.Date != date)))
         {
-            return PlanForecastResult.Invalid([new($"{SetupKey}.dates", PlanSetupValidator.PastDateMessage)]);
+            return PlanForecastResult.Invalid(
+                [new($"{PlanRecheckService.SetupKey}.dates", PlanSetupValidator.PastDateMessage)]);
         }
 
-        var days = PlanningDays.Build(received.Data, setup.Setup.Dates, forecastPeriod.GetNow(), options.Value);
-        var forecasts = activities.Activities.Select(activity => ActivityForecasts.For(activity, days)).ToList();
+        var days = PlanningDays.Build(received.Data, plan.Setup.Dates, forecastPeriod.GetNow(), options.Value);
+        var forecasts = plan.Activities.Select(activity => ActivityForecasts.For(activity, days)).ToList();
 
-        return PlanForecastResult.Success(new PlanForecast(ToMinute(received.ReceivedAt), days, forecasts));
-    }
-
-    private static TimeOnly ToMinute(DateTimeOffset receivedAt)
-    {
-        var inLithuania = TimeZoneInfo.ConvertTime(receivedAt, ForecastPeriod.Lithuania);
-        return new TimeOnly(inLithuania.Hour, inLithuania.Minute);
+        return PlanForecastResult.Success(
+            new PlanForecast(ForecastPeriod.ToLithuanianMinute(received.ReceivedAt), days, forecasts));
     }
 }

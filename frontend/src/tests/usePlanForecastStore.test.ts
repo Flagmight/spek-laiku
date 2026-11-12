@@ -1,11 +1,9 @@
 import { act } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { planRequestTimeoutMs } from "../helpers/timedRequest"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
-import {
-  planForecastTimeoutMs,
-  usePlanForecastStore,
-} from "../stores/usePlanForecastStore"
+import { usePlanForecastStore } from "../stores/usePlanForecastStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { CheckedPlanSetup } from "../types/planSetup"
@@ -203,12 +201,12 @@ describe("usePlanForecastStore failures", () => {
     act(() => {
       void store().load(setup, activities)
     })
-    await act(() => vi.advanceTimersByTimeAsync(planForecastTimeoutMs - 1))
+    await act(() => vi.advanceTimersByTimeAsync(planRequestTimeoutMs - 1))
     expect(store().status).toBe("loading")
 
     await act(() => vi.advanceTimersByTimeAsync(1))
 
-    expect(planForecastTimeoutMs).toBe(10_000)
+    expect(planRequestTimeoutMs).toBe(10_000)
     expect(store().status).toBe("serverError")
     expect(pending[0].signal.aborted).toBe(true)
   })
@@ -239,6 +237,33 @@ describe("usePlanForecastStore failures", () => {
     expect(store().status).toBe("loaded")
   })
 
+  it("is retrying, not loading, while Retry runs, and runs only one request at a time", async () => {
+    const { fetchMock, pending } = stubPendingRequests()
+    let load: Promise<void> = Promise.resolve()
+    act(() => {
+      load = store().load(setup, activities)
+    })
+    await act(async () => {
+      pending[0].resolve(jsonResponse(500))
+      await load
+    })
+
+    let retry: Promise<void> = Promise.resolve()
+    act(() => {
+      retry = store().retry()
+      void store().load(setup, activities)
+      void store().retry()
+    })
+    expect(store().status).toBe("retrying")
+
+    await act(async () => {
+      pending[1].resolve(jsonResponse(200, planForecast(["2026-11-14"], 1)))
+      await retry
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(store().status).toBe("loaded")
+  })
+
   it("does nothing on Retry before any request", async () => {
     const { fetchMock } = routeFetch({})
 
@@ -246,6 +271,70 @@ describe("usePlanForecastStore failures", () => {
 
     expect(fetchMock).not.toHaveBeenCalled()
     expect(store().status).toBe("idle")
+  })
+})
+
+describe("usePlanForecastStore removing an activity", () => {
+  const museum: CheckedPlanActivity = {
+    ...activities[0],
+    id: "browser-id-2",
+    categoryId: "category-museum",
+    name: "Museum",
+  }
+
+  it("drops the activity's forecast and sends the shorter list on Retry", async () => {
+    const forecast = planForecast(["2026-11-14"], 2)
+    forecast.activities[1] = { ...forecast.activities[1], suitableHours: 3 }
+    let answer = jsonResponse(200, forecast)
+    const { requests } = routeFetch({ [forecastRoute]: () => answer })
+    await act(() => store().load(setup, [...activities, museum]))
+
+    act(() => store().removeActivity(activities[0].id))
+
+    expect(store().forecast?.activities).toEqual([forecast.activities[1]])
+    expect(store().lastActivities).toEqual([museum])
+    expect(requests).toHaveLength(1)
+
+    answer = jsonResponse(500)
+    await act(() => store().retry())
+    expect(
+      (requests[1].body as { activities: { categoryId: string }[] }).activities,
+    ).toEqual([expect.objectContaining({ categoryId: "category-museum" })])
+  })
+
+  it("drops a removed activity from a Retry's answer that was asked for before the removal", async () => {
+    const forecast = planForecast(["2026-11-14"], 2)
+    forecast.activities[1] = { ...forecast.activities[1], suitableHours: 3 }
+    routeFetch({ [forecastRoute]: () => jsonResponse(500) })
+    await act(() => store().load(setup, [...activities, museum]))
+    const { pending } = stubPendingRequests()
+    let retry: Promise<void> = Promise.resolve()
+    act(() => {
+      retry = store().retry()
+    })
+
+    act(() => store().removeActivity(activities[0].id))
+    await act(async () => {
+      pending[0].resolve(jsonResponse(200, forecast))
+      await retry
+    })
+
+    expect(store().status).toBe("loaded")
+    expect(store().lastActivities).toEqual([museum])
+    expect(store().forecast?.activities).toEqual([forecast.activities[1]])
+  })
+
+  it("does nothing for an activity it does not know", async () => {
+    routeFetch({
+      [forecastRoute]: () => jsonResponse(200, planForecast(["2026-11-14"], 1)),
+    })
+    await act(() => store().load(setup, activities))
+    const before = store().forecast
+
+    act(() => store().removeActivity("unknown"))
+
+    expect(store().forecast).toBe(before)
+    expect(store().lastActivities).toBe(activities)
   })
 })
 

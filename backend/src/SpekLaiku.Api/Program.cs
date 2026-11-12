@@ -124,11 +124,21 @@ public class Program
             })
             // The request address holds the plan's position and dates; only the client's own warning is logged.
             .RemoveAllLoggers();
+        builder.Services.AddOptions<PlacesOptions>()
+            .Bind(builder.Configuration.GetSection(PlacesOptions.SectionName))
+            .Validate(PlacesOptions.IsValid, PlacesOptions.InvalidMessage)
+            .ValidateOnStart();
+        builder.Services.AddHttpClient<IMapPlacesClient, OverpassMapPlacesClient>(OverpassMapPlacesClient.Configure)
+            // The request body holds the plan's position; only the client's own warning is logged.
+            .RemoveAllLoggers();
         builder.Services.AddScoped<LocationSearchService>();
         builder.Services.AddScoped<PlanSetupService>();
         builder.Services.AddScoped<PlanActivityService>();
+        builder.Services.AddScoped<PlanRecheckService>();
         builder.Services.AddScoped<WeatherForecastService>();
         builder.Services.AddScoped<PlanForecastService>();
+        builder.Services.AddScoped<NearbyPlacesService>();
+        builder.Services.AddScoped<PlanPlacesService>();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();

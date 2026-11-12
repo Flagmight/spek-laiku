@@ -57,10 +57,32 @@ export function routeFetch(handlers: Record<string, RouteHandler>) {
       return Promise.reject(new TypeError(`No handler for ${route}`))
     }
 
-    return Promise.resolve(handler(request))
+    return abortable(Promise.resolve(handler(request)), init?.signal)
   })
   vi.stubGlobal("fetch", fetchMock)
   return { fetchMock, requests }
+}
+
+// Rejects when the request is aborted, as the browser's fetch does, so a timeout or a closed page ends a
+// request whose handler never answers.
+function abortable(
+  response: Promise<Response>,
+  signal: AbortSignal | null | undefined,
+): Promise<Response> {
+  if (!signal) {
+    return response
+  }
+
+  const aborted = () =>
+    new DOMException("The request was aborted.", "AbortError")
+  if (signal.aborted) {
+    return Promise.reject(aborted())
+  }
+
+  return new Promise<Response>((resolve, reject) => {
+    signal.addEventListener("abort", () => reject(aborted()), { once: true })
+    response.then(resolve, reject)
+  })
 }
 
 function requestPath(input: RequestInfo | URL) {

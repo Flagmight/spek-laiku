@@ -209,8 +209,9 @@ public sealed class PlanForecastServiceTests : IDisposable
         var options = Options.Create(new ForecastOptions());
         var database = activities ?? context;
         return new PlanForecastService(
-            new PlanSetupService(new LocationSearchService(geocoding, cache), period),
-            new PlanActivityService(database, new ActivityCategoryService(database)),
+            new PlanRecheckService(
+                new PlanSetupService(new LocationSearchService(geocoding, cache), period),
+                new PlanActivityService(database, new ActivityCategoryService(database))),
             new WeatherForecastService(forecastClient, cache, period, options),
             period,
             options);

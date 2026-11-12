@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using SpekLaiku.Api;
 using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.DTOs.Responses;
@@ -13,10 +14,10 @@ using SpekLaiku.Api.DTOs.Responses;
 namespace SpekLaiku.IntegrationTests;
 
 /// <summary>
-/// The plan setup request limit (feature 004 spec FR-027, research section 14), which forecast requests
-/// share (feature 006 spec FR-008). Each test builds its own host with a limit of 3 and its own fake
-/// location and weather services, so the shared host's high limit cannot hide a mistake; the database is
-/// the collection's.
+/// The plan setup request limit (feature 004 spec FR-027, research section 14), which forecast and place
+/// requests share (feature 006 spec FR-008, feature 007 spec FR-011). Each test builds its own host with a low
+/// limit and its own fake location, weather and map data services, so the shared host's high limit cannot
+/// hide a mistake; the database is the collection's.
 /// </summary>
 [Collection(PostgreSqlCollection.Name)]
 public class PlanSetupRateLimitTests(PostgreSqlApiFactory factory)
@@ -136,21 +137,83 @@ public class PlanSetupRateLimitTests(PostgreSqlApiFactory factory)
         Assert.Equal(0, geocoding.SearchCalls);
     }
 
-    // The forecast fake is optional so the older tests stay as they were; a new one is used when none is
-    // passed, so this host never reaches the live weather service.
+    [Fact]
+    public async Task PlaceRequests_ShareTheLimitWithSearchesChecksAndForecasts()
+    {
+        var geocoding = new FakeGeocodingClient();
+        var forecast = new FakeForecastClient();
+        var mapPlaces = new FakeMapPlacesClient();
+        var logs = new CapturingLoggerProvider();
+        var (placeId, categoryId) = await ScriptForecastPlanAsync(geocoding, forecast, mapPlaces);
+        await using var host = CreateHost(geocoding, permitLimit: "4", forecast, mapPlaces, logs);
+        using var client = CreateClient(host);
+
+        Assert.Equal(HttpStatusCode.OK, (await SearchAsync(client)).StatusCode);
+        Assert.NotEqual(HttpStatusCode.TooManyRequests, (await CheckAsync(client)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await ForecastAsync(client, placeId, categoryId)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PlacesAsync(client, placeId, categoryId)).StatusCode);
+        var lookups = geocoding.GetCalls;
+        var searches = mapPlaces.Calls;
+        using var refused = await PlacesAsync(client, placeId, categoryId);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
+        using var body = JsonDocument.Parse(await refused.Content.ReadAsStringAsync());
+        Assert.Equal(
+            "Too many requests. Wait a minute and try again.",
+            body.RootElement.GetProperty("detail").GetString());
+        Assert.True(refused.Headers.RetryAfter?.Delta > TimeSpan.Zero);
+        Assert.Equal(lookups, geocoding.GetCalls);
+        Assert.Equal(searches, mapPlaces.Calls);
+        Assert.DoesNotContain(logs.Entries, entry => entry.Contains("service failed"));
+    }
+
+    [Fact]
+    public async Task ThreePlaceRequests_UseUpTheLimitForAForecast()
+    {
+        var geocoding = new FakeGeocodingClient();
+        var forecast = new FakeForecastClient();
+        var mapPlaces = new FakeMapPlacesClient();
+        var (placeId, categoryId) = await ScriptForecastPlanAsync(geocoding, forecast, mapPlaces);
+        await using var host = CreateHost(geocoding, permitLimit: "3", forecast, mapPlaces);
+        using var client = CreateClient(host);
+        for (var request = 0; request < 3; request++)
+        {
+            using var allowed = await PlacesAsync(client, placeId, categoryId);
+            Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        }
+
+        using var refused = await ForecastAsync(client, placeId, categoryId);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
+        Assert.Equal(0, forecast.Calls);
+    }
+
+    // The forecast and map data fakes are optional so the older tests stay as they were; new ones are used
+    // when none is passed, so this host never reaches the live weather or map data service.
     private WebApplicationFactory<Program> CreateHost(
         FakeGeocodingClient geocoding,
         string permitLimit,
-        FakeForecastClient? forecast = null) =>
+        FakeForecastClient? forecast = null,
+        FakeMapPlacesClient? mapPlaces = null,
+        CapturingLoggerProvider? logs = null) =>
         factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("RateLimiting:PlanSetup:PermitLimit", permitLimit);
+            if (logs is not null)
+            {
+                builder.ConfigureLogging(logging => logging
+                    .AddProvider(logs)
+                    .AddFilter<CapturingLoggerProvider>(null, LogLevel.Trace));
+            }
+
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IGeocodingClient>();
                 services.AddSingleton<IGeocodingClient>(geocoding);
                 services.RemoveAll<IForecastClient>();
                 services.AddSingleton<IForecastClient>(forecast ?? new FakeForecastClient());
+                services.RemoveAll<IMapPlacesClient>();
+                services.AddSingleton<IMapPlacesClient>(mapPlaces ?? new FakeMapPlacesClient());
             });
         });
 
@@ -160,7 +223,8 @@ public class PlanSetupRateLimitTests(PostgreSqlApiFactory factory)
     /// </summary>
     private async Task<(long PlaceId, Guid CategoryId)> ScriptForecastPlanAsync(
         FakeGeocodingClient geocoding,
-        FakeForecastClient forecast)
+        FakeForecastClient forecast,
+        FakeMapPlacesClient? mapPlaces = null)
     {
         factory.Clock.UtcNow = DateTimeOffset.Parse("2026-11-10T12:20:00Z");
         var place = new GeocodingPlace(Random.Shared.NextInt64(100_000_000, 999_999_999), "Testinė", 54.5, 24.5, "LT", "Kaunas", null);
@@ -169,6 +233,7 @@ public class PlanSetupRateLimitTests(PostgreSqlApiFactory factory)
             place.Latitude,
             place.Longitude,
             FakeForecastClient.Fill(new DateOnly(2026, 11, 10), 7, 18.0, 0.0, 3.0, new TimeOnly(7, 42), new TimeOnly(16, 20)));
+        mapPlaces?.Script(place.Latitude, place.Longitude, []);
 
         using var administrator = await factory.CreateSignedInClientAsync("Administrator");
         using var response = await administrator.PostAsJsonAsync("/api/admin/categories", new
@@ -189,7 +254,14 @@ public class PlanSetupRateLimitTests(PostgreSqlApiFactory factory)
     }
 
     private static Task<HttpResponseMessage> ForecastAsync(HttpClient client, long placeId, Guid categoryId) =>
-        client.PostAsJsonAsync("/api/plan-forecast", new
+        client.PostAsJsonAsync("/api/plan-forecast", PlanBody(placeId, categoryId));
+
+    private static Task<HttpResponseMessage> PlacesAsync(HttpClient client, long placeId, Guid categoryId) =>
+        client.PostAsJsonAsync("/api/plan-places", PlanBody(placeId, categoryId));
+
+    // The same body for both step 3 requests.
+    private static object PlanBody(long placeId, Guid categoryId) =>
+        new
         {
             setup = new { locationId = placeId, dates = new[] { "2026-11-11" }, maxTravelDistanceKm = 30 },
             activities = new object[]
@@ -206,7 +278,7 @@ public class PlanSetupRateLimitTests(PostgreSqlApiFactory factory)
                     maxTemperatureC = 35
                 }
             }
-        });
+        };
 
     private static HttpClient CreateClient(WebApplicationFactory<Program> host) =>
         host.CreateClient(new WebApplicationFactoryClientOptions

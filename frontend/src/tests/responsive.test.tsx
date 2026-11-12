@@ -8,6 +8,8 @@ import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
 import { openCategories } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
+import { placesRoutes } from "./placesFixtures"
+import { acceptKayakingAndMuseum, placesStepRoutes } from "./placesStep"
 
 // jsdom applies stylesheet rules but does no layout, so these tests check the CSS rules
 // behind the 320 px requirements. The real size check is the manual quickstart step at 320 px.
@@ -234,6 +236,7 @@ describe("Account Suspended page at 320 px", () => {
 async function renderCategoriesPageWithForm() {
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(200, signedInUser("Administrator")),
     "GET /api/admin/categories": () =>
       jsonResponse(200, [
@@ -336,6 +339,7 @@ async function renderPlanSetupWithChip() {
   usePlanSetupStore.getState().addDate("2026-11-07")
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () =>
       jsonResponse(200, {
@@ -483,6 +487,7 @@ async function renderActivitySelection(
   usePlanActivitiesStore.getState().add(kayaking)
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-activities/categories": categories,
   })
@@ -607,6 +612,7 @@ describe("Places and forecast at 320 px", () => {
     ])
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
     })
     renderApp("/plan/places")
@@ -655,7 +661,7 @@ describe("Places and forecast hours at 320 px", () => {
     longitude: 23.90909,
   }
 
-  // Step 3 with one checked Kayaking activity and its first date's hours open.
+  // Step 3 with one checked Kayaking activity, its forecast details open and its first date's hours open.
   async function renderOpenHours() {
     usePlanSetupStore.getState().setChecked({
       location: kaunas,
@@ -678,16 +684,22 @@ describe("Places and forecast hours at 320 px", () => {
     ])
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
     })
     const user = userEvent.setup()
     renderApp("/plan/places")
     await user.click(
       await screen.findByRole("button", {
+        name: "Show forecast details, Kayaking",
+      }),
+    )
+    await user.click(
+      screen.getByRole("button", {
         name: "Show hours for Saturday 7 November 2026, Kayaking",
       }),
     )
-    return screen.getByRole("table")
+    return screen.getByRole("table", { name: /^Hours for/ })
   }
 
   it("shows each hour as a card with a border", async () => {
@@ -726,8 +738,9 @@ describe("Places and forecast hours at 320 px", () => {
     expect(within(table).getAllByRole("columnheader")).toHaveLength(6)
     const header = table.querySelector("thead")!
     expect(getComputedStyle(header).position).toBe("absolute")
+    // The rule may be shared with the plan overview in one selector list (feature 007).
     expect(styles).toMatch(
-      /\.forecast-hours thead \{[^}]*overflow: hidden;[^}]*clip-path: inset\(50%\);/,
+      /\.forecast-hours thead[^{]*\{[^}]*overflow: hidden;[^}]*clip-path: inset\(50%\);/,
     )
   })
 
@@ -743,8 +756,9 @@ describe("Places and forecast hours at 320 px", () => {
 
   it("wraps long reasons instead of widening the page", () => {
     // jsdom does no layout, so the rule behind "no horizontal scrolling at 320 px" is checked.
+    // The rule may be shared with the plan overview in one selector list (feature 007).
     expect(styles).toMatch(
-      /\.forecast-hours td \{[^}]*overflow-wrap: anywhere;/,
+      /\.forecast-hours td[,\s][^{]*\{[^}]*overflow-wrap: anywhere;/,
     )
   })
 
@@ -757,12 +771,111 @@ describe("Places and forecast hours at 320 px", () => {
     )
     expect(wide).toMatch(/\.forecast-hours tr \{\s*display: table-row;/)
     expect(wide).toMatch(/\.cell-label \{\s*display: none;/)
-    expect(wide).toMatch(/\.forecast-date button \{\s*width: auto;/)
+    // Shared with the other step 3 buttons in one selector list (feature 007).
+    expect(wide).toMatch(/\.forecast-date button[^{]*\{\s*width: auto;/)
   })
 
   it("frames the 'checked again' notice instead of relying on colour", () => {
     expect(styles).toMatch(
       /\.recheck-notice \{[^}]*border: 2px solid[^}]*border-left-width: 8px;/,
     )
+  })
+})
+
+describe("Places and forecast overview and places at 320 px", () => {
+  async function renderStep(places?: Parameters<typeof placesStepRoutes>[0]) {
+    acceptKayakingAndMuseum()
+    routeFetch(placesStepRoutes(places))
+    renderApp("/plan/places")
+    await screen.findByRole("table", { name: "Plan overview" })
+  }
+
+  function overview() {
+    return screen.getByRole("table", { name: "Plan overview" })
+  }
+
+  it("shows each overview row as a card with a border, its heading as the title", async () => {
+    await renderStep()
+
+    const table = overview()
+    expect(getComputedStyle(table).display).toBe("block")
+    const [, kayakingRow] = within(table).getAllByRole("row")
+    expect(getComputedStyle(kayakingRow).display).toBe("block")
+    expect(getComputedStyle(kayakingRow).borderStyle).toBe("solid")
+    expect(
+      getComputedStyle(within(kayakingRow).getByRole("rowheader")).display,
+    ).toBe("block")
+    for (const cell of within(kayakingRow).getAllByRole("cell")) {
+      expect(getComputedStyle(cell).display).toBe("block")
+    }
+    expect(getComputedStyle(table.querySelector("thead")!).position).toBe(
+      "absolute",
+    )
+  })
+
+  it("shows every cell's label, so each value reads 'Label: value'", async () => {
+    await renderStep()
+
+    const [, kayakingRow] = within(overview()).getAllByRole("row")
+    expect(
+      within(kayakingRow)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    ).toEqual(["Place: Nemuno slipway", "Sat 7 Nov: ★ 08:00–16:00 (8 h)"])
+    for (const label of kayakingRow.querySelectorAll(".cell-label")) {
+      expect(getComputedStyle(label).display).not.toBe("none")
+    }
+  })
+
+  it("makes Remove, Change activity and Show forecast details full-width 44 × 44 px targets", async () => {
+    await renderStep()
+
+    for (const name of [
+      "Remove, Museum",
+      "Change activity, Museum",
+      "Show forecast details, Kayaking",
+    ]) {
+      const button = screen.getByRole("button", { name })
+      expect(getComputedStyle(button).width).toBe("100%")
+      expectTouchTarget(button)
+    }
+  })
+
+  it("makes the places' Retry a full-width 44 × 44 px target", async () => {
+    await renderStep(() =>
+      jsonResponse(503, { status: 503, service: "places" }),
+    )
+
+    const retry = await screen.findByRole("button", { name: "Retry" })
+    expect(getComputedStyle(retry).width).toBe("100%")
+    expectTouchTarget(retry)
+  })
+
+  it("lists the places without bullets, each map link a 44 × 44 px target", async () => {
+    await renderStep()
+
+    const link = screen.getByRole("link", {
+      name: "View on map, Nemuno slipway (opens in a new tab)",
+    })
+    const list = link.closest("ul")!
+    expect(getComputedStyle(list).listStyle).toContain("none")
+    expectTouchTarget(link)
+  })
+
+  it("wraps long place names and overview cells instead of widening the page", () => {
+    // jsdom does no layout, so the rules behind "no horizontal scrolling at 320 px" are checked.
+    expect(styles).toMatch(/\.place-name \{[^}]*overflow-wrap: anywhere;/)
+    expect(styles).toMatch(/\.plan-overview td \{[^}]*overflow-wrap: anywhere;/)
+  })
+
+  it("shows the overview as a real table without cell labels from 40em wide", () => {
+    const wide = styles.slice(styles.indexOf("@media (min-width: 40em)"))
+
+    expect(wide).toMatch(/\.plan-overview \{\s*display: table;/)
+    expect(wide).toMatch(
+      /\.plan-overview thead \{[^}]*display: table-header-group;[^}]*clip-path: none;/,
+    )
+    expect(wide).toMatch(/\.plan-overview tr \{\s*display: table-row;/)
+    expect(wide).toMatch(/\.cell-label \{\s*display: none;/)
   })
 })

@@ -61,6 +61,7 @@ public sealed class PlanForecastMappingTests : IDisposable
                         new ActivityDayForecast(
                             date,
                             [new SuitablePeriod(new TimeOnly(13, 0), new TimeOnly(15, 0), 2, false)],
+                            new SuitablePeriod(new TimeOnly(13, 0), new TimeOnly(15, 0), 2, false),
                             [
                                 new HourSuitability(new TimeOnly(12, 0), ["Too windy: 9.0 m/s, maximum 8.0 m/s"]),
                                 new HourSuitability(new TimeOnly(13, 0), [])
@@ -87,11 +88,20 @@ public sealed class PlanForecastMappingTests : IDisposable
         var day = Assert.Single(activity.Days);
         Assert.Equal(date, day.Date);
         Assert.Equal(new SuitablePeriodResponse("13:00", "15:00", 2, false), Assert.Single(day.Periods));
+        Assert.Equal(new SuitablePeriodResponse("13:00", "15:00", 2, false), day.LongestPeriod);
         Assert.Equal("12:00", day.Hours[0].Start);
         Assert.False(day.Hours[0].Suitable);
         Assert.Equal(["Too windy: 9.0 m/s, maximum 8.0 m/s"], day.Hours[0].Reasons);
         Assert.True(day.Hours[1].Suitable);
         Assert.Empty(day.Hours[1].Reasons);
+    }
+
+    [Fact]
+    public void DayWithoutPeriods_HasNoLongestPeriod()
+    {
+        var day = new ActivityDayForecast(new DateOnly(2026, 11, 14), [], null, []);
+
+        Assert.Null(mapper.Map<ActivityDayForecastResponse>(day).LongestPeriod);
     }
 
     public void Dispose() => provider.Dispose();

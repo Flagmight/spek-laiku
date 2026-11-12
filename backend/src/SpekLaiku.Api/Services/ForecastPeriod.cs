@@ -18,6 +18,16 @@ public sealed class ForecastPeriod(TimeProvider timeProvider)
     /// <summary>The current time in Lithuania, with Lithuania's offset.</summary>
     public DateTimeOffset GetNow() => TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), Lithuania);
 
+    /// <summary>
+    /// The instant's Lithuanian time to the minute, as the "updated at" messages show it (feature 006 FR-009,
+    /// feature 007 FR-012).
+    /// </summary>
+    public static TimeOnly ToLithuanianMinute(DateTimeOffset instant)
+    {
+        var inLithuania = TimeZoneInfo.ConvertTime(instant, Lithuania);
+        return new TimeOnly(inLithuania.Hour, inLithuania.Minute);
+    }
+
     public (DateOnly FirstDate, DateOnly LastDate) GetCurrent()
     {
         var today = DateOnly.FromDateTime(GetNow().DateTime);

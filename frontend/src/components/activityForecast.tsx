@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { forecastSummaryText } from "../helpers/forecastSummaryText"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type {
@@ -15,13 +16,17 @@ interface ActivityForecastProps {
   days: ForecastDay[]
 }
 
-// One activity's forecast area (spec FR-020 to FR-022): a summary line, then one entry per plan date.
+// One activity's forecast area (feature 006 FR-020 to FR-022, feature 007 FR-017): a summary line, then a
+// "Show forecast details" button, closed at first, that shows one entry per plan date. The overview above
+// already answers which date suits the activity, so the details stay closed until the user asks.
 export function ActivityForecast({
   activity,
   name,
   forecast,
   days,
 }: ActivityForecastProps) {
+  const [open, setOpen] = useState(false)
+
   if (forecast.weatherIndependent) {
     return (
       <p className="forecast-summary">
@@ -31,23 +36,41 @@ export function ActivityForecast({
     )
   }
 
+  const detailsId = `forecast-details-${activity.id}`
+  const buttonText = `${open ? "Hide" : "Show"} forecast details`
+
   return (
     <>
       <p className="forecast-summary">
         {forecastSummaryText(forecast, days.length, activity.durationHours)}
       </p>
-      <ul className="forecast-dates">
-        {days.map((day, index) => (
-          <ForecastDateEntry
-            key={day.date}
-            day={day}
-            activityDay={forecast.days[index]}
-            durationHours={activity.durationHours}
-            activityId={activity.id}
-            activityName={name}
-          />
-        ))}
-      </ul>
+      {/* The name starts with the visible text, so voice control users can say what they see. */}
+      <button
+        type="button"
+        className="forecast-details-button"
+        aria-expanded={open}
+        aria-controls={detailsId}
+        aria-label={`${buttonText}, ${name}`}
+        onClick={() => setOpen(!open)}
+      >
+        {buttonText}
+      </button>
+      <div id={detailsId}>
+        {open && (
+          <ul className="forecast-dates">
+            {days.map((day, index) => (
+              <ForecastDateEntry
+                key={day.date}
+                day={day}
+                activityDay={forecast.days[index]}
+                durationHours={activity.durationHours}
+                activityId={activity.id}
+                activityName={name}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </>
   )
 }

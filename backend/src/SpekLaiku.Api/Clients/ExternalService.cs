@@ -1,12 +1,15 @@
 namespace SpekLaiku.Api.Clients;
 
 /// <summary>
-/// The external services the API calls. Feature 007 adds the map service here (research section 4).
+/// The external services the API calls. Each one has its own <c>503</c> answer in <c>ApiExceptionHandler</c>.
 /// </summary>
 public enum ExternalService
 {
     LocationSearch,
 
     /// <summary>The Open-Meteo hourly forecast (feature 006).</summary>
-    Forecast
+    Forecast,
+
+    /// <summary>The OpenStreetMap Overpass API (feature 007).</summary>
+    MapData
 }

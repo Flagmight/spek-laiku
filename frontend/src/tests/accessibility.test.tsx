@@ -17,6 +17,8 @@ import {
   forecastDay,
   forecastRoutes,
 } from "./forecastFixtures"
+import { planPlaces, placesRoutes } from "./placesFixtures"
+import { acceptKayakingAndMuseum, placesStepRoutes } from "./placesStep"
 
 function stubRegistration(answer: () => Promise<Response>) {
   vi.stubGlobal(
@@ -263,6 +265,7 @@ describe("Activity categories and Access denied page structure", () => {
     async (role, heading) => {
       routeFetch({
         ...forecastRoutes,
+        ...placesRoutes,
         "GET /api/auth/me": () => jsonResponse(200, signedInUser(role)),
         "GET /api/admin/categories": () => jsonResponse(200, []),
       })
@@ -283,6 +286,7 @@ describe("Activity categories form accessibility", () => {
   async function openOutdoorForm(save: () => Promise<Response>) {
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(200, signedInUser("Administrator")),
       "GET /api/admin/categories": () => jsonResponse(200, []),
@@ -351,6 +355,7 @@ describe("Activity categories form accessibility", () => {
     let respond: (response: Response) => void = () => {}
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(200, signedInUser("Administrator")),
       "GET /api/admin/categories": () =>
@@ -386,6 +391,7 @@ const kaunasPlace = {
 function stubPlanSetup() {
   routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () => jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, planPeriod),
     "GET /api/locations?query=Kaun": () =>
@@ -466,6 +472,7 @@ describe("Activity selection accessibility", () => {
     })
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-activities/categories": categories,
       "POST /api/plan-activities/check": check,
@@ -670,6 +677,7 @@ describe("Plan setup accessibility", () => {
     let answer: (response: Response) => void = () => {}
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
         new Promise<Response>((resolve) => (answer = resolve)),
@@ -755,6 +763,7 @@ describe("Places and forecast accessibility", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-forecast": answer,
+      ...placesRoutes,
     })
     renderApp("/plan/places")
   }
@@ -770,9 +779,13 @@ describe("Places and forecast accessibility", () => {
     return { updatedAt: "14:05", days: [day], activities: [activity] }
   }
 
-  it("has one h1, an h2 per activity and an h3 per date", async () => {
+  it("has one h1, an h2 per activity and an h3 per date in the open details", async () => {
     renderPlaces()
+    const user = userEvent.setup()
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(
+      screen.getByRole("button", { name: "Show forecast details, Kayaking" }),
+    )
 
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
     expect(
@@ -795,7 +808,11 @@ describe("Places and forecast accessibility", () => {
   })
 
   it.each([
-    ["loading", () => new Promise<Response>(() => {}), "Getting the forecast…"],
+    [
+      "loading",
+      () => new Promise<Response>(() => {}),
+      "Getting the forecast and nearby places…",
+    ],
     [
       "loaded",
       () => jsonResponse(200, forecast()),
@@ -807,11 +824,13 @@ describe("Places and forecast accessibility", () => {
       "Error: The weather service is unavailable. No forecast is shown.",
     ],
   ] as const)(
-    "announces the %s message in the one forecast status region without moving focus",
+    "announces the %s message in the one status region of step 3 without moving focus",
     async (_case, answer, message) => {
       renderPlaces(answer)
 
-      const region = await screen.findByRole("status", { name: "Forecast" })
+      const region = await screen.findByRole("status", {
+        name: "Places and forecast",
+      })
       await vi.waitFor(() => expect(region).toHaveTextContent(message))
       expect(region).not.toHaveFocus()
       expect(region).not.toContainElement(document.activeElement as HTMLElement)
@@ -822,6 +841,9 @@ describe("Places and forecast accessibility", () => {
     renderPlaces()
     const user = userEvent.setup()
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(
+      screen.getByRole("button", { name: "Show forecast details, Kayaking" }),
+    )
 
     await user.click(
       screen.getByRole("button", {
@@ -845,7 +867,11 @@ describe("Places and forecast accessibility", () => {
 
   it("shows the suitable periods and the empty date with symbols and words", async () => {
     renderPlaces()
+    const user = userEvent.setup()
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(
+      screen.getByRole("button", { name: "Show forecast details, Kayaking" }),
+    )
 
     expect(screen.getByText("★ Suitable 08:00–16:00 (8 h)")).toBeInTheDocument()
   })
@@ -877,5 +903,150 @@ describe("'checked again' notices accessibility", () => {
     renderApp(page)
 
     expect(await screen.findByText(notice)).toHaveAttribute("role", "status")
+  })
+})
+
+describe("Places and forecast accessibility: the overview and places", () => {
+  async function renderStep(places?: Parameters<typeof placesStepRoutes>[0]) {
+    acceptKayakingAndMuseum()
+    routeFetch(placesStepRoutes(places))
+    renderApp("/plan/places")
+    await screen.findByRole("table", { name: "Plan overview" })
+  }
+
+  function status() {
+    return screen.getByRole("status", { name: "Places and forecast" })
+  }
+
+  it("has one h1, an overview table with a caption, column and row headers, and a Places h3 per activity region", async () => {
+    await renderStep()
+
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+    const table = screen.getByRole("table", { name: "Plan overview" })
+    expect(table.querySelector("caption")).toHaveTextContent("Plan overview")
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Activity", "Place", "Sat 7 Nov · Sunrise 07:46 · Sunset 16:15"])
+    expect(
+      within(table)
+        .getAllByRole("rowheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Kayaking", "Museum"])
+    for (const name of ["Kayaking", "Museum"]) {
+      const region = screen.getByRole("region", { name })
+      expect(
+        within(region).getByRole("heading", { level: 3, name: "Places" }),
+      ).toBeInTheDocument()
+    }
+  })
+
+  it("names each map link after its place, starting with its visible text and saying it opens a new tab", async () => {
+    await renderStep()
+
+    const links = within(
+      screen.getByRole("region", { name: "Kayaking" }),
+    ).getAllByRole("link")
+    expect(links.map((link) => link.getAttribute("aria-label"))).toEqual([
+      "View on map, Nemuno slipway (opens in a new tab)",
+      "View on map, Lampėdžių valčių nuleidimo vieta (opens in a new tab)",
+    ])
+    for (const link of links) {
+      expect(link.getAttribute("aria-label")).toMatch(
+        new RegExp(`^${link.textContent}`),
+      )
+    }
+  })
+
+  it("names Remove, Change activity and Show forecast details after their activity", async () => {
+    const user = userEvent.setup()
+    await renderStep()
+
+    expect(
+      screen.getByRole("button", { name: "Remove, Museum" }),
+    ).toHaveTextContent("Remove")
+    expect(
+      screen.getByRole("button", { name: "Change activity, Museum" }),
+    ).toHaveTextContent("Change activity")
+    const details = screen.getByRole("button", {
+      name: "Show forecast details, Kayaking",
+    })
+    expect(details).toHaveAttribute("aria-expanded", "false")
+
+    await user.click(details)
+
+    expect(
+      screen.getByRole("button", { name: "Hide forecast details, Kayaking" }),
+    ).toHaveAttribute("aria-expanded", "true")
+  })
+
+  it("announces the places updated time, a places error and the Retry in the one status region without moving focus into it", async () => {
+    const user = userEvent.setup()
+    let failing = true
+    let release: (response: Response) => void = () => {}
+    await renderStep(() =>
+      failing
+        ? jsonResponse(503, { status: 503, service: "places" })
+        : new Promise<Response>((resolve) => {
+            release = resolve
+          }),
+    )
+    await vi.waitFor(() =>
+      expect(status()).toHaveTextContent(
+        "Error: The map data service is unavailable. No places are shown.",
+      ),
+    )
+    expect(status()).not.toContainElement(document.activeElement as HTMLElement)
+
+    failing = false
+    await user.click(within(status()).getByRole("button", { name: "Retry" }))
+
+    expect(status()).toHaveTextContent("Getting nearby places…")
+    expect(status()).not.toContainElement(document.activeElement as HTMLElement)
+    release(
+      jsonResponse(
+        200,
+        planPlaces(
+          ["category-kayaking", "category-museum"],
+          {},
+          {
+            "category-museum": [],
+          },
+        ),
+      ),
+    )
+    await vi.waitFor(() =>
+      expect(status()).toHaveTextContent("Places updated at 14:05"),
+    )
+    expect(status()).not.toContainElement(document.activeElement as HTMLElement)
+  })
+
+  it("announces a removed activity in a status region", async () => {
+    const user = userEvent.setup()
+    await renderStep()
+
+    await user.click(screen.getByRole("button", { name: "Remove, Museum" }))
+
+    const removed = screen.getByText("Museum removed.")
+    expect(removed).toHaveAttribute("role", "status")
+    expect(removed).not.toContainElement(document.activeElement as HTMLElement)
+  })
+
+  it("tells suitability and the no-place flag with symbols and words, never colour alone", async () => {
+    await renderStep()
+
+    expect(
+      screen.getByText("✗ No place found within 30 km."),
+    ).toBeInTheDocument()
+    const cells = within(screen.getByRole("table", { name: "Plan overview" }))
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent ?? "")
+    expect(cells).toContain("Place: ✗ No place found")
+    for (const cell of cells.filter((text) => text.startsWith("Sat 7 Nov"))) {
+      expect(cell).toMatch(
+        /^Sat 7 Nov: (★ \d{2}:\d{2}–\d{2}:\d{2} \(\d+ h\)|✗ None)/,
+      )
+    }
   })
 })

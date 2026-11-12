@@ -1,7 +1,8 @@
 import { create } from "zustand"
 import { getPlanForecast } from "../api/planForecastApi"
 import type { PlanForecastOutcome } from "../api/planForecastApi"
-import { planForecastRequest } from "../helpers/planForecastRequest"
+import { checkedPlanRequest } from "../helpers/checkedPlanRequest"
+import { startTimeout } from "../helpers/timedRequest"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanForecast } from "../types/planForecast"
 import type { CheckedPlanSetup } from "../types/planSetup"
@@ -9,12 +10,12 @@ import { useCurrentUserStore } from "./useCurrentUserStore"
 import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
 import { usePlanSetupStore } from "./usePlanSetupStore"
 
-// After this long without an answer the request counts as a server error (spec FR-006).
-export const planForecastTimeoutMs = 10_000
-
 export type PlanForecastStatus =
   | "idle"
+  // The first request when step 3 opens; the page shows only its loading message.
   | "loading"
+  // A Retry; the rest of step 3 stays in place (feature 007 FR-016).
+  | "retrying"
   | "loaded"
   | "weatherUnavailable"
   | "tooManyRequests"
@@ -33,13 +34,16 @@ export interface PlanForecastState {
   // What was last asked for, so Retry sends the same plan.
   lastSetup: CheckedPlanSetup | null
   lastActivities: CheckedPlanActivity[] | null
-  // Ignored while a request runs, so only one runs at a time.
+  // Ignored while a request (a load or a Retry) runs, so only one runs at a time.
   load: (
     setup: CheckedPlanSetup,
     activities: CheckedPlanActivity[],
   ) => Promise<void>
-  // Asks again for the last setup and activities.
+  // Asks again for the last setup and activities, with the status "retrying". Also ignored while one runs.
   retry: () => Promise<void>
+  // Drops a removed activity from the forecast and from what Retry sends (feature 007 FR-020). The forecast
+  // lines up with lastActivities by position, so both lose the same entry; nothing is asked again.
+  removeActivity: (id: string) => void
   // Aborts a pending request and starts again from idle, for example when the page closes.
   reset: () => void
 }
@@ -83,33 +87,35 @@ function toResult(outcome: PlanForecastOutcome | null): Result {
   }
 }
 
-export const usePlanForecastStore = create<PlanForecastState>()((set, get) => ({
-  ...initialPlanForecastState,
-  load: async (setup, activities) => {
-    // get() reads the current state, so a second call in the same render is still ignored.
-    if (get().status === "loading") {
-      return
-    }
+function isRunning(status: PlanForecastStatus) {
+  return status === "loading" || status === "retrying"
+}
 
+export const usePlanForecastStore = create<PlanForecastState>()((set, get) => {
+  async function request(
+    setup: CheckedPlanSetup,
+    activities: CheckedPlanActivity[],
+    status: "loading" | "retrying",
+  ) {
     const abort = new AbortController()
     set({
-      status: "loading",
+      status,
       forecast: null,
       controller: abort,
       lastSetup: setup,
       lastActivities: activities,
     })
-    const timeout = setTimeout(() => abort.abort(), planForecastTimeoutMs)
+    const clearTimer = startTimeout(abort)
     let outcome: PlanForecastOutcome | null = null
     try {
       outcome = await getPlanForecast(
-        planForecastRequest(setup, activities),
+        checkedPlanRequest(setup, activities),
         abort.signal,
       )
     } catch {
       // A 5xx, a network error, the timeout or an abort: outcome stays null, which is a server error.
     } finally {
-      clearTimeout(timeout)
+      clearTimer()
     }
 
     // After reset() the request belongs to a closed page, so its answer is dropped.
@@ -117,16 +123,67 @@ export const usePlanForecastStore = create<PlanForecastState>()((set, get) => ({
       return
     }
 
-    set({ ...toResult(outcome), controller: null })
-  },
-  retry: async () => {
-    const { lastSetup, lastActivities, load } = get()
-    if (lastSetup && lastActivities) {
-      await load(lastSetup, lastActivities)
+    set({ ...toResult(withoutRemoved(outcome, activities)), controller: null })
+  }
+
+  // An activity removed on step 3 while the request ran (feature 007 FR-020) is still in the answer, which
+  // lines up with the activities that were sent. Its entry is dropped, so the forecast lines up with the
+  // activities that are left, without asking again.
+  function withoutRemoved(
+    outcome: PlanForecastOutcome | null,
+    sent: CheckedPlanActivity[],
+  ): PlanForecastOutcome | null {
+    if (outcome?.kind !== "forecast") {
+      return outcome
     }
-  },
-  reset: () => {
-    get().controller?.abort()
-    set(initialPlanForecastState)
-  },
-}))
+
+    const kept = new Set(get().lastActivities?.map((activity) => activity.id))
+    return {
+      ...outcome,
+      forecast: {
+        ...outcome.forecast,
+        activities: outcome.forecast.activities.filter((_, index) =>
+          kept.has(sent[index]?.id),
+        ),
+      },
+    }
+  }
+
+  return {
+    ...initialPlanForecastState,
+    load: async (setup, activities) => {
+      // get() reads the current state, so a second call in the same render is still ignored.
+      if (isRunning(get().status)) {
+        return
+      }
+
+      await request(setup, activities, "loading")
+    },
+    retry: async () => {
+      const { lastSetup, lastActivities, status } = get()
+      if (lastSetup && lastActivities && !isRunning(status)) {
+        await request(lastSetup, lastActivities, "retrying")
+      }
+    },
+    removeActivity: (id) => {
+      const { forecast, lastActivities } = get()
+      const index =
+        lastActivities?.findIndex((activity) => activity.id === id) ?? -1
+      if (!lastActivities || index < 0) {
+        return
+      }
+
+      set({
+        lastActivities: lastActivities.filter((_, at) => at !== index),
+        forecast: forecast && {
+          ...forecast,
+          activities: forecast.activities.filter((_, at) => at !== index),
+        },
+      })
+    },
+    reset: () => {
+      get().controller?.abort()
+      set(initialPlanForecastState)
+    },
+  }
+})

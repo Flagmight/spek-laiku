@@ -41,6 +41,9 @@ export interface HourSuitability {
 export interface ActivityDayForecast {
   date: string
   periods: SuitablePeriod[]
+  // The longest of periods, the earliest of equally long ones, or null without any. The server picks it
+  // for the step 3 overview (feature 007 FR-016); the page only words it.
+  longestPeriod: SuitablePeriod | null
   hours: HourSuitability[]
 }
 

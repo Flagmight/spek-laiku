@@ -13,6 +13,7 @@ import {
   signedInUser,
 } from "./renderApp"
 import { forecastRoutes } from "./forecastFixtures"
+import { placesRoutes } from "./placesFixtures"
 
 const period = { firstDate: "2026-11-04", lastDate: "2026-11-10", maxDates: 7 }
 
@@ -32,7 +33,8 @@ function planRequests(requests: { path: string }[]) {
       request.path.startsWith("/api/locations") ||
       request.path.startsWith("/api/plan-setup") ||
       request.path.startsWith("/api/plan-activities") ||
-      request.path.startsWith("/api/plan-forecast"),
+      request.path.startsWith("/api/plan-forecast") ||
+      request.path.startsWith("/api/plan-places"),
   )
 }
 
@@ -41,6 +43,7 @@ function planRequests(requests: { path: string }[]) {
 function stubUser(user: CurrentUser | null) {
   return routeFetch({
     ...forecastRoutes,
+    ...placesRoutes,
     "GET /api/auth/me": () =>
       user ? jsonResponse(200, user) : jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, period),
@@ -121,6 +124,21 @@ describe("plan pages access", () => {
     )
   })
 
+  it.each([
+    ["a visitor", null],
+    ["an Active Registered User", signedInUser("Registered User")],
+  ])("asks for the places at /plan/places for %s", async (_case, user) => {
+    acceptSetup()
+    const { requests } = stubUser(user)
+    renderApp("/plan/places")
+
+    await waitFor(() =>
+      expect(
+        requests.filter((request) => request.path === "/api/plan-places"),
+      ).toHaveLength(1),
+    )
+  })
+
   it.each(pages)(
     "shows Access denied to an Active Administrator at %s and sends no plan request",
     async (page) => {
@@ -160,6 +178,7 @@ describe("plan pages access", () => {
     let administrator = false
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(
           200,
@@ -182,6 +201,7 @@ describe("plan pages access", () => {
     let administrator = false
     routeFetch({
       ...forecastRoutes,
+      ...placesRoutes,
       "GET /api/auth/me": () =>
         jsonResponse(
           200,

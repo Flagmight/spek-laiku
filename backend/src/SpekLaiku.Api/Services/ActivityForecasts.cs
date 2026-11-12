@@ -24,6 +24,8 @@ public static class ActivityForecasts
             .Select(hour => new HourSuitability(hour.Start, HourSuitabilityRules.Check(hour, activity)))
             .ToList();
 
-        return new ActivityDayForecast(day.Date, SuitablePeriods.From(hours, activity.DurationHours), hours);
+        var periods = SuitablePeriods.From(hours, activity.DurationHours);
+
+        return new ActivityDayForecast(day.Date, periods, SuitablePeriods.Longest(periods), hours);
     }
 }

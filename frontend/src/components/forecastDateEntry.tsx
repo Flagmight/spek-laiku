@@ -15,8 +15,9 @@ interface ForecastDateEntryProps {
   activityName: string
 }
 
-// One plan date under an activity (spec FR-021, FR-023): the date, sunrise and sunset, the suitable periods,
-// and a button that shows and hides the date's hours.
+// One plan date under an activity (feature 006 FR-021, FR-023): the date, the suitable periods, and a button
+// that shows and hides the date's hours. The sunrise and sunset are in the overview's date heading, once per
+// date (feature 007 FR-015, FR-017).
 export function ForecastDateEntry({
   day,
   activityDay,
@@ -32,7 +33,6 @@ export function ForecastDateEntry({
   return (
     <li className="forecast-date">
       <h3>{date}</h3>
-      <p>{`Sunrise ${day.sunrise} · Sunset ${day.sunset}`}</p>
       <DatePeriods
         day={day}
         activityDay={activityDay}
