@@ -137,6 +137,8 @@ public class Program
         builder.Services.AddScoped<PlanRecheckService>();
         builder.Services.AddScoped<WeatherForecastService>();
         builder.Services.AddScoped<PlanForecastService>();
+        builder.Services.AddScoped<NearbyPlacesService>();
+        builder.Services.AddScoped<PlanPlacesService>();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();
