@@ -13,6 +13,7 @@ import {
 import { openCategories } from "./planCategories"
 import { forecastRoutes } from "./forecastFixtures"
 import { placesRoutes } from "./placesFixtures"
+import { acceptKayakingAndMuseum, placesStepRoutes } from "./placesStep"
 
 // The visitor is signed out; every registration request gets the given answer.
 function stubApi(answer: () => Response) {
@@ -792,5 +793,87 @@ describe("keyboard use of the Places and forecast page", () => {
     expect(
       await screen.findByText("Forecast updated at 14:05"),
     ).toBeInTheDocument()
+  })
+})
+
+describe("keyboard use of the places and the overview", () => {
+  async function renderStep() {
+    acceptKayakingAndMuseum()
+    routeFetch(placesStepRoutes())
+    renderApp("/plan/places")
+    await screen.findByRole("table", { name: "Plan overview" })
+  }
+
+  it("reaches each map link, Remove, Change activity and each details button in page order", async () => {
+    const user = userEvent.setup()
+    await renderStep()
+    screen.getByRole("heading", { level: 2, name: "Kayaking" }).focus()
+
+    const expected = [
+      screen.getByRole("link", {
+        name: "View on map, Nemuno slipway (opens in a new tab)",
+      }),
+      screen.getByRole("link", {
+        name: "View on map, Lampėdžių valčių nuleidimo vieta (opens in a new tab)",
+      }),
+      screen.getByRole("button", { name: "Show forecast details, Kayaking" }),
+      screen.getByRole("button", { name: "Remove, Museum" }),
+      screen.getByRole("button", { name: "Change activity, Museum" }),
+      screen.getByRole("button", { name: "Show forecast details, Museum" }),
+      screen.getByRole("link", { name: "Back" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+  })
+
+  it("opens the forecast details with Enter and closes them with Space", async () => {
+    const user = userEvent.setup()
+    await renderStep()
+
+    screen
+      .getByRole("button", { name: "Show forecast details, Kayaking" })
+      .focus()
+    await user.keyboard("{Enter}")
+
+    const hide = screen.getByRole("button", {
+      name: "Hide forecast details, Kayaking",
+    })
+    expect(hide).toHaveFocus()
+    expect(
+      screen.getByRole("heading", {
+        level: 3,
+        name: "Saturday 7 November 2026",
+      }),
+    ).toBeInTheDocument()
+
+    await user.keyboard(" ")
+
+    expect(
+      screen.queryByRole("heading", {
+        level: 3,
+        name: "Saturday 7 November 2026",
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Show forecast details, Kayaking" }),
+    ).toHaveFocus()
+  })
+
+  it("removes an activity with Enter and lands on the remaining activity's heading", async () => {
+    const user = userEvent.setup()
+    await renderStep()
+
+    screen.getByRole("button", { name: "Remove, Museum" }).focus()
+    await user.keyboard("{Enter}")
+
+    expect(
+      screen.queryByRole("region", { name: "Museum" }),
+    ).not.toBeInTheDocument()
+    // Museum was last, so focus moves to the previous activity.
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Kayaking" }),
+    ).toHaveFocus()
   })
 })

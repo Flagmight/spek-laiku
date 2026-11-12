@@ -578,29 +578,37 @@ fieldset.plan-activity h3 {
   color: #1d4ed8;
 }
 
-/* Phones: each hour is a card titled with its time, and each value reads "Label: value"
-   (docs/ux-design.md section 8). The header row stays in the table for assistive technology but is
-   hidden, because every cell carries its own label. */
+/* Phones: each hour, and each activity of the plan overview (feature 007), is a card titled with its
+   time or activity, and each value reads "Label: value" (docs/ux-design.md section 8). The header row
+   stays in the table for assistive technology but is hidden, because every cell carries its own label. */
 .forecast-hours,
 .forecast-hours tbody,
 .forecast-hours tr,
-.forecast-hours td {
+.forecast-hours td,
+.plan-overview,
+.plan-overview tbody,
+.plan-overview tr,
+.plan-overview th,
+.plan-overview td {
   display: block;
   width: 100%;
 }
 
-.forecast-hours {
+.forecast-hours,
+.plan-overview {
   margin-top: 8px;
 }
 
-.forecast-hours caption {
+.forecast-hours caption,
+.plan-overview caption {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
   text-align: left;
 }
 
-.forecast-hours thead {
+.forecast-hours thead,
+.plan-overview thead {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -609,17 +617,21 @@ fieldset.plan-activity h3 {
   white-space: nowrap;
 }
 
-.forecast-hours tr {
+.forecast-hours tr,
+.plan-overview tr {
   margin-bottom: 8px;
   padding: 8px;
   border: 1px solid #d9dee3;
   border-radius: 4px;
 }
 
-/* Long reasons wrap instead of widening the page. */
-.forecast-hours td {
+/* Long reasons and place names wrap instead of widening the page. */
+.forecast-hours td,
+.plan-overview th,
+.plan-overview td {
   padding: 2px 0;
   overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .forecast-hours td:first-child {
@@ -628,6 +640,54 @@ fieldset.plan-activity h3 {
 
 .cell-label {
   font-weight: 600;
+}
+
+/* Step 3: each activity's places (feature 007). The name, then its distance and area, then the link. */
+.places-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.places-list li {
+  padding: 4px 0;
+}
+
+.place-name {
+  display: block;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.place-details {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+/* The map link is a 44 × 44 px touch target. */
+.places-list a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* The no-place flag is told by ✗ and its words, and set apart by weight, never by colour alone. */
+.no-place p {
+  margin: 4px 0;
+  font-weight: 600;
+}
+
+/* Secondary actions of step 3, full width on phones like the other buttons (docs/ux-design.md
+   section 8): Remove, Change activity, Show forecast details and Retry. */
+.no-place button,
+.forecast-details-button,
+.forecast-status .server-error button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  background: #ffffff;
+  color: #1d4ed8;
 }
 
 /* Wider screens: buttons are sized to their text. */
@@ -694,8 +754,57 @@ fieldset.plan-activity h3 {
     width: auto;
   }
 
-  .forecast-date button {
+  .forecast-date button,
+  .no-place button,
+  .forecast-details-button,
+  .forecast-status .server-error button {
     width: auto;
+  }
+
+  .no-place button {
+    display: inline-block;
+    margin-right: 8px;
+  }
+
+  /* The plan overview as a real table with its header row, as the hours table below. */
+  .plan-overview {
+    display: table;
+    border-collapse: collapse;
+  }
+
+  .plan-overview caption {
+    display: table-caption;
+  }
+
+  .plan-overview thead {
+    position: static;
+    display: table-header-group;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .plan-overview tbody {
+    display: table-row-group;
+  }
+
+  .plan-overview tr {
+    display: table-row;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-bottom: 1px solid #d9dee3;
+    border-radius: 0;
+  }
+
+  .plan-overview th,
+  .plan-overview td {
+    display: table-cell;
+    width: auto;
+    padding: 4px 8px;
+    vertical-align: top;
   }
 
   /* The hours as a real table with its header row. The cell labels are removed, not only hidden,

@@ -17,10 +17,12 @@ export function PlaceListItem({ place }: PlaceListItemProps) {
     <li>
       <span className="place-name">{place.name}</span>
       <span className="place-details">{details}</span>
+      {/* The name starts with the visible text, names the place and says where it opens (spec FR-018). */}
       <a
         href={openStreetMapLink(place.latitude, place.longitude)}
         target="_blank"
         rel="noopener noreferrer"
+        aria-label={`View on map, ${place.name} (opens in a new tab)`}
       >
         View on map
       </a>

@@ -47,6 +47,7 @@ export function ActivityForecast({
       {/* The name starts with the visible text, so voice control users can say what they see. */}
       <button
         type="button"
+        className="forecast-details-button"
         aria-expanded={open}
         aria-controls={detailsId}
         aria-label={`${buttonText}, ${name}`}
