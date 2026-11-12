@@ -31,7 +31,12 @@ export interface PlanActivitiesState {
   // them again; only the next successful Continue ends it (feature 006 spec FR-005).
   recheckNotice: boolean
   add: (category: PlanCategory) => void
+  // Step 2's Remove: the list changed, so it must be checked again. It also unchecks the list.
   remove: (id: string) => void
+  // Step 3's Remove (feature 007 FR-020): the other activities stay checked as they are. Unlike remove, it
+  // does not uncheck the list, which would send the user back to step 2. Only when no activity is left is
+  // the list unchecked, so step 3 sends the user to Activity selection.
+  removeChecked: (id: string) => void
   update: (id: string, changes: PlanActivityChanges) => void
   setChecked: (checked: CheckedPlanActivity[]) => void
   // Asks for a new check without touching the activities, after step 1 accepts a new setup.
@@ -92,6 +97,17 @@ export const usePlanActivitiesStore = create<PlanActivitiesState>()(
           activities: state.activities.filter((activity) => activity.id !== id),
           checked: null,
         })),
+      removeChecked: (id) =>
+        set((state) => {
+          const checked =
+            state.checked?.filter((activity) => activity.id !== id) ?? []
+          return {
+            activities: state.activities.filter(
+              (activity) => activity.id !== id,
+            ),
+            checked: checked.length > 0 ? checked : null,
+          }
+        }),
       update: (id, changes) =>
         set((state) => ({
           activities: state.activities.map((activity) =>

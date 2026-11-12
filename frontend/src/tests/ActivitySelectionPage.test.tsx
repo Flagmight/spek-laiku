@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
+import type { InitialEntry } from "react-router-dom"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { PlanCategory } from "../types/planActivity"
@@ -78,7 +79,7 @@ const categoryList = {
 type CategoriesAnswer = () => Response | Promise<Response>
 
 function render(
-  entry = "/plan/activities",
+  entry: InitialEntry = "/plan/activities",
   categoriesAnswer: CategoriesAnswer = () => jsonResponse(200, categoryList),
 ) {
   routeFetch({
@@ -1345,5 +1346,48 @@ describe("Activity selection: 'checked again' notice", () => {
     await user.click(screen.getByRole("link", { name: "Back" }))
     await screen.findByRole("heading", { level: 1, name: "Activity selection" })
     expect(screen.queryByText(notice)).not.toBeInTheDocument()
+  })
+})
+
+describe("Activity selection opened from step 3's Change activity", () => {
+  function addTwo() {
+    acceptSetup()
+    usePlanActivitiesStore.getState().add(kayaking)
+    usePlanActivitiesStore.getState().add(museum)
+    return usePlanActivitiesStore.getState().activities
+  }
+
+  it("moves focus to the named activity's heading once it has rendered", async () => {
+    const [, second] = addTwo()
+    render({
+      pathname: "/plan/activities",
+      state: { focusActivityId: second.id },
+    })
+
+    const heading = await screen.findByRole("heading", {
+      level: 3,
+      name: "Museum",
+    })
+    await waitFor(() => expect(heading).toHaveFocus())
+    expect(heading).toHaveAttribute("id", `activity-${second.id}-heading`)
+  })
+
+  it("leaves focus alone without the router state", async () => {
+    addTwo()
+    render()
+
+    await screen.findByRole("heading", { level: 3, name: "Museum" })
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it("does nothing for an unknown activity", async () => {
+    addTwo()
+    render({
+      pathname: "/plan/activities",
+      state: { focusActivityId: "not-an-activity" },
+    })
+
+    await screen.findByRole("heading", { level: 3, name: "Museum" })
+    expect(document.activeElement).toBe(document.body)
   })
 })

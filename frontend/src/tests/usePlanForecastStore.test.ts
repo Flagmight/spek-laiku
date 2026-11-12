@@ -276,6 +276,48 @@ describe("usePlanForecastStore failures", () => {
   })
 })
 
+describe("usePlanForecastStore removing an activity", () => {
+  const museum: CheckedPlanActivity = {
+    ...activities[0],
+    id: "browser-id-2",
+    categoryId: "category-museum",
+    name: "Museum",
+  }
+
+  it("drops the activity's forecast and sends the shorter list on Retry", async () => {
+    const forecast = planForecast(["2026-11-14"], 2)
+    forecast.activities[1] = { ...forecast.activities[1], suitableHours: 3 }
+    let answer = jsonResponse(200, forecast)
+    const { requests } = routeFetch({ [forecastRoute]: () => answer })
+    await act(() => store().load(setup, [...activities, museum]))
+
+    act(() => store().removeActivity(activities[0].id))
+
+    expect(store().forecast?.activities).toEqual([forecast.activities[1]])
+    expect(store().lastActivities).toEqual([museum])
+    expect(requests).toHaveLength(1)
+
+    answer = jsonResponse(500)
+    await act(() => store().retry())
+    expect(
+      (requests[1].body as { activities: { categoryId: string }[] }).activities,
+    ).toEqual([expect.objectContaining({ categoryId: "category-museum" })])
+  })
+
+  it("does nothing for an activity it does not know", async () => {
+    routeFetch({
+      [forecastRoute]: () => jsonResponse(200, planForecast(["2026-11-14"], 1)),
+    })
+    await act(() => store().load(setup, activities))
+    const before = store().forecast
+
+    act(() => store().removeActivity("unknown"))
+
+    expect(store().forecast).toBe(before)
+    expect(store().lastActivities).toBe(activities)
+  })
+})
+
 describe("usePlanForecastStore when the plan is out of date", () => {
   it("marks the setup as out of date for a setup key", async () => {
     usePlanSetupStore.getState().setChecked(setup)

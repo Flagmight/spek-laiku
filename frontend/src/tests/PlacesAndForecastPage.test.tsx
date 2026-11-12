@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
@@ -1024,5 +1024,196 @@ describe("Places and forecast page: the places", () => {
     ).toBeInTheDocument()
     expect(status()).toHaveTextContent("Places updated at 14:05")
     expect(screen.getByText("Nemuno slipway")).toBeInTheDocument()
+  })
+})
+
+describe("Places and forecast page: no place found", () => {
+  // Cycling has no place within 30 km; Museum has its places.
+  function answerNoCyclingPlace() {
+    return jsonResponse(
+      200,
+      planPlaces(
+        ["category-cycling", "category-museum"],
+        { radiusKm: 30 },
+        { "category-cycling": [] },
+      ),
+    )
+  }
+
+  function renderNoCyclingPlace(moreRoutes: Record<string, Handler> = {}) {
+    return render(answerForecast, {
+      "POST /api/plan-places": answerNoCyclingPlace,
+      ...moreRoutes,
+    })
+  }
+
+  function stepRequests(requests: RecordedRequest[]) {
+    return requests.filter(
+      (request) =>
+        request.path === "/api/plan-places" ||
+        request.path === "/api/plan-forecast",
+    )
+  }
+
+  it("flags the activity with the reason and both actions, named for screen readers", async () => {
+    acceptSetup()
+    acceptActivities(cycling, museum)
+    renderNoCyclingPlace()
+    await screen.findByText("Places updated at 14:05")
+
+    const region = within(screen.getByRole("region", { name: "Cycling" }))
+    expect(
+      region.getByText("✗ No place found within 30 km."),
+    ).toBeInTheDocument()
+    expect(
+      region.getByRole("button", { name: "Remove, Cycling" }),
+    ).toHaveTextContent("Remove")
+    expect(
+      region.getByRole("button", { name: "Change activity, Cycling" }),
+    ).toHaveTextContent("Change activity")
+    expect(
+      region.queryByRole("link", { name: /View on map/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      within(screen.getByRole("region", { name: "Museum" })).queryByText(
+        /No place found/,
+      ),
+    ).not.toBeInTheDocument()
+  })
+
+  it("removes the activity without asking again, announces it and focuses the next activity", async () => {
+    acceptSetup()
+    acceptActivities(cycling, museum)
+    const user = userEvent.setup()
+    const { requests } = renderNoCyclingPlace()
+    await screen.findByText("Places updated at 14:05")
+    const before = stepRequests(requests).length
+
+    await user.click(screen.getByRole("button", { name: "Remove, Cycling" }))
+
+    expect(
+      screen.queryByRole("region", { name: "Cycling" }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Cycling removed.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Museum" }),
+    ).toHaveFocus()
+    const museumRegion = screen.getByRole("region", { name: "Museum" })
+    expect(museumRegion).toHaveTextContent("Nemuno slipway")
+    expect(museumRegion).toHaveTextContent("Suitable hours: 8 on 1 of 1 date.")
+    expect(stepRequests(requests)).toHaveLength(before)
+    expect(
+      usePlanActivitiesStore
+        .getState()
+        .activities.map((activity) => activity.name),
+    ).toEqual(["Museum"])
+    expect(
+      usePlanActivitiesStore
+        .getState()
+        .checked?.map((activity) => activity.name),
+    ).toEqual(["Museum"])
+  })
+
+  it("focuses the previous activity when the removed one was last", async () => {
+    acceptSetup()
+    acceptActivities(museum, cycling)
+    const user = userEvent.setup()
+    renderNoCyclingPlace()
+    await screen.findByText("Places updated at 14:05")
+
+    await user.click(screen.getByRole("button", { name: "Remove, Cycling" }))
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Museum" }),
+    ).toHaveFocus()
+  })
+
+  it("no longer lists a removed activity on Activity selection", async () => {
+    acceptSetup()
+    acceptActivities(cycling, museum)
+    const user = userEvent.setup()
+    renderNoCyclingPlace()
+    await screen.findByText("Places updated at 14:05")
+
+    await user.click(screen.getByRole("button", { name: "Remove, Cycling" }))
+    await user.click(screen.getByRole("link", { name: "Back" }))
+
+    await heading("Activity selection")
+    expect(screen.getByRole("group", { name: "Museum" })).toBeInTheDocument()
+    expect(
+      screen.queryByRole("group", { name: "Cycling" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("sends the user to Activity selection when the only activity is removed", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    const user = userEvent.setup()
+    const { currentLocation } = render(answerForecast, {
+      "POST /api/plan-places": () =>
+        jsonResponse(
+          200,
+          planPlaces(["category-cycling"], {}, { "category-cycling": [] }),
+        ),
+    })
+    await screen.findByText("Places updated at 14:05")
+
+    await user.click(screen.getByRole("button", { name: "Remove, Cycling" }))
+
+    await heading("Activity selection")
+    expect(currentLocation()).toBe("/plan/activities")
+    expect(
+      screen.getByText(
+        "No activities added yet. Select at least one category to continue.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("opens Activity selection on the activity with every activity kept for Change activity", async () => {
+    acceptSetup()
+    acceptActivities(cycling, museum)
+    const user = userEvent.setup()
+    const { currentLocation } = renderNoCyclingPlace()
+    await screen.findByText("Places updated at 14:05")
+    const [cyclingActivity] = usePlanActivitiesStore.getState().activities
+
+    await user.click(
+      screen.getByRole("button", { name: "Change activity, Cycling" }),
+    )
+
+    await heading("Activity selection")
+    expect(currentLocation()).toBe("/plan/activities")
+    const cyclingHeading = screen.getByRole("heading", {
+      level: 3,
+      name: "Cycling",
+    })
+    expect(cyclingHeading).toHaveAttribute(
+      "id",
+      `activity-${cyclingActivity.id}-heading`,
+    )
+    await waitFor(() => expect(cyclingHeading).toHaveFocus())
+    expect(screen.getByRole("group", { name: "Museum" })).toBeInTheDocument()
+    expect(usePlanActivitiesStore.getState().checked).toHaveLength(2)
+  })
+
+  it("keeps an activity the user does not remove flagged when step 3 opens again", async () => {
+    acceptSetup()
+    acceptActivities(cycling, museum)
+    renderNoCyclingPlace()
+    await screen.findByText("Places updated at 14:05")
+    cleanup()
+
+    renderNoCyclingPlace()
+    await screen.findByText("Places updated at 14:05")
+
+    expect(usePlanActivitiesStore.getState().activities).toHaveLength(2)
+    expect(
+      within(screen.getByRole("region", { name: "Cycling" })).getByText(
+        "✗ No place found within 30 km.",
+      ),
+    ).toBeInTheDocument()
   })
 })

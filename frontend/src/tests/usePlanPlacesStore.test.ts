@@ -183,3 +183,33 @@ describe("usePlanPlacesStore", () => {
     expect(store().status).toBe("serverError")
   })
 })
+
+describe("usePlanPlacesStore removing an activity", () => {
+  it("drops the activity from what Retry sends and keeps the places", async () => {
+    const museum: CheckedPlanActivity = {
+      ...activities[0],
+      id: "browser-id-2",
+      categoryId: "category-museum",
+      name: "Museum",
+    }
+    const places = planPlaces(["category-kayaking", "category-museum"])
+    routeFetch({ [placesRoute]: () => jsonResponse(200, places) })
+    await act(() => store().load(setup, [...activities, museum]))
+
+    act(() => store().removeActivity(activities[0].id))
+
+    expect(store().lastActivities).toEqual([museum])
+    expect(store().places).toEqual(places)
+  })
+
+  it("does nothing for an activity it does not know", async () => {
+    routeFetch({
+      [placesRoute]: () => jsonResponse(200, planPlaces(["category-kayaking"])),
+    })
+    await act(() => store().load(setup, activities))
+
+    act(() => store().removeActivity("unknown"))
+
+    expect(store().lastActivities).toBe(activities)
+  })
+})

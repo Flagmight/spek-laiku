@@ -45,6 +45,9 @@ export interface PlanForecastState {
   ) => Promise<void>
   // Asks again for the last setup and activities, with the status "retrying". Also ignored while one runs.
   retry: () => Promise<void>
+  // Drops a removed activity from the forecast and from what Retry sends (feature 007 FR-020). The forecast
+  // lines up with lastActivities by position, so both lose the same entry; nothing is asked again.
+  removeActivity: (id: string) => void
   // Aborts a pending request and starts again from idle, for example when the page closes.
   reset: () => void
 }
@@ -142,6 +145,22 @@ export const usePlanForecastStore = create<PlanForecastState>()((set, get) => {
       if (lastSetup && lastActivities && !isRunning(status)) {
         await request(lastSetup, lastActivities, "retrying")
       }
+    },
+    removeActivity: (id) => {
+      const { forecast, lastActivities } = get()
+      const index =
+        lastActivities?.findIndex((activity) => activity.id === id) ?? -1
+      if (!lastActivities || index < 0) {
+        return
+      }
+
+      set({
+        lastActivities: lastActivities.filter((_, at) => at !== index),
+        forecast: forecast && {
+          ...forecast,
+          activities: forecast.activities.filter((_, at) => at !== index),
+        },
+      })
     },
     reset: () => {
       get().controller?.abort()

@@ -213,6 +213,16 @@ form button {
   margin: 8px 0 0;
 }
 
+/* Read by screen readers but not shown, for example step 3's "<name> removed." announcement. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .server-error {
   margin-top: 16px;
 }

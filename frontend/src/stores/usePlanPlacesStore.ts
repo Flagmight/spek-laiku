@@ -24,6 +24,9 @@ export interface PlanPlacesState {
     setup: CheckedPlanSetup,
     activities: CheckedPlanActivity[],
   ) => Promise<void>
+  // Drops a removed activity from what Retry sends (feature 007 FR-020). The places belong to categories,
+  // not activities, so they are kept.
+  removeActivity: (id: string) => void
   // Aborts a pending request and starts again from idle, for example when the page closes.
   reset: () => void
 }
@@ -85,6 +88,14 @@ export const usePlanPlacesStore = create<PlanPlacesState>()((set, get) => ({
     }
 
     set({ ...toResult(outcome), controller: null })
+  },
+  removeActivity: (id) => {
+    const { lastActivities } = get()
+    if (lastActivities?.some((activity) => activity.id === id)) {
+      set({
+        lastActivities: lastActivities.filter((activity) => activity.id !== id),
+      })
+    }
   },
   reset: () => {
     get().controller?.abort()

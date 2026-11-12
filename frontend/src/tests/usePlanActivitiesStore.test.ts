@@ -117,6 +117,35 @@ describe("usePlanActivitiesStore", () => {
     expect(store().checked).toBeNull()
   })
 
+  it("removeChecked removes a checked activity and keeps the others checked in order", () => {
+    store().add(kayaking)
+    store().add(museum)
+    store().add(kayaking)
+    const [first, second, third] = store().activities
+    const checked = [first, second, third].map((activity) => ({
+      ...checkedKayaking,
+      id: activity.id,
+    }))
+    store().setChecked(checked)
+
+    store().removeChecked(second.id)
+
+    expect(store().activities).toEqual([first, third])
+    expect(store().checked).toEqual([checked[0], checked[2]])
+    expect(stored()?.state.checked).toEqual([checked[0], checked[2]])
+  })
+
+  it("removeChecked unchecks the list only when the last activity is removed", () => {
+    store().add(kayaking)
+    const [only] = store().activities
+    store().setChecked([{ ...checkedKayaking, id: only.id }])
+
+    store().removeChecked(only.id)
+
+    expect(store().activities).toEqual([])
+    expect(store().checked).toBeNull()
+  })
+
   it("updates only the named activity and clears the check", () => {
     const { first, second } = checkedActivities()
 
