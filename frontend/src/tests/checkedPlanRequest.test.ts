@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { planForecastRequest } from "../helpers/planForecastRequest"
+import { checkedPlanRequest } from "../helpers/checkedPlanRequest"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { CheckedPlanSetup } from "../types/planSetup"
 
@@ -41,9 +41,9 @@ const museum: CheckedPlanActivity = {
   maxTemperatureC: null,
 }
 
-describe("planForecastRequest", () => {
+describe("checkedPlanRequest", () => {
   it("sends the checked setup with only the location's id", () => {
-    expect(planForecastRequest(setup, []).setup).toEqual({
+    expect(checkedPlanRequest(setup, []).setup).toEqual({
       locationId: 593116,
       dates: ["2026-11-14", "2026-11-15"],
       maxTravelDistanceKm: 40,
@@ -51,7 +51,7 @@ describe("planForecastRequest", () => {
   })
 
   it("sends each checked activity in order without the browser's id or name", () => {
-    expect(planForecastRequest(setup, [kayaking, museum]).activities).toEqual([
+    expect(checkedPlanRequest(setup, [kayaking, museum]).activities).toEqual([
       {
         categoryId: "category-kayaking",
         type: "Outdoor",

@@ -1,7 +1,8 @@
 import { create } from "zustand"
 import { getPlanForecast } from "../api/planForecastApi"
 import type { PlanForecastOutcome } from "../api/planForecastApi"
-import { planForecastRequest } from "../helpers/planForecastRequest"
+import { checkedPlanRequest } from "../helpers/checkedPlanRequest"
+import { planRequestTimeoutMs, startTimeout } from "../helpers/timedRequest"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanForecast } from "../types/planForecast"
 import type { CheckedPlanSetup } from "../types/planSetup"
@@ -9,8 +10,9 @@ import { useCurrentUserStore } from "./useCurrentUserStore"
 import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
 import { usePlanSetupStore } from "./usePlanSetupStore"
 
-// After this long without an answer the request counts as a server error (spec FR-006).
-export const planForecastTimeoutMs = 10_000
+// After this long without an answer the request counts as a server error (spec FR-006). Kept for the
+// store's tests; the timer itself is the shared one in helpers/timedRequest.ts.
+export const planForecastTimeoutMs = planRequestTimeoutMs
 
 export type PlanForecastStatus =
   | "idle"
@@ -99,17 +101,17 @@ export const usePlanForecastStore = create<PlanForecastState>()((set, get) => ({
       lastSetup: setup,
       lastActivities: activities,
     })
-    const timeout = setTimeout(() => abort.abort(), planForecastTimeoutMs)
+    const clearTimer = startTimeout(abort)
     let outcome: PlanForecastOutcome | null = null
     try {
       outcome = await getPlanForecast(
-        planForecastRequest(setup, activities),
+        checkedPlanRequest(setup, activities),
         abort.signal,
       )
     } catch {
       // A 5xx, a network error, the timeout or an abort: outcome stays null, which is a server error.
     } finally {
-      clearTimeout(timeout)
+      clearTimer()
     }
 
     // After reset() the request belongs to a closed page, so its answer is dropped.

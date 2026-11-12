@@ -2,9 +2,10 @@ import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanForecastRequest } from "../types/planForecast"
 import type { CheckedPlanSetup } from "../types/planSetup"
 
-// The forecast request for the setup and activities the server last accepted. The server checks them again
-// and looks the location up by its id, so only the id is sent (contracts/plan-forecast-api.md).
-export function planForecastRequest(
+// The body of both step 3 requests, the forecast and the places, for the setup and activities the server
+// last accepted. The server checks them again and looks the location up by its id, so only the id is sent
+// (contracts/plan-forecast-api.md, contracts/plan-places-api.md).
+export function checkedPlanRequest(
   setup: CheckedPlanSetup,
   activities: CheckedPlanActivity[],
 ): PlanForecastRequest {
