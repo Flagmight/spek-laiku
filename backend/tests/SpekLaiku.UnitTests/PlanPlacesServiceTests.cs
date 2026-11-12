@@ -100,6 +100,86 @@ public sealed class PlanPlacesServiceTests : IDisposable
         Assert.Equal(new TimeOnly(10, 30), result.Places!.UpdatedAt);
     }
 
+    [Fact]
+    public async Task MissingSetup_GivesTheSetupKeyWithoutSearching()
+    {
+        var result = await CreateService().GetAsync(new PlanPlacesRequest(null, [Kayaking()]), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal([Error("setup", "The request is invalid.")], result.Errors);
+        Assert.Empty(mapPlaces.Calls);
+    }
+
+    [Fact]
+    public async Task PastDate_GivesThePrefixedSetupKeyAndChecksNoActivity()
+    {
+        // A disposed context throws if anything queries it, so neither the activity check nor the tag query may run.
+        var disposed = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options);
+        await disposed.DisposeAsync();
+
+        var result = await CreateService(disposed).GetAsync(
+            new PlanPlacesRequest(new PlanSetupCheckRequest(Kaunas.Id, [Today.AddDays(-1)], 30m), [Kayaking()]),
+            CancellationToken.None);
+
+        Assert.Equal([Error("setup.dates[0]", "Dates cannot be in the past.")], result.Errors);
+        Assert.Empty(mapPlaces.Calls);
+    }
+
+    [Fact]
+    public async Task UnknownLocation_GivesThePrefixedLocationKeyWithoutSearching()
+    {
+        var result = await CreateService().GetAsync(
+            new PlanPlacesRequest(new PlanSetupCheckRequest(42, [Today], 30m), [Kayaking()]),
+            CancellationToken.None);
+
+        Assert.Equal([Error("setup.locationId", "Select a location in Lithuania from the list.")], result.Errors);
+        Assert.Empty(mapPlaces.Calls);
+    }
+
+    [Fact]
+    public async Task InvalidActivities_GiveTheActivityKeysWithoutSearching()
+    {
+        var tooWindy = Kayaking() with { MaxWindMs = 31m };
+        var unknown = Kayaking() with { CategoryId = Guid.NewGuid() };
+
+        var result = await CreateService().GetAsync(
+            new PlanPlacesRequest(new PlanSetupCheckRequest(Kaunas.Id, [Today], 30m), [tooWindy, unknown]),
+            CancellationToken.None);
+
+        Assert.Equal(
+            [
+                Error("activities[0].maxWindMs", "Enter a wind limit between 0 and 30 m/s."),
+                Error("activities[1]", PlanActivityValidator.UnavailableMessage)
+            ],
+            result.Errors);
+        Assert.Empty(mapPlaces.Calls);
+    }
+
+    [Fact]
+    public async Task CategoryRemovedAfterTheCheck_GetsNoPlacesWithoutItsTags()
+    {
+        // The activity check reads the test database; the tag query reads another one where Museum is already
+        // gone, as when an administrator removes it between the two.
+        using var later = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options);
+        var kayakingOnly = Category("Kayaking", ActivityType.Outdoor, "leisure=slipway", "sport=canoe");
+        kayakingOnly.Id = kayaking.Id;
+        later.ActivityCategories.Add(kayakingOnly);
+        await later.SaveChangesAsync();
+
+        var result = await CreateService(tagsContext: later).GetAsync(
+            new PlanPlacesRequest(new PlanSetupCheckRequest(Kaunas.Id, [Today], 30m), [Kayaking(), Museum()]),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal([kayaking.Id, museum.Id], result.Places.Categories.Select(category => category.CategoryId));
+        Assert.Empty(result.Places.Categories[1].Places);
+        Assert.Equal(["leisure=slipway", "sport=canoe"], Assert.Single(mapPlaces.Calls).Tags);
+    }
+
     public void Dispose()
     {
         cache.Dispose();
@@ -135,15 +215,21 @@ public sealed class PlanPlacesServiceTests : IDisposable
             new PlanPlacesRequest(new PlanSetupCheckRequest(Kaunas.Id, [Today], maxTravelDistanceKm), [.. activities]),
             CancellationToken.None);
 
-    private PlanPlacesService CreateService()
+    private static KeyValuePair<string, string> Error(string key, string message) => new(key, message);
+
+    // The activity check and the tag query read the test database unless a test gives its own.
+    private PlanPlacesService CreateService(
+        ApplicationDbContext? activitiesContext = null,
+        ApplicationDbContext? tagsContext = null)
     {
         var period = new ForecastPeriod(clock);
         var options = Options.Create(new PlacesOptions());
+        var activities = activitiesContext ?? context;
         return new PlanPlacesService(
             new PlanRecheckService(
                 new PlanSetupService(new LocationSearchService(geocoding, cache), period),
-                new PlanActivityService(context, new ActivityCategoryService(context))),
-            context,
+                new PlanActivityService(activities, new ActivityCategoryService(activities))),
+            tagsContext ?? activitiesContext ?? context,
             new NearbyPlacesService(mapPlaces, cache, period, options),
             options);
     }

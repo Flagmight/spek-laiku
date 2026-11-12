@@ -125,6 +125,129 @@ public class PlanPlacesEndpointTests(PostgreSqlApiFactory factory)
         Assert.Equal(radiusKm == 10 ? ["Inside 10"] : ["Inside 10", "Inside 50"], names);
     }
 
+    [Fact]
+    public async Task OutOfDatePlan_IsRefusedWithTheContractKeysWithoutSearching()
+    {
+        var place = ScriptPlace();
+        factory.MapPlaces.Script(place.Latitude, place.Longitude, []);
+        var kayakingId = await AddCategoryAsync("Places refused", "Outdoor", "leisure=slipway");
+        var calls = factory.MapPlaces.Calls;
+        var activity = Activity(kayakingId, "Outdoor");
+        object Setup(long locationId, string date) => new { locationId, dates = new[] { date }, maxTravelDistanceKm = 30 };
+
+        var cases = new (object Body, string[] Keys)[]
+        {
+            (new { activities = new[] { activity } }, ["setup"]),
+            (new { setup = Setup(place.Id, "2026-11-09"), activities = new[] { activity } }, ["setup.dates[0]"]),
+            (new { setup = Setup(1, "2026-11-12"), activities = new[] { activity } }, ["setup.locationId"]),
+            (
+                new
+                {
+                    setup = Setup(place.Id, "2026-11-12"),
+                    activities = new object[]
+                    {
+                        new
+                        {
+                            categoryId = kayakingId,
+                            type = "Outdoor",
+                            durationHours = 2,
+                            requiresDaylight = true,
+                            maxWindMs = 31,
+                            maxRainMmPerHour = 0.5,
+                            minTemperatureC = 15,
+                            maxTemperatureC = 35
+                        }
+                    }
+                },
+                ["activities[0].maxWindMs"]),
+            (new { setup = Setup(place.Id, "2026-11-12"), activities = new[] { Activity(Guid.NewGuid(), "Outdoor") } }, ["activities[0]"]),
+            (
+                new
+                {
+                    setup = new { locationId = place.Id, dates = new[] { "2026-11-12" }, maxTravelDistanceKm = "30" },
+                    activities = new[] { activity }
+                },
+                ["request"])
+        };
+
+        foreach (var (body, keys) in cases)
+        {
+            var (status, answer) = await PostAsync(body);
+
+            Assert.Equal(HttpStatusCode.BadRequest, status);
+            Assert.Equal(keys, answer.GetProperty("errors").EnumerateObject().Select(property => property.Name));
+        }
+
+        Assert.Equal(calls, factory.MapPlaces.Calls);
+    }
+
+    [Fact]
+    public async Task TagsSentWithTheRequest_AreIgnoredAndNeverSentBack()
+    {
+        var place = ScriptPlace();
+        factory.MapPlaces.Script(
+            place.Latitude,
+            place.Longitude,
+            [North(place, "node/1", 1, ("name", "Suolelis"), ("amenity", "bench"))]);
+        var kayakingId = await AddCategoryAsync("Places own tags", "Outdoor", "leisure=slipway");
+
+        var raw = await PostRawAsync(new
+        {
+            setup = new { locationId = place.Id, dates = new[] { "2026-11-12" }, maxTravelDistanceKm = 30 },
+            activities = new[]
+            {
+                new
+                {
+                    categoryId = kayakingId,
+                    type = "Outdoor",
+                    durationHours = 2,
+                    requiresDaylight = true,
+                    maxWindMs = 8,
+                    maxRainMmPerHour = 0.5,
+                    minTemperatureC = 15,
+                    maxTemperatureC = 35,
+                    placeTags = new[] { "amenity=bench" }
+                }
+            }
+        });
+
+        Assert.Equal(["leisure=slipway"], factory.MapPlaces.LastTags(place.Latitude, place.Longitude));
+        Assert.DoesNotContain("placeTags", raw);
+        Assert.DoesNotContain("Suolelis", raw);
+    }
+
+    [Fact]
+    public async Task AdministratorsTagChange_IsUsedOnTheNextRequest()
+    {
+        var place = ScriptPlace();
+        factory.MapPlaces.Script(place.Latitude, place.Longitude, []);
+        var category = await CreateCategoryAsync("Places changed tags", "Outdoor", "leisure=slipway");
+        await PostRawAsync(Request(place.Id, 30, category.Id));
+        Assert.Equal(["leisure=slipway"], factory.MapPlaces.LastTags(place.Latitude, place.Longitude));
+
+        using var administrator = await factory.CreateSignedInClientAsync("Administrator");
+        using var update = await administrator.PutAsJsonAsync($"/api/admin/categories/{category.Id}", new
+        {
+            name = category.Name,
+            type = "Outdoor",
+            defaultDurationHours = 2,
+            requiresDaylight = true,
+            maxWindMs = 8,
+            maxRainMmPerHour = 0.5,
+            minTemperatureC = 15,
+            maxTemperatureC = 35,
+            placeTags = "sport=canoe",
+            version = category.Version
+        });
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        var calls = factory.MapPlaces.Calls;
+
+        await PostRawAsync(Request(place.Id, 30, category.Id));
+
+        Assert.Equal(calls + 1, factory.MapPlaces.Calls);
+        Assert.Equal(["sport=canoe"], factory.MapPlaces.LastTags(place.Latitude, place.Longitude));
+    }
+
     private static List<string> Keys(JsonElement element) =>
         element.EnumerateObject().Select(property => property.Name).ToList();
 
@@ -170,7 +293,10 @@ public class PlanPlacesEndpointTests(PostgreSqlApiFactory factory)
         return place;
     }
 
-    private async Task<Guid> AddCategoryAsync(string prefix, string type, string placeTags)
+    private async Task<Guid> AddCategoryAsync(string prefix, string type, string placeTags) =>
+        (await CreateCategoryAsync(prefix, type, placeTags)).Id;
+
+    private async Task<ActivityCategoryResponse> CreateCategoryAsync(string prefix, string type, string placeTags)
     {
         var category = type == "Outdoor"
             ? (object)new
@@ -197,7 +323,7 @@ public class PlanPlacesEndpointTests(PostgreSqlApiFactory factory)
         using var response = await administrator.PostAsJsonAsync("/api/admin/categories", category);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = await response.Content.ReadFromJsonAsync<ActivityCategoryResponse>();
-        return created!.Id;
+        return created!;
     }
 
     private async Task<string> PostRawAsync(object body)
