@@ -1,11 +1,9 @@
 import { act } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { planRequestTimeoutMs } from "../helpers/timedRequest"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
-import {
-  planForecastTimeoutMs,
-  usePlanForecastStore,
-} from "../stores/usePlanForecastStore"
+import { usePlanForecastStore } from "../stores/usePlanForecastStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { CheckedPlanSetup } from "../types/planSetup"
@@ -203,12 +201,12 @@ describe("usePlanForecastStore failures", () => {
     act(() => {
       void store().load(setup, activities)
     })
-    await act(() => vi.advanceTimersByTimeAsync(planForecastTimeoutMs - 1))
+    await act(() => vi.advanceTimersByTimeAsync(planRequestTimeoutMs - 1))
     expect(store().status).toBe("loading")
 
     await act(() => vi.advanceTimersByTimeAsync(1))
 
-    expect(planForecastTimeoutMs).toBe(10_000)
+    expect(planRequestTimeoutMs).toBe(10_000)
     expect(store().status).toBe("serverError")
     expect(pending[0].signal.aborted).toBe(true)
   })
@@ -302,6 +300,28 @@ describe("usePlanForecastStore removing an activity", () => {
     expect(
       (requests[1].body as { activities: { categoryId: string }[] }).activities,
     ).toEqual([expect.objectContaining({ categoryId: "category-museum" })])
+  })
+
+  it("drops a removed activity from a Retry's answer that was asked for before the removal", async () => {
+    const forecast = planForecast(["2026-11-14"], 2)
+    forecast.activities[1] = { ...forecast.activities[1], suitableHours: 3 }
+    routeFetch({ [forecastRoute]: () => jsonResponse(500) })
+    await act(() => store().load(setup, [...activities, museum]))
+    const { pending } = stubPendingRequests()
+    let retry: Promise<void> = Promise.resolve()
+    act(() => {
+      retry = store().retry()
+    })
+
+    act(() => store().removeActivity(activities[0].id))
+    await act(async () => {
+      pending[0].resolve(jsonResponse(200, forecast))
+      await retry
+    })
+
+    expect(store().status).toBe("loaded")
+    expect(store().lastActivities).toEqual([museum])
+    expect(store().forecast?.activities).toEqual([forecast.activities[1]])
   })
 
   it("does nothing for an activity it does not know", async () => {

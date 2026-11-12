@@ -2,17 +2,13 @@ import { create } from "zustand"
 import { getPlanForecast } from "../api/planForecastApi"
 import type { PlanForecastOutcome } from "../api/planForecastApi"
 import { checkedPlanRequest } from "../helpers/checkedPlanRequest"
-import { planRequestTimeoutMs, startTimeout } from "../helpers/timedRequest"
+import { startTimeout } from "../helpers/timedRequest"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanForecast } from "../types/planForecast"
 import type { CheckedPlanSetup } from "../types/planSetup"
 import { useCurrentUserStore } from "./useCurrentUserStore"
 import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
 import { usePlanSetupStore } from "./usePlanSetupStore"
-
-// After this long without an answer the request counts as a server error (spec FR-006). Kept for the
-// store's tests; the timer itself is the shared one in helpers/timedRequest.ts.
-export const planForecastTimeoutMs = planRequestTimeoutMs
 
 export type PlanForecastStatus =
   | "idle"
@@ -127,7 +123,30 @@ export const usePlanForecastStore = create<PlanForecastState>()((set, get) => {
       return
     }
 
-    set({ ...toResult(outcome), controller: null })
+    set({ ...toResult(withoutRemoved(outcome, activities)), controller: null })
+  }
+
+  // An activity removed on step 3 while the request ran (feature 007 FR-020) is still in the answer, which
+  // lines up with the activities that were sent. Its entry is dropped, so the forecast lines up with the
+  // activities that are left, without asking again.
+  function withoutRemoved(
+    outcome: PlanForecastOutcome | null,
+    sent: CheckedPlanActivity[],
+  ): PlanForecastOutcome | null {
+    if (outcome?.kind !== "forecast") {
+      return outcome
+    }
+
+    const kept = new Set(get().lastActivities?.map((activity) => activity.id))
+    return {
+      ...outcome,
+      forecast: {
+        ...outcome.forecast,
+        activities: outcome.forecast.activities.filter((_, index) =>
+          kept.has(sent[index]?.id),
+        ),
+      },
+    }
   }
 
   return {

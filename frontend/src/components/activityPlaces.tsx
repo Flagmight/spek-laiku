@@ -61,11 +61,10 @@ export function ActivityPlaces({
         </div>
       ) : (
         <ul className="places-list">
-          {places.map((place) => (
-            <PlaceListItem
-              key={`${place.name}-${place.latitude}-${place.longitude}`}
-              place={place}
-            />
+          {/* The server sends no id, and two places can share a name and rounded position; the list is
+              never reordered on the page, so the position keys it. */}
+          {places.map((place, index) => (
+            <PlaceListItem key={index} place={place} />
           ))}
         </ul>
       )}
