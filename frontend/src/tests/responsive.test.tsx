@@ -660,7 +660,7 @@ describe("Places and forecast hours at 320 px", () => {
     longitude: 23.90909,
   }
 
-  // Step 3 with one checked Kayaking activity and its first date's hours open.
+  // Step 3 with one checked Kayaking activity, its forecast details open and its first date's hours open.
   async function renderOpenHours() {
     usePlanSetupStore.getState().setChecked({
       location: kaunas,
@@ -690,10 +690,15 @@ describe("Places and forecast hours at 320 px", () => {
     renderApp("/plan/places")
     await user.click(
       await screen.findByRole("button", {
+        name: "Show forecast details, Kayaking",
+      }),
+    )
+    await user.click(
+      screen.getByRole("button", {
         name: "Show hours for Saturday 7 November 2026, Kayaking",
       }),
     )
-    return screen.getByRole("table")
+    return screen.getByRole("table", { name: /^Hours for/ })
   }
 
   it("shows each hour as a card with a border", async () => {

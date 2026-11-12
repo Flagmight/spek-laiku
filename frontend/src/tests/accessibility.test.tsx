@@ -778,9 +778,13 @@ describe("Places and forecast accessibility", () => {
     return { updatedAt: "14:05", days: [day], activities: [activity] }
   }
 
-  it("has one h1, an h2 per activity and an h3 per date", async () => {
+  it("has one h1, an h2 per activity and an h3 per date in the open details", async () => {
     renderPlaces()
+    const user = userEvent.setup()
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(
+      screen.getByRole("button", { name: "Show forecast details, Kayaking" }),
+    )
 
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
     expect(
@@ -836,6 +840,9 @@ describe("Places and forecast accessibility", () => {
     renderPlaces()
     const user = userEvent.setup()
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(
+      screen.getByRole("button", { name: "Show forecast details, Kayaking" }),
+    )
 
     await user.click(
       screen.getByRole("button", {
@@ -859,7 +866,11 @@ describe("Places and forecast accessibility", () => {
 
   it("shows the suitable periods and the empty date with symbols and words", async () => {
     renderPlaces()
+    const user = userEvent.setup()
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(
+      screen.getByRole("button", { name: "Show forecast details, Kayaking" }),
+    )
 
     expect(screen.getByText("★ Suitable 08:00–16:00 (8 h)")).toBeInTheDocument()
   })

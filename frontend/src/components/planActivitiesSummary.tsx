@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { activitySettingsText } from "../helpers/activitySettingsText"
 import { planActivityNames } from "../helpers/planActivityNames"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanForecastStore } from "../stores/usePlanForecastStore"
@@ -84,18 +85,7 @@ export function PlanActivitiesSummary({
                   onRemove={() => remove(activity)}
                   onChange={() => change(activity)}
                 />
-                <p>
-                  {`${activity.type} · ${activity.durationHours} h · ${
-                    activity.requiresDaylight
-                      ? "Requires daylight"
-                      : "No daylight needed"
-                  }`}
-                </p>
-                {activity.type === "Outdoor" && (
-                  <p>
-                    {`Wind up to ${activity.maxWindMs} m/s · Rain up to ${activity.maxRainMmPerHour} mm/h · ${activity.minTemperatureC} to ${activity.maxTemperatureC} °C`}
-                  </p>
-                )}
+                <p>{activitySettingsText(activity)}</p>
                 {forecast && activityForecast && (
                   <ActivityForecast
                     activity={activity}

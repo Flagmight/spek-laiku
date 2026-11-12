@@ -14,6 +14,13 @@ const longDateParts = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 })
 
+const shortDateParts = new Intl.DateTimeFormat("en-GB", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+})
+
 const shownParts = new Set(["weekday", "day", "month", "year"])
 
 // The parts are joined with single spaces, so the browser's own punctuation (for example a comma after
@@ -32,6 +39,11 @@ function format(parts: Intl.DateTimeFormat, isoDate: string): string {
 // "2026-11-07" → "Sat 7 Nov 2026".
 export function formatPlanDate(isoDate: string): string {
   return format(dateParts, isoDate)
+}
+
+// "2026-11-14" → "Sat 14 Nov", for the step 3 overview's column headings and cell labels.
+export function formatPlanDateShort(isoDate: string): string {
+  return format(shortDateParts, isoDate)
 }
 
 // "2026-11-14" → "Saturday 14 November 2026", for headings and button names on step 3.

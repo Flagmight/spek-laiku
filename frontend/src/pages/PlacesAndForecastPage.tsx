@@ -2,9 +2,11 @@ import { useEffect } from "react"
 import { Link, Navigate } from "react-router-dom"
 import { PlacesAndForecastStatus } from "../components/placesAndForecastStatus"
 import { PlanActivitiesSummary } from "../components/planActivitiesSummary"
+import { PlanOverview } from "../components/planOverview"
 import { PlanProgress } from "../components/planProgress"
 import { PlanSetupSummary } from "../components/planSetupSummary"
 import { isFirstLoad } from "../helpers/isFirstLoad"
+import { planActivityNames } from "../helpers/planActivityNames"
 import { usePageTitle } from "../hooks/usePageTitle"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanForecastStore } from "../stores/usePlanForecastStore"
@@ -66,11 +68,19 @@ export function PlacesAndForecastPage() {
       <PlanSetupSummary setup={setup} />
       <PlacesAndForecastStatus />
       {!firstLoad && (
-        <PlanActivitiesSummary
-          activities={activities}
-          forecast={forecast ?? undefined}
-          places={places ?? undefined}
-        />
+        <>
+          <PlanOverview
+            activities={activities}
+            names={planActivityNames(activities)}
+            forecast={forecast ?? undefined}
+            places={places ?? undefined}
+          />
+          <PlanActivitiesSummary
+            activities={activities}
+            forecast={forecast ?? undefined}
+            places={places ?? undefined}
+          />
+        </>
       )}
       <p>
         <Link to="/plan/activities" className="button-link">

@@ -687,13 +687,19 @@ describe("keyboard use of the Places and forecast page", () => {
     )
   }
 
+  function detailsButton(action: "Show" | "Hide", activity: string) {
+    return screen.getByRole("button", {
+      name: `${action} forecast details, ${activity}`,
+    })
+  }
+
   function showButton(date: string, activity: string) {
     return screen.getByRole("button", {
       name: `Show hours for ${date}, ${activity}`,
     })
   }
 
-  it("reaches the skip link, the navigation, the progress links, each activity's map links and 'Show hours' buttons in order, then Back", async () => {
+  it("reaches the skip link, the navigation, the progress links, each activity's map links, details and 'Show hours' buttons in order, then Back", async () => {
     acceptPlan()
     routeFetch({
       ...forecastRoutes,
@@ -703,6 +709,10 @@ describe("keyboard use of the Places and forecast page", () => {
     const user = userEvent.setup()
     renderApp("/plan/places")
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(detailsButton("Show", "Kayaking"))
+    await user.click(detailsButton("Show", "Museum"))
+    // Start again from the top of the page.
+    ;(document.activeElement as HTMLElement).blur()
 
     const expected = [
       screen.getByRole("link", { name: "Skip to main content" }),
@@ -713,9 +723,11 @@ describe("keyboard use of the Places and forecast page", () => {
       screen.getByRole("link", { name: "Plan setup" }),
       screen.getByRole("link", { name: "Activities" }),
       ...mapLinks("Kayaking"),
+      detailsButton("Hide", "Kayaking"),
       showButton(saturday, "Kayaking"),
       showButton(sunday, "Kayaking"),
       ...mapLinks("Museum"),
+      detailsButton("Hide", "Museum"),
       showButton(saturday, "Museum"),
       showButton(sunday, "Museum"),
       screen.getByRole("link", { name: "Back" }),
@@ -736,6 +748,7 @@ describe("keyboard use of the Places and forecast page", () => {
     const user = userEvent.setup()
     renderApp("/plan/places")
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(detailsButton("Show", "Kayaking"))
 
     showButton(saturday, "Kayaking").focus()
     await user.keyboard("{Enter}")
@@ -748,7 +761,9 @@ describe("keyboard use of the Places and forecast page", () => {
     expect(hide).toHaveFocus()
 
     await user.keyboard(" ")
-    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("table", { name: /^Hours for/ }),
+    ).not.toBeInTheDocument()
     expect(showButton(saturday, "Kayaking")).toHaveFocus()
   })
 

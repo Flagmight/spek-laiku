@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { formatPlanDate, formatPlanDateLong } from "../helpers/formatPlanDate"
+import {
+  formatPlanDate,
+  formatPlanDateLong,
+  formatPlanDateShort,
+} from "../helpers/formatPlanDate"
 
 describe("formatPlanDate", () => {
   it.each([
@@ -29,5 +33,15 @@ describe("formatPlanDateLong", () => {
 
   it("has no punctuation between the parts", () => {
     expect(formatPlanDateLong("2026-11-14")).not.toMatch(/,/)
+  })
+})
+
+describe("formatPlanDateShort", () => {
+  it.each([
+    ["2026-11-14", "Sat 14 Nov"],
+    ["2026-11-07", "Sat 7 Nov"],
+    ["2027-01-01", "Fri 1 Jan"],
+  ])("shows %s as %s, without the year", (isoDate, expected) => {
+    expect(formatPlanDateShort(isoDate)).toBe(expected)
   })
 })

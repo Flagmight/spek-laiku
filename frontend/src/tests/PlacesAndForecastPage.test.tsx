@@ -131,6 +131,21 @@ function activityItems() {
     .filter((item) => item.parentElement === list)
 }
 
+// Opens an activity's forecast details, which are closed at first (feature 007 FR-017).
+async function openDetails(
+  user: ReturnType<typeof userEvent.setup>,
+  activityName: string,
+) {
+  await user.click(
+    screen.getByRole("button", {
+      name: `Show forecast details, ${activityName}`,
+    }),
+  )
+}
+
+// The hours tables only, not the plan overview.
+const hoursTable = { name: /^Hours for/ }
+
 describe("Places and forecast page (first version)", () => {
   beforeEach(() => {
     document.title = ""
@@ -311,7 +326,7 @@ describe("Places and forecast page: the forecast", () => {
     expect(activityRegion("Museum")).toBeInTheDocument()
   })
 
-  it("shows each date with its long date, sunrise, sunset and suitable periods", async () => {
+  it("shows each date with its long date and suitable periods, and its sunrise and sunset once in the overview", async () => {
     usePlanSetupStore.getState().setChecked({
       location: kaunas,
       dates: ["2026-11-07", "2026-11-08"],
@@ -341,15 +356,30 @@ describe("Places and forecast page: the forecast", () => {
                   shorterThanDuration: false,
                 },
               ],
+              longestPeriod: {
+                start: "13:00",
+                end: "16:00",
+                lengthHours: 3,
+                shorterThanDuration: false,
+              },
               hours: [],
             },
-            { date: "2026-11-08", periods: [], hours: [] },
+            {
+              date: "2026-11-08",
+              periods: [],
+              longestPeriod: null,
+              hours: [],
+            },
           ],
         }),
       ],
     }
+    const user = userEvent.setup()
     render(() => jsonResponse(200, forecast))
     await screen.findByText("Forecast updated at 14:05")
+    await user.click(
+      screen.getByRole("button", { name: "Show forecast details, Cycling" }),
+    )
 
     const region = within(activityRegion("Cycling"))
     expect(
@@ -364,7 +394,18 @@ describe("Places and forecast page: the forecast", () => {
         name: "Sunday 8 November 2026",
       }),
     ).toBeInTheDocument()
-    expect(region.getAllByText("Sunrise 07:46 · Sunset 16:15")).toHaveLength(2)
+    // The sunrise and sunset are in the overview's date headings, not under the activity (FR-015).
+    expect(region.queryByText(/Sunrise/)).not.toBeInTheDocument()
+    expect(
+      within(screen.getByRole("table", { name: "Plan overview" }))
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual([
+      "Activity",
+      "Place",
+      "Sat 7 Nov · Sunrise 07:46 · Sunset 16:15",
+      "Sun 8 Nov · Sunrise 07:46 · Sunset 16:15",
+    ])
     expect(
       region.getByText(
         "★ Suitable 10:00–11:00 (1 h), shorter than this activity's 2.5 h",
@@ -393,6 +434,9 @@ describe("Places and forecast page: the forecast", () => {
         ],
       }),
     )
+    const user = userEvent.setup()
+    await screen.findByText("Forecast updated at 21:40")
+    await openDetails(user, "Cycling")
 
     expect(
       await screen.findByText("No hours left to plan today."),
@@ -510,13 +554,15 @@ describe("Places and forecast page: the hours of a date", () => {
   it("has a closed 'Show hours' button per date that also names the activity", async () => {
     acceptSetup()
     acceptActivities(cycling)
+    const user = userEvent.setup()
     render(() => jsonResponse(200, forecastWithReasons()))
     await screen.findByText("Forecast updated at 14:05")
+    await openDetails(user, "Cycling")
 
     const button = showButton("Cycling")
     expect(button).toHaveTextContent(`Show hours for ${date}`)
     expect(button).toHaveAttribute("aria-expanded", "false")
-    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(screen.queryByRole("table", hoursTable)).not.toBeInTheDocument()
   })
 
   it("opens a table of the date's hours with values, daylight, suitability and reasons", async () => {
@@ -525,6 +571,7 @@ describe("Places and forecast page: the hours of a date", () => {
     const user = userEvent.setup()
     render(() => jsonResponse(200, forecastWithReasons()))
     await screen.findByText("Forecast updated at 14:05")
+    await openDetails(user, "Cycling")
 
     await user.click(showButton("Cycling"))
 
@@ -580,13 +627,14 @@ describe("Places and forecast page: the hours of a date", () => {
     const user = userEvent.setup()
     render(() => jsonResponse(200, forecastWithReasons()))
     await screen.findByText("Forecast updated at 14:05")
+    await openDetails(user, "Cycling")
 
     await user.click(showButton("Cycling"))
     await user.click(
       screen.getByRole("button", { name: `Hide hours for ${date}, Cycling` }),
     )
 
-    expect(screen.queryByRole("table")).not.toBeInTheDocument()
+    expect(screen.queryByRole("table", hoursTable)).not.toBeInTheDocument()
     expect(showButton("Cycling")).toHaveAttribute("aria-expanded", "false")
   })
 
@@ -596,13 +644,15 @@ describe("Places and forecast page: the hours of a date", () => {
     const user = userEvent.setup()
     render(() => jsonResponse(200, forecastWithReasons(2)))
     await screen.findByText("Forecast updated at 14:05")
+    await openDetails(user, "Cycling 1")
+    await openDetails(user, "Cycling 2")
 
     await user.click(showButton("Cycling 2"))
 
     expect(
       screen.getByRole("table", { name: `Hours for Cycling 2 on ${date}` }),
     ).toBeInTheDocument()
-    expect(screen.getAllByRole("table")).toHaveLength(1)
+    expect(screen.getAllByRole("table", hoursTable)).toHaveLength(1)
     expect(showButton("Cycling 1")).toHaveAttribute("aria-expanded", "false")
   })
 
@@ -617,6 +667,9 @@ describe("Places and forecast page: the hours of a date", () => {
         activities: [daylightActivityForecast([today])],
       }),
     )
+    const user = userEvent.setup()
+    await screen.findByText("Forecast updated at 21:40")
+    await openDetails(user, "Cycling")
 
     await screen.findByText("No hours left to plan today.")
     expect(
@@ -872,7 +925,9 @@ describe("Places and forecast page: the places", () => {
       } else {
         places.answer(placesAnswer)
       }
-      expect(await screen.findByText("Nemuno slipway")).toBeInTheDocument()
+      expect(
+        await screen.findByRole("list", { name: "Plan activities" }),
+      ).toHaveTextContent("Nemuno slipway")
       expect(screen.getByText(/Suitable hours/)).toBeInTheDocument()
       expect(status()).not.toHaveTextContent("Getting")
     },
@@ -1023,7 +1078,9 @@ describe("Places and forecast page: the places", () => {
       within(status()).getByRole("button", { name: "Retry" }),
     ).toBeInTheDocument()
     expect(status()).toHaveTextContent("Places updated at 14:05")
-    expect(screen.getByText("Nemuno slipway")).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Cycling" })).toHaveTextContent(
+      "Nemuno slipway",
+    )
   })
 })
 
@@ -1215,5 +1272,208 @@ describe("Places and forecast page: no place found", () => {
         "✗ No place found within 30 km.",
       ),
     ).toBeInTheDocument()
+  })
+})
+
+describe("Places and forecast page: the overview", () => {
+  // Two dates; Cycling 1 suitable 10:00–14:00 on the first date and not on the second, Museum weather
+  // independent, Cycling 2 only 10:00–11:00 (too short) on the first date. Museum has no place.
+  function renderOverview() {
+    usePlanSetupStore.getState().setChecked({
+      location: kaunas,
+      dates: ["2026-11-07", "2026-11-08"],
+      maxTravelDistanceKm: 30,
+    })
+    acceptActivities(cycling, museum, cycling)
+    const days = [forecastDay("2026-11-07"), forecastDay("2026-11-08")]
+    const period = (
+      start: string,
+      end: string,
+      lengthHours: number,
+      shorterThanDuration = false,
+    ) => ({ start, end, lengthHours, shorterThanDuration })
+    const activityDays = (
+      first: ReturnType<typeof period> | null,
+      second: ReturnType<typeof period> | null,
+    ) =>
+      [first, second].map((longest, index) => ({
+        date: days[index].date,
+        periods: longest ? [longest] : [],
+        longestPeriod: longest,
+        hours: [],
+      }))
+    const forecast: PlanForecast = {
+      updatedAt: "14:05",
+      days,
+      activities: [
+        daylightActivityForecast(days, {
+          days: activityDays(period("10:00", "14:00", 4), null),
+        }),
+        daylightActivityForecast(days, {
+          weatherIndependent: true,
+          days: activityDays(
+            period("06:00", "22:00", 16),
+            period("06:00", "22:00", 16),
+          ),
+        }),
+        daylightActivityForecast(days, {
+          days: activityDays(period("10:00", "11:00", 1, true), null),
+        }),
+      ],
+    }
+    const user = userEvent.setup()
+    const routes = render(() => jsonResponse(200, forecast), {
+      "POST /api/plan-places": () =>
+        jsonResponse(
+          200,
+          planPlaces(
+            ["category-cycling", "category-museum"],
+            {},
+            { "category-museum": [] },
+          ),
+        ),
+    })
+    return { user, ...routes }
+  }
+
+  function overview() {
+    return screen.getByRole("table", { name: "Plan overview" })
+  }
+
+  function overviewRow(activityName: string) {
+    return within(overview())
+      .getAllByRole("row")
+      .find(
+        (row) =>
+          within(row).queryByRole("rowheader")?.textContent === activityName,
+      )!
+  }
+
+  it("comes before the activities, with the place and one column per date in date order", async () => {
+    renderOverview()
+    await screen.findByText("Places updated at 14:05")
+
+    const table = overview()
+    const activitiesList = screen.getByRole("list", { name: "Plan activities" })
+    expect(
+      table.compareDocumentPosition(activitiesList) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual([
+      "Activity",
+      "Place",
+      "Sat 7 Nov · Sunrise 07:46 · Sunset 16:15",
+      "Sun 8 Nov · Sunrise 07:46 · Sunset 16:15",
+    ])
+  })
+
+  it("has a row heading per activity in plan order with its shown name", async () => {
+    renderOverview()
+    await screen.findByText("Places updated at 14:05")
+
+    expect(
+      within(overview())
+        .getAllByRole("rowheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Cycling 1", "Museum", "Cycling 2"])
+  })
+
+  it("shows the nearest place and the longest suitable period of each date", async () => {
+    renderOverview()
+    await screen.findByText("Places updated at 14:05")
+
+    const cells = (activityName: string) =>
+      within(overviewRow(activityName))
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent)
+    expect(cells("Cycling 1")).toEqual([
+      "Place: Nemuno slipway",
+      "Sat 7 Nov: ★ 10:00–14:00 (4 h)",
+      "Sun 8 Nov: ✗ None",
+    ])
+    expect(cells("Museum")).toEqual([
+      "Place: ✗ No place found",
+      "Sat 7 Nov: ★ 06:00–22:00 (16 h)",
+      "Sun 8 Nov: ★ 06:00–22:00 (16 h)",
+    ])
+    expect(cells("Cycling 2")).toEqual([
+      "Place: Nemuno slipway",
+      "Sat 7 Nov: ★ 10:00–11:00 (1 h), too short",
+      "Sun 8 Nov: ✗ None",
+    ])
+  })
+
+  it("gives each activity one settings line, its summary and closed forecast details, without sunrise and sunset", async () => {
+    renderOverview()
+    await screen.findByText("Places updated at 14:05")
+
+    const region = screen.getByRole("region", { name: "Cycling 1" })
+    expect(region).toHaveTextContent(
+      "Outdoor · 2.5 h · Requires daylight · Wind up to 10 m/s · Rain up to 0.5 mm/h · 5 to 30 °C",
+    )
+    expect(region).toHaveTextContent(/Suitable hours: \d+ on \d+ of 2 dates/)
+    expect(region).not.toHaveTextContent("Sunrise")
+    const details = within(region).getByRole("button", {
+      name: "Show forecast details, Cycling 1",
+    })
+    expect(details).toHaveTextContent("Show forecast details")
+    expect(details).toHaveAttribute("aria-expanded", "false")
+    expect(
+      within(region).queryByRole("heading", {
+        level: 3,
+        name: "Saturday 7 November 2026",
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("opens and closes an activity's forecast details on their own", async () => {
+    const { user } = renderOverview()
+    await screen.findByText("Places updated at 14:05")
+    const region = within(screen.getByRole("region", { name: "Cycling 1" }))
+
+    await user.click(
+      region.getByRole("button", { name: "Show forecast details, Cycling 1" }),
+    )
+
+    const hide = region.getByRole("button", {
+      name: "Hide forecast details, Cycling 1",
+    })
+    expect(hide).toHaveAttribute("aria-expanded", "true")
+    expect(
+      document.getElementById(hide.getAttribute("aria-controls")!),
+    ).toContainElement(
+      region.getByRole("heading", {
+        level: 3,
+        name: "Saturday 7 November 2026",
+      }),
+    )
+    expect(
+      region.getByRole("heading", { level: 3, name: "Sunday 8 November 2026" }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Show forecast details, Cycling 2" }),
+    ).toHaveAttribute("aria-expanded", "false")
+
+    await user.click(hide)
+
+    expect(
+      region.queryByRole("heading", {
+        level: 3,
+        name: "Saturday 7 November 2026",
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("has no Generate schedule button yet", async () => {
+    renderOverview()
+    await screen.findByText("Places updated at 14:05")
+
+    expect(
+      screen.queryByRole("button", { name: /Generate schedule/ }),
+    ).not.toBeInTheDocument()
   })
 })
