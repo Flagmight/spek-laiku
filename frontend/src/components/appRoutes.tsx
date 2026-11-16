@@ -6,6 +6,7 @@ import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
 import { PlacesAndForecastPage } from "../pages/PlacesAndForecastPage"
 import { PlanSetupPage } from "../pages/PlanSetupPage"
+import { ScheduleOverviewPage } from "../pages/ScheduleOverviewPage"
 import { RegisterPage } from "../pages/RegisterPage"
 import { AdministratorOnly } from "./administratorOnly"
 import { Layout } from "./layout"
@@ -56,6 +57,14 @@ export function AppRoutes() {
           element={
             <PlanCreatorOnly>
               <PlacesAndForecastPage />
+            </PlanCreatorOnly>
+          }
+        />
+        <Route
+          path="plan/schedule"
+          element={
+            <PlanCreatorOnly>
+              <ScheduleOverviewPage />
             </PlanCreatorOnly>
           }
         />

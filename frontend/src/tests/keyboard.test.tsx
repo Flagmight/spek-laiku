@@ -731,6 +731,7 @@ describe("keyboard use of the Places and forecast page", () => {
       detailsButton("Hide", "Museum"),
       showButton(saturday, "Museum"),
       showButton(sunday, "Museum"),
+      screen.getByRole("button", { name: "Generate schedule" }),
       screen.getByRole("link", { name: "Back" }),
     ]
     for (const element of expected) {
@@ -820,6 +821,7 @@ describe("keyboard use of the places and the overview", () => {
       screen.getByRole("button", { name: "Remove, Museum" }),
       screen.getByRole("button", { name: "Change activity, Museum" }),
       screen.getByRole("button", { name: "Show forecast details, Museum" }),
+      screen.getByRole("button", { name: "Generate schedule" }),
       screen.getByRole("link", { name: "Back" }),
     ]
     for (const element of expected) {
@@ -875,5 +877,70 @@ describe("keyboard use of the places and the overview", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "Kayaking" }),
     ).toHaveFocus()
+  })
+})
+
+describe("keyboard use of the schedule overview", () => {
+  function acceptPlan() {
+    usePlanSetupStore.getState().setChecked({
+      location: { id: 598316, name: "Kaunas", area: "Kaunas County", latitude: 54.90156, longitude: 23.90909 },
+      dates: ["2026-11-15"],
+      maxTravelDistanceKm: 30,
+    })
+    usePlanActivitiesStore.getState().setChecked([{
+      id: "a",
+      categoryId: "cat-k",
+      name: "Kayaking",
+      type: "Outdoor",
+      durationHours: 2,
+      requiresDaylight: true,
+      maxWindMs: 8,
+      maxRainMmPerHour: 0.5,
+      minTemperatureC: 15,
+      maxTemperatureC: 35,
+    }])
+  }
+
+  it("reaches the skip link, the navigation, the progress links and Back in page order", async () => {
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () => jsonResponse(200, { scheduled: [], unscheduled: [] }),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+    await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
+    ;(document.activeElement as HTMLElement).blur()
+
+    const expected = [
+      screen.getByRole("link", { name: "Skip to main content" }),
+      screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Create plan" }),
+      screen.getByRole("link", { name: "Log in" }),
+      screen.getByRole("link", { name: "Register" }),
+      screen.getByRole("link", { name: "Plan setup" }),
+      screen.getByRole("link", { name: "Activities" }),
+      screen.getByRole("link", { name: "Places and forecast" }),
+      screen.getByRole("link", { name: "Back" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+  })
+
+  it("reaches the Retry button after an error", async () => {
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () => jsonResponse(500),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+
+    await screen.findByRole("alert")
+    screen.getByRole("link", { name: "Places and forecast" }).focus()
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Retry" })).toHaveFocus()
   })
 })

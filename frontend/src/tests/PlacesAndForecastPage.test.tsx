@@ -1476,13 +1476,48 @@ describe("Places and forecast page: the overview", () => {
     ).not.toBeInTheDocument()
   })
 
-  it("has no Generate schedule button yet", async () => {
-    renderOverview()
+  it("shows the Generate schedule button disabled while loading", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    render(() => new Promise<Response>(() => {}), {
+      "POST /api/plan-places": () => new Promise<Response>(() => {}),
+    })
+    await heading("Places and forecast")
+
+    expect(
+      screen.getByRole("button", { name: "Generate schedule" }),
+    ).toBeDisabled()
+  })
+
+  it("shows the Generate schedule button disabled when the forecast has an error", async () => {
+    acceptSetup()
+    acceptActivities(cycling)
+    // Forecast fails; places loads. Both have responded so the status shows individual parts.
+    render(() => jsonResponse(503, { status: 503, service: "forecast" }))
+
     await screen.findByText("Places updated at 14:05")
 
     expect(
-      screen.queryByRole("button", { name: /Generate schedule/ }),
-    ).not.toBeInTheDocument()
+      screen.getByRole("button", { name: "Generate schedule" }),
+    ).toBeDisabled()
+  })
+
+  it("enables Generate schedule when both forecast and places are loaded and clicking navigates to the schedule", async () => {
+    const { user, currentLocation } = renderOverview()
+    await screen.findByText("Places updated at 14:05")
+
+    const button = screen.getByRole("button", { name: "Generate schedule" })
+    expect(button).toBeEnabled()
+
+    // Stub the schedule request so the page can render.
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, { scheduled: [], unscheduled: [] }),
+    })
+    await user.click(button)
+
+    await waitFor(() => expect(currentLocation()).toBe("/plan/schedule"))
   })
 })
 

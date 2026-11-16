@@ -879,3 +879,79 @@ describe("Places and forecast overview and places at 320 px", () => {
     expect(wide).toMatch(/\.cell-label \{\s*display: none;/)
   })
 })
+
+describe("Schedule overview at 320 px", () => {
+  function acceptPlan() {
+    usePlanSetupStore.getState().setChecked({
+      location: { id: 598316, name: "Kaunas", area: "Kaunas County", latitude: 54.90156, longitude: 23.90909 },
+      dates: ["2026-11-15"],
+      maxTravelDistanceKm: 30,
+    })
+    usePlanActivitiesStore.getState().setChecked([{
+      id: "a",
+      categoryId: "cat-k",
+      name: "Kayaking",
+      type: "Outdoor",
+      durationHours: 2,
+      requiresDaylight: true,
+      maxWindMs: 8,
+      maxRainMmPerHour: 0.5,
+      minTemperatureC: 15,
+      maxTemperatureC: 35,
+    }])
+  }
+
+  async function renderSchedule() {
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, {
+          scheduled: [{
+            activityName: "Kayaking",
+            date: "2026-11-15",
+            startTime: "10:00",
+            endTime: "12:00",
+            place: { name: "Slipway", latitude: 54.89, longitude: 23.93, distanceKm: 3.4, area: "Kaunas" },
+            weather: { temperatureC: 18.5, rainMmPerHour: 0.2, windMs: 3.1, isIndoor: false },
+          }],
+          unscheduled: [],
+        }),
+    })
+    renderApp("/plan/schedule")
+    await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
+  }
+
+  it("shows the compact step line for step 4", async () => {
+    await renderSchedule()
+
+    const progress = screen.getByRole("navigation", { name: "Plan progress" })
+    const compact = within(progress).getByText("Step 4 of 4: Schedule")
+    expect(compact.querySelectorAll(".done")).toHaveLength(4)
+  })
+
+  it("makes every link a 44 × 44 px target", async () => {
+    await renderSchedule()
+
+    for (const target of screen.getAllByRole("link")) {
+      expectTouchTarget(target)
+    }
+  })
+
+  it("makes the Retry button a 44 × 44 px target when the schedule fails", async () => {
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () => jsonResponse(500),
+    })
+    renderApp("/plan/schedule")
+
+    const retry = await screen.findByRole("button", { name: "Retry" })
+    expectTouchTarget(retry)
+  })
+
+  it("wraps long activity and weather text instead of widening the page", () => {
+    // jsdom does no layout; the global rule ensures schedule text wraps at 320 px.
+    expect(styles).toMatch(/body \{[^}]*overflow-wrap: anywhere;/)
+  })
+})

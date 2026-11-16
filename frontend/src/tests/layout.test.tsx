@@ -159,3 +159,47 @@ describe.each([
     ).toHaveFocus()
   })
 })
+
+describe("skip link and structure on /plan/schedule", () => {
+  function setup() {
+    usePlanSetupStore.getState().setChecked({
+      location: { id: 598316, name: "Kaunas", area: "Kaunas County", latitude: 54.90156, longitude: 23.90909 },
+      dates: ["2026-11-07"],
+      maxTravelDistanceKm: 30,
+    })
+    usePlanActivitiesStore.getState().setChecked([])
+    routeFetch({
+      ...forecastRoutes,
+      ...placesRoutes,
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () => jsonResponse(200, { scheduled: [], unscheduled: [] }),
+    })
+  }
+
+  it("makes 'Skip to main content' the first focusable item on the Schedule overview page", async () => {
+    setup()
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+    await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
+
+    await user.tab()
+
+    expect(
+      screen.getByRole("link", { name: "Skip to main content" }),
+    ).toHaveFocus()
+  })
+
+  it("shows the progress bar and a Back link to /plan/places", async () => {
+    setup()
+    renderApp("/plan/schedule")
+    await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
+
+    expect(
+      screen.getByRole("navigation", { name: "Plan progress" }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute(
+      "href",
+      "/plan/places",
+    )
+  })
+})
