@@ -14,9 +14,9 @@ export interface WeatherSnapshot {
 
 export interface ScheduledActivity {
   activityName: string
-  date: string      // "yyyy-MM-dd"
+  date: string // "yyyy-MM-dd"
   startTime: string // "HH:mm"
-  endTime: string   // "HH:mm"
+  endTime: string // "HH:mm"
   place: NearbyPlace
   weather: WeatherSnapshot
 }

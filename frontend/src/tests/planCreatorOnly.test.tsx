@@ -25,7 +25,12 @@ const kaunas: PlanLocation = {
   longitude: 23.90909,
 }
 
-const pages = ["/plan/setup", "/plan/activities", "/plan/places", "/plan/schedule"]
+const pages = [
+  "/plan/setup",
+  "/plan/activities",
+  "/plan/places",
+  "/plan/schedule",
+]
 
 function planRequests(requests: { path: string }[]) {
   return requests.filter(
@@ -203,25 +208,25 @@ describe("plan pages access", () => {
   it.each([
     ["a visitor", null],
     ["an Active Registered User", signedInUser("Registered User")],
-  ])(
-    "opens /plan/schedule for %s",
-    async (_case, user) => {
-      acceptSetup()
-      routeFetch({
-        ...forecastRoutes,
-        ...placesRoutes,
-        "GET /api/auth/me": () =>
-          user ? jsonResponse(200, user) : jsonResponse(401),
-        "POST /api/plan-schedule": () =>
-          jsonResponse(200, { scheduled: [], unscheduled: [] }),
-      })
-      renderApp("/plan/schedule")
+  ])("opens /plan/schedule for %s", async (_case, user) => {
+    acceptSetup()
+    routeFetch({
+      ...forecastRoutes,
+      ...placesRoutes,
+      "GET /api/auth/me": () =>
+        user ? jsonResponse(200, user) : jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, { scheduled: [], unscheduled: [] }),
+    })
+    renderApp("/plan/schedule")
 
-      expect(
-        await screen.findByRole("heading", { level: 1, name: "Schedule overview" }),
-      ).toBeInTheDocument()
-    },
-  )
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Schedule overview",
+      }),
+    ).toBeInTheDocument()
+  })
 
   it("shows Access denied after a Continue answered with 403 once the user is read again", async () => {
     let administrator = false

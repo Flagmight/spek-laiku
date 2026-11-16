@@ -883,22 +883,30 @@ describe("Places and forecast overview and places at 320 px", () => {
 describe("Schedule overview at 320 px", () => {
   function acceptPlan() {
     usePlanSetupStore.getState().setChecked({
-      location: { id: 598316, name: "Kaunas", area: "Kaunas County", latitude: 54.90156, longitude: 23.90909 },
+      location: {
+        id: 598316,
+        name: "Kaunas",
+        area: "Kaunas County",
+        latitude: 54.90156,
+        longitude: 23.90909,
+      },
       dates: ["2026-11-15"],
       maxTravelDistanceKm: 30,
     })
-    usePlanActivitiesStore.getState().setChecked([{
-      id: "a",
-      categoryId: "cat-k",
-      name: "Kayaking",
-      type: "Outdoor",
-      durationHours: 2,
-      requiresDaylight: true,
-      maxWindMs: 8,
-      maxRainMmPerHour: 0.5,
-      minTemperatureC: 15,
-      maxTemperatureC: 35,
-    }])
+    usePlanActivitiesStore.getState().setChecked([
+      {
+        id: "a",
+        categoryId: "cat-k",
+        name: "Kayaking",
+        type: "Outdoor",
+        durationHours: 2,
+        requiresDaylight: true,
+        maxWindMs: 8,
+        maxRainMmPerHour: 0.5,
+        minTemperatureC: 15,
+        maxTemperatureC: 35,
+      },
+    ])
   }
 
   async function renderSchedule() {
@@ -907,14 +915,27 @@ describe("Schedule overview at 320 px", () => {
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
-          scheduled: [{
-            activityName: "Kayaking",
-            date: "2026-11-15",
-            startTime: "10:00",
-            endTime: "12:00",
-            place: { name: "Slipway", latitude: 54.89, longitude: 23.93, distanceKm: 3.4, area: "Kaunas" },
-            weather: { temperatureC: 18.5, rainMmPerHour: 0.2, windMs: 3.1, isIndoor: false },
-          }],
+          scheduled: [
+            {
+              activityName: "Kayaking",
+              date: "2026-11-15",
+              startTime: "10:00",
+              endTime: "12:00",
+              place: {
+                name: "Slipway",
+                latitude: 54.89,
+                longitude: 23.93,
+                distanceKm: 3.4,
+                area: "Kaunas",
+              },
+              weather: {
+                temperatureC: 18.5,
+                rainMmPerHour: 0.2,
+                windMs: 3.1,
+                isIndoor: false,
+              },
+            },
+          ],
           unscheduled: [],
         }),
     })

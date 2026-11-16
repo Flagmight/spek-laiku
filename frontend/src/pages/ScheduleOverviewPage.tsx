@@ -1,7 +1,10 @@
 import { useEffect } from "react"
 import { Link, Navigate } from "react-router-dom"
 import { PlanProgress } from "../components/planProgress"
-import { scheduleReasonText, scheduleWeatherText } from "../helpers/scheduleText"
+import {
+  scheduleReasonText,
+  scheduleWeatherText,
+} from "../helpers/scheduleText"
 import { usePageTitle } from "../hooks/usePageTitle"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
@@ -32,7 +35,10 @@ export function ScheduleOverviewPage() {
     return <Navigate to="/plan/setup" replace />
   }
 
-  if (status === "activitiesOutdated" || (!activities && status !== "loading")) {
+  if (
+    status === "activitiesOutdated" ||
+    (!activities && status !== "loading")
+  ) {
     return <Navigate to="/plan/activities" replace />
   }
 
@@ -40,11 +46,7 @@ export function ScheduleOverviewPage() {
     <>
       <h1>Schedule overview</h1>
       <PlanProgress current={4} />
-      <ScheduleBody
-        status={status}
-        schedule={schedule}
-        onRetry={retry}
-      />
+      <ScheduleBody status={status} schedule={schedule} onRetry={retry} />
       <p>
         <Link to="/plan/places" className="button-link">
           Back
@@ -70,7 +72,12 @@ function ScheduleBody({
   }
 
   if (status === "weatherUnavailable") {
-    return <ServiceError message="The weather service is unavailable." onRetry={onRetry} />
+    return (
+      <ServiceError
+        message="The weather service is unavailable."
+        onRetry={onRetry}
+      />
+    )
   }
 
   if (status === "placesUnavailable") {
@@ -84,12 +91,20 @@ function ScheduleBody({
 
   if (status === "tooManyRequests") {
     return (
-      <ServiceError message="Too many requests. Wait a minute and try again." onRetry={onRetry} />
+      <ServiceError
+        message="Too many requests. Wait a minute and try again."
+        onRetry={onRetry}
+      />
     )
   }
 
   if (status === "serverError") {
-    return <ServiceError message="Something went wrong. Try again." onRetry={onRetry} />
+    return (
+      <ServiceError
+        message="Something went wrong. Try again."
+        onRetry={onRetry}
+      />
+    )
   }
 
   if (!schedule) {
@@ -118,7 +133,8 @@ function ScheduleBody({
       )}
       {allUnscheduled && (
         <p>
-          No suitable time found for any activity. Change the dates or the weather limits.
+          No suitable time found for any activity. Change the dates or the
+          weather limits.
         </p>
       )}
       {sortedDates.length > 0 && (
@@ -128,7 +144,9 @@ function ScheduleBody({
               <h2>{date}</h2>
               <ul>
                 {byDate.get(date)!.map((activity) => (
-                  <li key={`${activity.date}-${activity.startTime}-${activity.activityName}`}>
+                  <li
+                    key={`${activity.date}-${activity.startTime}-${activity.activityName}`}
+                  >
                     <span>
                       {activity.startTime}–{activity.endTime}
                     </span>{" "}

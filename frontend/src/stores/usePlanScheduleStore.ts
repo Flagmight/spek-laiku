@@ -30,7 +30,10 @@ export interface PlanScheduleState {
   lastSetup: CheckedPlanSetup | null
   lastActivities: CheckedPlanActivity[] | null
   // No-op while loading; aborts any previous request and starts a fresh one.
-  generate: (setup: CheckedPlanSetup, activities: CheckedPlanActivity[]) => Promise<void>
+  generate: (
+    setup: CheckedPlanSetup,
+    activities: CheckedPlanActivity[],
+  ) => Promise<void>
   // Re-runs the last generate (always fires, even from an error state). No-op while loading.
   retry: () => Promise<void>
   // Aborts a pending request and returns to idle, for example when the page closes (spec FR-014).

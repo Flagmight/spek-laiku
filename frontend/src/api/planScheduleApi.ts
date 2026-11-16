@@ -29,7 +29,10 @@ export async function getPlanSchedule(
 
   switch (response.status) {
     case 200:
-      return { kind: "schedule", schedule: (await response.json()) as PlanSchedule }
+      return {
+        kind: "schedule",
+        schedule: (await response.json()) as PlanSchedule,
+      }
     case 400: {
       const outdated = await outdatedPart(response)
       if (outdated) {

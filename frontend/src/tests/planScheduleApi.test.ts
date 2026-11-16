@@ -29,8 +29,19 @@ const schedule = {
       date: "2026-11-14",
       startTime: "10:00",
       endTime: "12:00",
-      place: { name: "Slipway", latitude: 54.89, longitude: 23.93, distanceKm: 3.4, area: "Kaunas" },
-      weather: { temperatureC: 18.5, rainMmPerHour: 0.2, windMs: 3.1, isIndoor: false },
+      place: {
+        name: "Slipway",
+        latitude: 54.89,
+        longitude: 23.93,
+        distanceKm: 3.4,
+        area: "Kaunas",
+      },
+      weather: {
+        temperatureC: 18.5,
+        rainMmPerHour: 0.2,
+        windMs: 3.1,
+        isIndoor: false,
+      },
     },
   ],
   unscheduled: [],
@@ -78,7 +89,9 @@ describe("getPlanSchedule service failures", () => {
         }),
     })
 
-    expect(await getPlanSchedule(request)).toEqual({ kind: "weatherUnavailable" })
+    expect(await getPlanSchedule(request)).toEqual({
+      kind: "weatherUnavailable",
+    })
   })
 
   it("maps a 503 for the places service to placesUnavailable", async () => {
@@ -92,7 +105,9 @@ describe("getPlanSchedule service failures", () => {
         }),
     })
 
-    expect(await getPlanSchedule(request)).toEqual({ kind: "placesUnavailable" })
+    expect(await getPlanSchedule(request)).toEqual({
+      kind: "placesUnavailable",
+    })
   })
 
   it("maps 429 to tooManyRequests", async () => {
@@ -143,18 +158,23 @@ describe("getPlanSchedule when the plan is out of date", () => {
       [scheduleRoute]: () =>
         jsonResponse(400, {
           errors: {
-            "activities[0].maxWindMs": ["Enter a wind limit between 0 and 30 m/s."],
+            "activities[0].maxWindMs": [
+              "Enter a wind limit between 0 and 30 m/s.",
+            ],
           },
         }),
     })
 
-    expect(await getPlanSchedule(request)).toEqual({ kind: "activitiesOutdated" })
+    expect(await getPlanSchedule(request)).toEqual({
+      kind: "activitiesOutdated",
+    })
   })
 
   it.each([
     [
       "only request",
-      () => jsonResponse(400, { errors: { request: ["The request is invalid."] } }),
+      () =>
+        jsonResponse(400, { errors: { request: ["The request is invalid."] } }),
     ],
     ["an unreadable body", () => new Response("oops", { status: 400 })],
   ])("throws ApiError for a 400 with %s", async (_case, answer) => {

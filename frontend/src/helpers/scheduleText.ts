@@ -1,6 +1,8 @@
 import type { WeatherSnapshot } from "../types/planSchedule"
 
-export function scheduleReasonText(reason: "noPlace" | "noSuitableTime"): string {
+export function scheduleReasonText(
+  reason: "noPlace" | "noSuitableTime",
+): string {
   return reason === "noPlace" ? "No place found" : "No suitable time found"
 }
 

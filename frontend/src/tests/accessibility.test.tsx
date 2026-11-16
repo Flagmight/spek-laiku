@@ -1054,13 +1054,41 @@ describe("Places and forecast accessibility: the overview and places", () => {
 describe("Schedule Overview accessibility", () => {
   function acceptPlan() {
     usePlanSetupStore.getState().setChecked({
-      location: { id: 598316, name: "Kaunas", area: "Kaunas County", latitude: 54.90156, longitude: 23.90909 },
+      location: {
+        id: 598316,
+        name: "Kaunas",
+        area: "Kaunas County",
+        latitude: 54.90156,
+        longitude: 23.90909,
+      },
       dates: ["2026-11-15"],
       maxTravelDistanceKm: 30,
     })
     usePlanActivitiesStore.getState().setChecked([
-      { id: "act-k", categoryId: "cat-k", name: "Kayaking", type: "Outdoor", durationHours: 2, requiresDaylight: true, maxWindMs: 8, maxRainMmPerHour: 0.5, minTemperatureC: 15, maxTemperatureC: 35 },
-      { id: "act-m", categoryId: "cat-m", name: "Museum", type: "Indoor", durationHours: 2, requiresDaylight: false, maxWindMs: null, maxRainMmPerHour: null, minTemperatureC: null, maxTemperatureC: null },
+      {
+        id: "act-k",
+        categoryId: "cat-k",
+        name: "Kayaking",
+        type: "Outdoor",
+        durationHours: 2,
+        requiresDaylight: true,
+        maxWindMs: 8,
+        maxRainMmPerHour: 0.5,
+        minTemperatureC: 15,
+        maxTemperatureC: 35,
+      },
+      {
+        id: "act-m",
+        categoryId: "cat-m",
+        name: "Museum",
+        type: "Indoor",
+        durationHours: 2,
+        requiresDaylight: false,
+        maxWindMs: null,
+        maxRainMmPerHour: null,
+        minTemperatureC: null,
+        maxTemperatureC: null,
+      },
     ])
   }
 
@@ -1069,7 +1097,8 @@ describe("Schedule Overview accessibility", () => {
     document.title = ""
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
-      "POST /api/plan-schedule": () => jsonResponse(200, { scheduled: [], unscheduled: [] }),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, { scheduled: [], unscheduled: [] }),
     })
     renderApp("/plan/schedule")
 
@@ -1091,16 +1120,38 @@ describe("Schedule Overview accessibility", () => {
               date: "2026-11-15",
               startTime: "10:00",
               endTime: "12:00",
-              place: { name: "Slipway", latitude: 54.89, longitude: 23.93, distanceKm: 3.4, area: "Kaunas" },
-              weather: { temperatureC: 18.5, rainMmPerHour: 0.2, windMs: 3.1, isIndoor: false },
+              place: {
+                name: "Slipway",
+                latitude: 54.89,
+                longitude: 23.93,
+                distanceKm: 3.4,
+                area: "Kaunas",
+              },
+              weather: {
+                temperatureC: 18.5,
+                rainMmPerHour: 0.2,
+                windMs: 3.1,
+                isIndoor: false,
+              },
             },
             {
               activityName: "Museum",
               date: "2026-11-15",
               startTime: "14:00",
               endTime: "16:00",
-              place: { name: "City Museum", latitude: 54.9, longitude: 23.9, distanceKm: 1.1, area: "Kaunas" },
-              weather: { temperatureC: null, rainMmPerHour: null, windMs: null, isIndoor: true },
+              place: {
+                name: "City Museum",
+                latitude: 54.9,
+                longitude: 23.9,
+                distanceKm: 1.1,
+                area: "Kaunas",
+              },
+              weather: {
+                temperatureC: null,
+                rainMmPerHour: null,
+                windMs: null,
+                isIndoor: true,
+              },
             },
           ],
           unscheduled: [],
@@ -1117,7 +1168,9 @@ describe("Schedule Overview accessibility", () => {
 
     const museumItem = screen.getByText("Museum").closest("li")!
     // Indoor activities state weather is irrelevant using words, not colour alone.
-    expect(museumItem).toHaveTextContent("Weather does not affect this indoor activity.")
+    expect(museumItem).toHaveTextContent(
+      "Weather does not affect this indoor activity.",
+    )
   })
 
   it("names the unscheduled section with a heading and states reasons with words", async () => {

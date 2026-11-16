@@ -55,8 +55,19 @@ const scheduledKayaking = {
   date: "2026-11-15",
   startTime: "10:00",
   endTime: "12:00",
-  place: { name: "Slipway", latitude: 54.89, longitude: 23.93, distanceKm: 3.4, area: "Kaunas" },
-  weather: { temperatureC: 18.5, rainMmPerHour: 0.2, windMs: 3.1, isIndoor: false },
+  place: {
+    name: "Slipway",
+    latitude: 54.89,
+    longitude: 23.93,
+    distanceKm: 3.4,
+    area: "Kaunas",
+  },
+  weather: {
+    temperatureC: 18.5,
+    rainMmPerHour: 0.2,
+    windMs: 3.1,
+    isIndoor: false,
+  },
 }
 
 const scheduledMuseum = {
@@ -64,8 +75,19 @@ const scheduledMuseum = {
   date: "2026-11-14",
   startTime: "09:00",
   endTime: "11:00",
-  place: { name: "City Museum", latitude: 54.9, longitude: 23.9, distanceKm: 1.1, area: "Kaunas" },
-  weather: { temperatureC: null, rainMmPerHour: null, windMs: null, isIndoor: true },
+  place: {
+    name: "City Museum",
+    latitude: 54.9,
+    longitude: 23.9,
+    distanceKm: 1.1,
+    area: "Kaunas",
+  },
+  weather: {
+    temperatureC: null,
+    rainMmPerHour: null,
+    windMs: null,
+    isIndoor: true,
+  },
 }
 
 function acceptPlan() {
@@ -96,15 +118,33 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() => jsonResponse(200, schedule()))
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Schedule overview" })).toBeInTheDocument()
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Schedule overview",
+      }),
+    ).toBeInTheDocument()
     await waitFor(() =>
       expect(document.title).toBe("Schedule overview - Spėk laiku"),
     )
-    const progress = within(screen.getByRole("navigation", { name: "Plan progress" }))
-    expect(progress.getByText("Schedule")).toHaveAttribute("aria-current", "step")
-    expect(progress.getByRole("link", { name: "Plan setup" })).toHaveAttribute("href", "/plan/setup")
-    expect(progress.getByRole("link", { name: "Activities" })).toHaveAttribute("href", "/plan/activities")
-    expect(progress.getByRole("link", { name: "Places and forecast" })).toHaveAttribute("href", "/plan/places")
+    const progress = within(
+      screen.getByRole("navigation", { name: "Plan progress" }),
+    )
+    expect(progress.getByText("Schedule")).toHaveAttribute(
+      "aria-current",
+      "step",
+    )
+    expect(progress.getByRole("link", { name: "Plan setup" })).toHaveAttribute(
+      "href",
+      "/plan/setup",
+    )
+    expect(progress.getByRole("link", { name: "Activities" })).toHaveAttribute(
+      "href",
+      "/plan/activities",
+    )
+    expect(
+      progress.getByRole("link", { name: "Places and forecast" }),
+    ).toHaveAttribute("href", "/plan/places")
   })
 
   it("shows the loading message while generating", async () => {
@@ -117,7 +157,9 @@ describe("ScheduleOverviewPage", () => {
     })
     renderAppWithLocation("/plan/schedule")
 
-    expect(await screen.findByText("Generating your schedule…")).toBeInTheDocument()
+    expect(
+      await screen.findByText("Generating your schedule…"),
+    ).toBeInTheDocument()
     // Check Back button is present even during loading.
     expect(screen.getByRole("link", { name: "Back" })).toBeInTheDocument()
     void user
@@ -155,7 +197,9 @@ describe("ScheduleOverviewPage", () => {
     // Museum is on 2026-11-14 (earlier date), Kayaking on 2026-11-15.
     const sections = screen.getAllByRole("region")
     const dateSections = sections.filter(
-      (s) => s.getAttribute("aria-label") === "2026-11-14" || s.getAttribute("aria-label") === "2026-11-15",
+      (s) =>
+        s.getAttribute("aria-label") === "2026-11-14" ||
+        s.getAttribute("aria-label") === "2026-11-15",
     )
     expect(dateSections[0]).toHaveAttribute("aria-label", "2026-11-14")
     expect(dateSections[1]).toHaveAttribute("aria-label", "2026-11-15")
@@ -163,7 +207,9 @@ describe("ScheduleOverviewPage", () => {
 
   it("shows start/end time, activity name, place and weather for a scheduled outdoor activity", async () => {
     acceptPlan()
-    render(() => jsonResponse(200, schedule({ scheduled: [scheduledKayaking] })))
+    render(() =>
+      jsonResponse(200, schedule({ scheduled: [scheduledKayaking] })),
+    )
 
     await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
 
@@ -184,7 +230,9 @@ describe("ScheduleOverviewPage", () => {
     await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
 
     const item = screen.getByText("Museum").closest("li")!
-    expect(item).toHaveTextContent("Weather does not affect this indoor activity.")
+    expect(item).toHaveTextContent(
+      "Weather does not affect this indoor activity.",
+    )
   })
 
   it("shows the unscheduled section heading when some activities could not be scheduled", async () => {
@@ -198,8 +246,12 @@ describe("ScheduleOverviewPage", () => {
 
     await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
 
-    expect(screen.getByRole("heading", { name: "Could not be scheduled" })).toBeInTheDocument()
-    expect(screen.getByText(/Cycling/)).toHaveTextContent("No suitable time found")
+    expect(
+      screen.getByRole("heading", { name: "Could not be scheduled" }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Cycling/)).toHaveTextContent(
+      "No suitable time found",
+    )
   })
 
   it("shows reason text for noPlace", async () => {
@@ -231,7 +283,9 @@ describe("ScheduleOverviewPage", () => {
       screen.getByText(/No suitable time found for any activity/),
     ).toBeInTheDocument()
     // The unscheduled section is still shown.
-    expect(screen.getByRole("heading", { name: "Could not be scheduled" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "Could not be scheduled" }),
+    ).toBeInTheDocument()
   })
 
   it("does not show the all-unscheduled notice when some activities were scheduled", async () => {
@@ -264,7 +318,9 @@ describe("ScheduleOverviewPage error states", () => {
 
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("The weather service is unavailable.")
-    expect(within(alert).getByRole("button", { name: "Retry" })).toBeInTheDocument()
+    expect(
+      within(alert).getByRole("button", { name: "Retry" }),
+    ).toBeInTheDocument()
     void user
   })
 
@@ -278,7 +334,9 @@ describe("ScheduleOverviewPage error states", () => {
     renderAppWithLocation("/plan/schedule")
 
     const alert = await screen.findByRole("alert")
-    expect(alert).toHaveTextContent("The map data service is unavailable. No places are shown.")
+    expect(alert).toHaveTextContent(
+      "The map data service is unavailable. No places are shown.",
+    )
   })
 
   it("shows tooManyRequests error with Retry", async () => {
@@ -290,7 +348,9 @@ describe("ScheduleOverviewPage error states", () => {
     renderAppWithLocation("/plan/schedule")
 
     const alert = await screen.findByRole("alert")
-    expect(alert).toHaveTextContent("Too many requests. Wait a minute and try again.")
+    expect(alert).toHaveTextContent(
+      "Too many requests. Wait a minute and try again.",
+    )
   })
 
   it("shows serverError with Retry", async () => {
@@ -301,7 +361,9 @@ describe("ScheduleOverviewPage error states", () => {
     })
     renderAppWithLocation("/plan/schedule")
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Something went wrong. Try again.")
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Something went wrong. Try again.",
+    )
   })
 
   it("calls retry when the Retry button is clicked", async () => {
@@ -318,8 +380,7 @@ describe("ScheduleOverviewPage error states", () => {
 
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
-      "POST /api/plan-schedule": () =>
-        jsonResponse(200, schedule()),
+      "POST /api/plan-schedule": () => jsonResponse(200, schedule()),
     })
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
@@ -354,7 +415,11 @@ describe("ScheduleOverviewPage navigation", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
-        jsonResponse(200, { firstDate: "2026-11-14", lastDate: "2026-11-20", maxDates: 7 }),
+        jsonResponse(200, {
+          firstDate: "2026-11-14",
+          lastDate: "2026-11-20",
+          maxDates: 7,
+        }),
     })
     const { currentLocation } = renderAppWithLocation("/plan/schedule")
 
@@ -367,7 +432,11 @@ describe("ScheduleOverviewPage navigation", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "GET /api/plan-setup/period": () =>
-        jsonResponse(200, { firstDate: "2026-11-14", lastDate: "2026-11-20", maxDates: 7 }),
+        jsonResponse(200, {
+          firstDate: "2026-11-14",
+          lastDate: "2026-11-20",
+          maxDates: 7,
+        }),
       "GET /api/plan-activities/categories": () =>
         jsonResponse(200, { categories: [], maxActivities: 10 }),
     })
@@ -381,9 +450,15 @@ describe("ScheduleOverviewPage navigation", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
-        jsonResponse(400, { errors: { "setup.dates[0]": ["Dates cannot be in the past."] } }),
+        jsonResponse(400, {
+          errors: { "setup.dates[0]": ["Dates cannot be in the past."] },
+        }),
       "GET /api/plan-setup/period": () =>
-        jsonResponse(200, { firstDate: "2026-11-14", lastDate: "2026-11-20", maxDates: 7 }),
+        jsonResponse(200, {
+          firstDate: "2026-11-14",
+          lastDate: "2026-11-20",
+          maxDates: 7,
+        }),
     })
     const { currentLocation } = renderAppWithLocation("/plan/schedule")
 
@@ -395,9 +470,15 @@ describe("ScheduleOverviewPage navigation", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
-        jsonResponse(400, { errors: { "activities[0]": ["Activity changed."] } }),
+        jsonResponse(400, {
+          errors: { "activities[0]": ["Activity changed."] },
+        }),
       "GET /api/plan-setup/period": () =>
-        jsonResponse(200, { firstDate: "2026-11-14", lastDate: "2026-11-20", maxDates: 7 }),
+        jsonResponse(200, {
+          firstDate: "2026-11-14",
+          lastDate: "2026-11-20",
+          maxDates: 7,
+        }),
       "GET /api/plan-activities/categories": () =>
         jsonResponse(200, { categories: [], maxActivities: 10 }),
     })

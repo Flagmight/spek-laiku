@@ -163,7 +163,13 @@ describe.each([
 describe("skip link and structure on /plan/schedule", () => {
   function setup() {
     usePlanSetupStore.getState().setChecked({
-      location: { id: 598316, name: "Kaunas", area: "Kaunas County", latitude: 54.90156, longitude: 23.90909 },
+      location: {
+        id: 598316,
+        name: "Kaunas",
+        area: "Kaunas County",
+        latitude: 54.90156,
+        longitude: 23.90909,
+      },
       dates: ["2026-11-07"],
       maxTravelDistanceKm: 30,
     })
@@ -172,7 +178,8 @@ describe("skip link and structure on /plan/schedule", () => {
       ...forecastRoutes,
       ...placesRoutes,
       "GET /api/auth/me": () => jsonResponse(401),
-      "POST /api/plan-schedule": () => jsonResponse(200, { scheduled: [], unscheduled: [] }),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, { scheduled: [], unscheduled: [] }),
     })
   }
 

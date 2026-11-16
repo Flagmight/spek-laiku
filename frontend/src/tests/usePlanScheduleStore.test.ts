@@ -45,8 +45,19 @@ const planSchedule = {
       date: "2026-11-14",
       startTime: "10:00",
       endTime: "12:00",
-      place: { name: "Slipway", latitude: 54.89, longitude: 23.93, distanceKm: 3.4, area: "Kaunas" },
-      weather: { temperatureC: 18.5, rainMmPerHour: 0.2, windMs: 3.1, isIndoor: false },
+      place: {
+        name: "Slipway",
+        latitude: 54.89,
+        longitude: 23.93,
+        distanceKm: 3.4,
+        area: "Kaunas",
+      },
+      weather: {
+        temperatureC: 18.5,
+        rainMmPerHour: 0.2,
+        windMs: 3.1,
+        isIndoor: false,
+      },
     },
   ],
   unscheduled: [],
@@ -270,7 +281,9 @@ describe("usePlanScheduleStore when the plan is out of date", () => {
       [scheduleRoute]: () =>
         jsonResponse(400, {
           errors: {
-            "setup.locationId": ["Select a location in Lithuania from the list."],
+            "setup.locationId": [
+              "Select a location in Lithuania from the list.",
+            ],
           },
         }),
     })
@@ -290,7 +303,9 @@ describe("usePlanScheduleStore when the plan is out of date", () => {
       [scheduleRoute]: () =>
         jsonResponse(400, {
           errors: {
-            "activities[0]": ["This activity is no longer available. Remove it."],
+            "activities[0]": [
+              "This activity is no longer available. Remove it.",
+            ],
           },
         }),
     })
