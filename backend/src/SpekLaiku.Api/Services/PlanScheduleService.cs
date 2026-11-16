@@ -1,0 +1,62 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using SpekLaiku.Api.Data;
+using SpekLaiku.Api.DTOs.Requests;
+
+namespace SpekLaiku.Api.Services;
+
+/// <summary>
+/// Generates the schedule for a checked plan (spec FR-002, FR-003, research section 8). The setup and the
+/// activities are checked again before the weather and map data services are contacted. The forecast and
+/// places are fetched from their caches, so both services are only called when the cache is stale.
+/// </summary>
+public sealed class PlanScheduleService(
+    PlanRecheckService planRecheckService,
+    WeatherForecastService weatherForecastService,
+    ApplicationDbContext context,
+    NearbyPlacesService nearbyPlacesService,
+    ForecastPeriod forecastPeriod,
+    IOptions<ForecastOptions> forecastOptions,
+    IOptions<PlacesOptions> placesOptions)
+{
+    public async Task<PlanScheduleResult> GetAsync(PlanScheduleRequest request, CancellationToken cancellationToken)
+    {
+        var plan = await planRecheckService.CheckAsync(request.Setup, request.Activities, cancellationToken);
+        if (!plan.Succeeded)
+        {
+            return PlanScheduleResult.Invalid(plan.Errors);
+        }
+
+        var received = await weatherForecastService.GetAsync(plan.Setup.Location, cancellationToken);
+
+        if (plan.Setup.Dates.Any(date => received.Data.Days.All(day => day.Date != date)))
+        {
+            return PlanScheduleResult.Invalid(
+                [new($"{PlanRecheckService.SetupKey}.dates", PlanSetupValidator.PastDateMessage)]);
+        }
+
+        var days = PlanningDays.Build(received.Data, plan.Setup.Dates, forecastPeriod.GetNow(), forecastOptions.Value);
+
+        var categoryIds = plan.Activities.Select(activity => activity.CategoryId).Distinct().ToList();
+        var storedTags = await context.ActivityCategories
+            .AsNoTracking()
+            .Where(category => categoryIds.Contains(category.Id))
+            .Select(category => new { category.Id, category.PlaceTags })
+            .ToDictionaryAsync(category => category.Id, category => category.PlaceTags, cancellationToken);
+
+        var categories = categoryIds
+            .Select(id => new CategoryTags(id, storedTags.TryGetValue(id, out var tags) ? tags : []))
+            .ToList();
+        var radiusKm = Math.Min(plan.Setup.MaxTravelDistanceKm, placesOptions.Value.MaxRadiusKm);
+
+        var received2 = await nearbyPlacesService.GetAsync(plan.Setup.Location, radiusKm, categories, cancellationToken);
+        var categoryPlaces = categories
+            .Select((category, index) => new CategoryPlaces(category.CategoryId, received2[index].Places))
+            .ToList();
+
+        var forecasts = plan.Activities.Select(activity => ActivityForecasts.For(activity, days)).ToList();
+        var (scheduled, unscheduled) = PlanScheduler.Assign(plan.Activities, forecasts, categoryPlaces, days);
+
+        return PlanScheduleResult.Success(new PlanSchedule(scheduled, unscheduled));
+    }
+}

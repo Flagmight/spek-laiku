@@ -25,7 +25,12 @@ const kaunas: PlanLocation = {
   longitude: 23.90909,
 }
 
-const pages = ["/plan/setup", "/plan/activities", "/plan/places"]
+const pages = [
+  "/plan/setup",
+  "/plan/activities",
+  "/plan/places",
+  "/plan/schedule",
+]
 
 function planRequests(requests: { path: string }[]) {
   return requests.filter(
@@ -34,7 +39,8 @@ function planRequests(requests: { path: string }[]) {
       request.path.startsWith("/api/plan-setup") ||
       request.path.startsWith("/api/plan-activities") ||
       request.path.startsWith("/api/plan-forecast") ||
-      request.path.startsWith("/api/plan-places"),
+      request.path.startsWith("/api/plan-places") ||
+      request.path.startsWith("/api/plan-schedule"),
   )
 }
 
@@ -161,6 +167,8 @@ describe("plan pages access", () => {
     ["/plan/activities", "Administrator"],
     ["/plan/places", "Registered User"],
     ["/plan/places", "Administrator"],
+    ["/plan/schedule", "Registered User"],
+    ["/plan/schedule", "Administrator"],
   ])(
     "sends a Suspended %s at %s to the Account suspended page",
     async (page, role) => {
@@ -194,6 +202,29 @@ describe("plan pages access", () => {
 
     expect(
       await screen.findByRole("heading", { level: 1, name: "Access denied" }),
+    ).toBeInTheDocument()
+  })
+
+  it.each([
+    ["a visitor", null],
+    ["an Active Registered User", signedInUser("Registered User")],
+  ])("opens /plan/schedule for %s", async (_case, user) => {
+    acceptSetup()
+    routeFetch({
+      ...forecastRoutes,
+      ...placesRoutes,
+      "GET /api/auth/me": () =>
+        user ? jsonResponse(200, user) : jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, { scheduled: [], unscheduled: [] }),
+    })
+    renderApp("/plan/schedule")
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Schedule overview",
+      }),
     ).toBeInTheDocument()
   })
 

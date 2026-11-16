@@ -19,6 +19,7 @@ import { usePlanCategoriesStore } from "../stores/usePlanCategoriesStore"
 import { usePlanForecastStore } from "../stores/usePlanForecastStore"
 import { usePlanPeriodStore } from "../stores/usePlanPeriodStore"
 import { usePlanPlacesStore } from "../stores/usePlanPlacesStore"
+import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
 import { usePlanSetupCheckStore } from "../stores/usePlanSetupCheckStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import { useRegistrationStore } from "../stores/useRegistrationStore"
@@ -41,6 +42,7 @@ afterEach(() => {
   usePlanActivitiesCheckStore.getState().reset()
   usePlanForecastStore.getState().reset()
   usePlanPlacesStore.getState().reset()
+  usePlanScheduleStore.getState().reset()
   // The plan setup store saves itself to sessionStorage; nothing may carry over to the next test.
   sessionStorage.clear()
   vi.restoreAllMocks()

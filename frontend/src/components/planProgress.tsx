@@ -9,8 +9,8 @@ interface PlanStep {
 const steps: PlanStep[] = [
   { name: "Plan setup", path: "/plan/setup" },
   { name: "Activities", path: "/plan/activities" },
-  { name: "Places and forecast" },
-  { name: "Schedule" },
+  { name: "Places and forecast", path: "/plan/places" },
+  { name: "Schedule", path: "/plan/schedule" },
 ]
 
 // The four plan steps (spec FR-020). Completed steps are links back, the current step is marked for

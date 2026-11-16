@@ -1050,3 +1050,154 @@ describe("Places and forecast accessibility: the overview and places", () => {
     }
   })
 })
+
+describe("Schedule Overview accessibility", () => {
+  function acceptPlan() {
+    usePlanSetupStore.getState().setChecked({
+      location: {
+        id: 598316,
+        name: "Kaunas",
+        area: "Kaunas County",
+        latitude: 54.90156,
+        longitude: 23.90909,
+      },
+      dates: ["2026-11-15"],
+      maxTravelDistanceKm: 30,
+    })
+    usePlanActivitiesStore.getState().setChecked([
+      {
+        id: "act-k",
+        categoryId: "cat-k",
+        name: "Kayaking",
+        type: "Outdoor",
+        durationHours: 2,
+        requiresDaylight: true,
+        maxWindMs: 8,
+        maxRainMmPerHour: 0.5,
+        minTemperatureC: 15,
+        maxTemperatureC: 35,
+      },
+      {
+        id: "act-m",
+        categoryId: "cat-m",
+        name: "Museum",
+        type: "Indoor",
+        durationHours: 2,
+        requiresDaylight: false,
+        maxWindMs: null,
+        maxRainMmPerHour: null,
+        minTemperatureC: null,
+        maxTemperatureC: null,
+      },
+    ])
+  }
+
+  it("has exactly one h1 and the tab title 'Schedule overview - Spėk laiku'", async () => {
+    acceptPlan()
+    document.title = ""
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, { scheduled: [], unscheduled: [] }),
+    })
+    renderApp("/plan/schedule")
+
+    expect(await screen.findAllByRole("heading", { level: 1 })).toHaveLength(1)
+    await vi.waitFor(() =>
+      expect(document.title).toBe("Schedule overview - Spėk laiku"),
+    )
+  })
+
+  it("announces each scheduled row with time, activity name, place and weather using words", async () => {
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, {
+          scheduled: [
+            {
+              activityName: "Kayaking",
+              date: "2026-11-15",
+              startTime: "10:00",
+              endTime: "12:00",
+              place: {
+                name: "Slipway",
+                latitude: 54.89,
+                longitude: 23.93,
+                distanceKm: 3.4,
+                area: "Kaunas",
+              },
+              weather: {
+                temperatureC: 18.5,
+                rainMmPerHour: 0.2,
+                windMs: 3.1,
+                isIndoor: false,
+              },
+            },
+            {
+              activityName: "Museum",
+              date: "2026-11-15",
+              startTime: "14:00",
+              endTime: "16:00",
+              place: {
+                name: "City Museum",
+                latitude: 54.9,
+                longitude: 23.9,
+                distanceKm: 1.1,
+                area: "Kaunas",
+              },
+              weather: {
+                temperatureC: null,
+                rainMmPerHour: null,
+                windMs: null,
+                isIndoor: true,
+              },
+            },
+          ],
+          unscheduled: [],
+        }),
+    })
+    renderApp("/plan/schedule")
+    await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
+
+    const kayakingItem = screen.getByText("Kayaking").closest("li")!
+    expect(kayakingItem).toHaveTextContent("10:00–12:00")
+    expect(kayakingItem).toHaveTextContent("Slipway")
+    // Weather uses words (m/s, mm/h, °C), not colour alone.
+    expect(kayakingItem.textContent).toMatch(/\d+(\.\d+)? m\/s wind/)
+
+    const museumItem = screen.getByText("Museum").closest("li")!
+    // Indoor activities state weather is irrelevant using words, not colour alone.
+    expect(museumItem).toHaveTextContent(
+      "Weather does not affect this indoor activity.",
+    )
+  })
+
+  it("names the unscheduled section with a heading and states reasons with words", async () => {
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, {
+          scheduled: [],
+          unscheduled: [
+            { activityName: "Kayaking", reason: "noSuitableTime" },
+            { activityName: "Museum", reason: "noPlace" },
+          ],
+        }),
+    })
+    renderApp("/plan/schedule")
+    await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
+
+    expect(
+      screen.getByRole("heading", { name: "Could not be scheduled" }),
+    ).toBeInTheDocument()
+    // Unscheduled reasons use words, not colour alone.
+    expect(screen.getByText(/Kayaking/).closest("li")).toHaveTextContent(
+      "No suitable time found",
+    )
+    expect(screen.getByText(/Museum/).closest("li")).toHaveTextContent(
+      "No place found",
+    )
+  })
+})

@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { Link, Navigate } from "react-router-dom"
+import { Link, Navigate, useNavigate } from "react-router-dom"
 import { PlacesAndForecastStatus } from "../components/placesAndForecastStatus"
 import { PlanActivitiesSummary } from "../components/planActivitiesSummary"
 import { PlanOverview } from "../components/planOverview"
@@ -32,6 +32,7 @@ export function PlacesAndForecastPage() {
   )
   const hasSetup = setup !== null
   const hasActivities = activities !== null
+  const navigate = useNavigate()
 
   // Only whether a checked plan exists starts the requests, so a change to the checked activities on this
   // step (removing one) asks for nothing new (feature 007 research section 10).
@@ -61,6 +62,7 @@ export function PlacesAndForecastPage() {
   }
 
   const firstLoad = isFirstLoad(forecastStatus) || isFirstLoad(placesStatus)
+  const canGenerate = forecastStatus === "loaded" && placesStatus === "loaded"
 
   return (
     <>
@@ -88,6 +90,13 @@ export function PlacesAndForecastPage() {
         </>
       )}
       <p>
+        <button
+          type="button"
+          disabled={!canGenerate}
+          onClick={() => navigate("/plan/schedule")}
+        >
+          Generate schedule
+        </button>
         <Link to="/plan/activities" className="button-link">
           Back
         </Link>
