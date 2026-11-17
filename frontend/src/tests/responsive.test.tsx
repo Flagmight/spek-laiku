@@ -934,9 +934,11 @@ describe("Schedule overview at 320 px", () => {
                 windMs: 3.1,
                 isIndoor: false,
               },
+              travel: null,
             },
           ],
           unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
         }),
     })
     renderApp("/plan/schedule")
@@ -974,5 +976,59 @@ describe("Schedule overview at 320 px", () => {
   it("wraps long activity and weather text instead of widening the page", () => {
     // jsdom does no layout; the global rule ensures schedule text wraps at 320 px.
     expect(styles).toMatch(/body \{[^}]*overflow-wrap: anywhere;/)
+  })
+
+  it("lets a long travel text wrap inside its entry", async () => {
+    const longName =
+      "Kauno marių regioninio parko Pažaislio vienuolyno prieplauka"
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, {
+          scheduled: [
+            {
+              activityName: "Kayaking",
+              date: "2026-11-15",
+              startTime: "13:00",
+              endTime: "15:00",
+              place: {
+                name: "Slipway",
+                latitude: 54.89,
+                longitude: 23.93,
+                distanceKm: 3.4,
+                area: "Kaunas",
+              },
+              weather: {
+                temperatureC: 18.5,
+                rainMmPerHour: 0.2,
+                windMs: 3.1,
+                isIndoor: false,
+              },
+              travel: {
+                fromPlaceName: longName,
+                distanceKm: 142.5,
+                overLimit: true,
+              },
+            },
+          ],
+          unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 1 },
+        }),
+    })
+    renderApp("/plan/schedule")
+
+    const travel = await screen.findByText(new RegExp(`from ${longName}`))
+    // jsdom does no layout: the travel text inherits the page-wide wrapping rule, and nothing
+    // on its way up to the list keeps it on one line or gives it a fixed width (spec SC-006).
+    expect(getComputedStyle(document.body).overflowWrap).toBe("anywhere")
+    for (
+      let element: HTMLElement | null = travel;
+      element && element.tagName !== "MAIN";
+      element = element.parentElement
+    ) {
+      expect(getComputedStyle(element).whiteSpace).not.toBe("nowrap")
+      expect(element.style.width).toBe("")
+    }
   })
 })

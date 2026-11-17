@@ -8,7 +8,9 @@ namespace SpekLaiku.Api.Services;
 /// <summary>
 /// Generates the schedule for a checked plan (spec FR-002, FR-003, research section 8). The setup and the
 /// activities are checked again before the weather and map data services are contacted. The forecast and
-/// places are fetched from their caches, so both services are only called when the cache is stale.
+/// places are fetched from their caches, so both services are only called when the cache is stale. After the
+/// time slots are assigned, the travel check chooses the places and the trips between consecutive activities
+/// against the plan's maximum travel distance (feature 009 spec FR-001 to FR-006, research section 4).
 /// </summary>
 public sealed class PlanScheduleService(
     PlanRecheckService planRecheckService,
@@ -57,6 +59,9 @@ public sealed class PlanScheduleService(
         var forecasts = plan.Activities.Select(activity => ActivityForecasts.For(activity, days)).ToList();
         var (scheduled, unscheduled) = PlanScheduler.Assign(plan.Activities, forecasts, categoryPlaces, days);
 
-        return PlanScheduleResult.Success(new PlanSchedule(scheduled, unscheduled));
+        var (withTravel, travel) = TravelDistanceRules.Apply(
+            scheduled, categoryPlaces, plan.Setup.MaxTravelDistanceKm);
+
+        return PlanScheduleResult.Success(new PlanSchedule(withTravel, unscheduled, travel));
     }
 }

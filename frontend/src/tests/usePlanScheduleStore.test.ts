@@ -58,9 +58,11 @@ const planSchedule = {
         windMs: 3.1,
         isIndoor: false,
       },
+      travel: null,
     },
   ],
   unscheduled: [],
+  travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
 }
 
 function store() {

@@ -216,7 +216,11 @@ describe("plan pages access", () => {
       "GET /api/auth/me": () =>
         user ? jsonResponse(200, user) : jsonResponse(401),
       "POST /api/plan-schedule": () =>
-        jsonResponse(200, { scheduled: [], unscheduled: [] }),
+        jsonResponse(200, {
+          scheduled: [],
+          unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
+        }),
     })
     renderApp("/plan/schedule")
 

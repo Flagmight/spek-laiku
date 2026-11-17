@@ -1,10 +1,8 @@
 import { useEffect } from "react"
 import { Link, Navigate } from "react-router-dom"
 import { PlanProgress } from "../components/planProgress"
-import {
-  scheduleReasonText,
-  scheduleWeatherText,
-} from "../helpers/scheduleText"
+import { ScheduledDaySection } from "../components/scheduledDaySection"
+import { scheduleReasonText, travelSummaryText } from "../helpers/scheduleText"
 import { usePageTitle } from "../hooks/usePageTitle"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
@@ -111,8 +109,9 @@ function ScheduleBody({
     return null
   }
 
-  const { scheduled, unscheduled } = schedule
+  const { scheduled, unscheduled, travel } = schedule
   const allUnscheduled = scheduled.length === 0 && unscheduled.length > 0
+  const travelSummary = travelSummaryText(scheduled, travel)
 
   // Group scheduled activities by date, sorted ascending.
   const byDate = new Map<string, ScheduledActivity[]>()
@@ -128,8 +127,12 @@ function ScheduleBody({
 
   return (
     <>
-      {unscheduled.length === 0 && (
-        <p role="status">✓ All activities scheduled.</p>
+      {(unscheduled.length === 0 || travelSummary) && (
+        // One status region for both summaries (feature 009 research section 9).
+        <div role="status">
+          {unscheduled.length === 0 && <p>✓ All activities scheduled.</p>}
+          {travelSummary && <p>{travelSummary}</p>}
+        </div>
       )}
       {allUnscheduled && (
         <p>
@@ -140,25 +143,12 @@ function ScheduleBody({
       {sortedDates.length > 0 && (
         <section aria-label="Scheduled activities">
           {sortedDates.map((date) => (
-            <section key={date} aria-label={date}>
-              <h2>{date}</h2>
-              <ul>
-                {byDate.get(date)!.map((activity) => (
-                  <li
-                    key={`${activity.date}-${activity.startTime}-${activity.activityName}`}
-                  >
-                    <span>
-                      {activity.startTime}–{activity.endTime}
-                    </span>{" "}
-                    <span>{activity.activityName}</span>{" "}
-                    <span>
-                      {activity.place.name} ({activity.place.distanceKm} km)
-                    </span>{" "}
-                    <span>{scheduleWeatherText(activity.weather)}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <ScheduledDaySection
+              key={date}
+              date={date}
+              activities={byDate.get(date)!}
+              maxDistanceKm={travel.maxDistanceKm}
+            />
           ))}
         </section>
       )}

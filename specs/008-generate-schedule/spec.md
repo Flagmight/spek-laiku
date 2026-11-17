@@ -104,7 +104,7 @@ The Schedule Overview can be read and acted on at 320 px width, using only a key
 - **FR-001**: The system MUST provide a "Generate schedule" button on the "Places and forecast" step that is enabled only after both the forecast and the places have loaded without a service error.
 - **FR-002**: The system MUST generate the schedule on the server, using the forecast and cached places data for the checked plan.
 - **FR-003**: The system MUST assign each activity that has a place and a suitable period of at least its required duration to exactly one date and one non-overlapping time slot.
-- **FR-004**: The system MUST use the nearest place (the first in the places list from feature 007) for each activity when assigning it to a slot.
+- **FR-004**: The system MUST use the nearest place (the first in the places list from feature 007) for each activity when assigning it to a slot. *(Replaced by feature 009, FR-004 and FR-005 in `specs/009-travel-distance/spec.md`: an activity that is not the first on its date uses the first listed place within the maximum travel distance from the previous activity's place, and keeps the nearest place only when none fits.)*
 - **FR-005**: The system MUST NOT schedule two activities in the same plan in overlapping time slots on the same date.
 - **FR-006**: The system MUST flag an activity as unscheduled, with one of the reasons "No place found" or "No suitable time found", instead of silently dropping it (project FR-036).
 - **FR-007**: The system MUST display the schedule in chronological order: dates ascending, activities within each date ordered by start time (project FR-018).
@@ -138,7 +138,7 @@ The Schedule Overview can be read and acted on at 320 px width, using only a key
 ## Assumptions
 
 - The scheduling algorithm chooses the best date for each activity by selecting the date whose suitable periods contain the longest available non-overlapping slot. When two dates are equally good, the earlier date is preferred.
-- Travel time between activities is not considered in feature 008; that constraint is added in feature 009.
+- Travel time between activities is not considered in feature 008. Feature 009 adds only the travel distance check (project FR-035); travel time is not yet assigned to a roadmap feature (see `specs/009-travel-distance/spec.md`, Clarifications).
 - The "Generate schedule" button sends the same plan setup and activities body as the forecast and places endpoints; the server fetches forecast and places from its cache if they are still fresh.
 - Each activity is scheduled at most once, even if it has suitable periods on multiple dates.
 - An indoor activity that requires no daylight has the period 06:00–22:00 available on every date (consistent with feature 006 and 007 behaviour).

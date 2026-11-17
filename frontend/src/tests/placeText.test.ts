@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { placeDistanceText } from "../helpers/placeText"
+import { kmText, placeDistanceText } from "../helpers/placeText"
 
 describe("placeDistanceText", () => {
   it("words the distance with one decimal place", () => {
@@ -13,5 +13,13 @@ describe("placeDistanceText", () => {
   it("words a place at the plan's location and one at the 50 km cap", () => {
     expect(placeDistanceText(0)).toBe("0.0 km away")
     expect(placeDistanceText(50)).toBe("50.0 km away")
+  })
+})
+
+describe("kmText", () => {
+  it("words any distance with one decimal place", () => {
+    expect(kmText(4.2)).toBe("4.2 km")
+    expect(kmText(2)).toBe("2.0 km")
+    expect(kmText(0)).toBe("0.0 km")
   })
 })

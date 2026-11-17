@@ -16,6 +16,9 @@ public sealed class PlanScheduleMappingProfile : Profile
         CreateMap<UnscheduledReason, string>().ConvertUsing(
             reason => reason == UnscheduledReason.NoPlace ? "noPlace" : "noSuitableTime");
         CreateMap<WeatherSnapshot, WeatherSnapshotResponse>();
+        CreateMap<TravelLeg, TravelLegResponse>();
+        CreateMap<TravelSummary, TravelSummaryResponse>();
+        // ScheduledActivity.CategoryId has no destination member, so it is never sent to the browser.
         CreateMap<ScheduledActivity, ScheduledActivityResponse>();
         CreateMap<UnscheduledActivity, UnscheduledActivityResponse>();
         CreateMap<PlanSchedule, PlanScheduleResponse>();

@@ -6,4 +6,5 @@ public sealed record ScheduledActivityResponse(
     string StartTime,
     string EndTime,
     NearbyPlaceResponse Place,
-    WeatherSnapshotResponse Weather);
+    WeatherSnapshotResponse Weather,
+    TravelLegResponse? Travel);

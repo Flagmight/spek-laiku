@@ -34,12 +34,19 @@ public class PlanScheduleEndpointTests(PostgreSqlApiFactory factory)
         });
 
         Assert.Equal(HttpStatusCode.OK, status);
-        Assert.Equal(["scheduled", "unscheduled"], Keys(body));
+        Assert.Equal(["scheduled", "unscheduled", "travel"], Keys(body));
 
         var scheduled = body.GetProperty("scheduled").EnumerateArray().ToList();
         Assert.Single(scheduled);
         var item = scheduled[0];
-        Assert.Equal(["activityName", "date", "startTime", "endTime", "place", "weather"], Keys(item));
+        Assert.Equal(["activityName", "date", "startTime", "endTime", "place", "weather", "travel"], Keys(item));
+        // The only activity of its date has no trip (feature 009 contracts/plan-schedule-api.md).
+        Assert.Equal(JsonValueKind.Null, item.GetProperty("travel").ValueKind);
+
+        var travel = body.GetProperty("travel");
+        Assert.Equal(["maxDistanceKm", "tripsOverLimit"], Keys(travel));
+        Assert.Equal(30, travel.GetProperty("maxDistanceKm").GetInt32());
+        Assert.Equal(0, travel.GetProperty("tripsOverLimit").GetInt32());
         Assert.Equal("2026-11-12", item.GetProperty("date").GetString());
         Assert.False(string.IsNullOrEmpty(item.GetProperty("startTime").GetString()));
         Assert.False(string.IsNullOrEmpty(item.GetProperty("endTime").GetString()));

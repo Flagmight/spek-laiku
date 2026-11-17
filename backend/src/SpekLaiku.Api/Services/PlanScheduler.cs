@@ -43,6 +43,7 @@ public static class PlanScheduler
             var weather = BuildWeather(forecast.WeatherIndependent, best.Value.Period, planningDay);
 
             scheduled.Add(new ScheduledActivity(
+                activity.CategoryId,
                 activity.Name,
                 best.Value.Date,
                 best.Value.Period.Start,
