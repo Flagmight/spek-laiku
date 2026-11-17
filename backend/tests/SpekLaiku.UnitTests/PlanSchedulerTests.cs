@@ -267,4 +267,22 @@ public sealed class PlanSchedulerTests
         var b = scheduled.Single(s => s.ActivityName == "Cycling");
         Assert.True(a.EndTime <= b.StartTime || b.EndTime <= a.StartTime, "Slots overlap");
     }
+
+    [Fact]
+    public void Assign_ScheduledActivity_CarriesItsCategoryIdAndNoTravelYet()
+    {
+        // The travel check (feature 009) runs after the scheduler and finds the listed places by CategoryId.
+        var actA = Activity("Kayaking", CategoryA);
+        var actB = Activity("Museum", CategoryB);
+        var forecastA = Forecast(false, (Date1, new TimeOnly(10, 0), new TimeOnly(14, 0)));
+        var forecastB = Forecast(false, (Date2, new TimeOnly(10, 0), new TimeOnly(14, 0)));
+        var places = new[] { WithPlace(CategoryA, PlaceA), WithPlace(CategoryB, PlaceB) };
+
+        var (scheduled, _) = PlanScheduler.Assign(
+            [actA, actB], [forecastA, forecastB], places, [EmptyDay(Date1), EmptyDay(Date2)]);
+
+        Assert.Equal(CategoryA, scheduled.Single(s => s.ActivityName == "Kayaking").CategoryId);
+        Assert.Equal(CategoryB, scheduled.Single(s => s.ActivityName == "Museum").CategoryId);
+        Assert.All(scheduled, activity => Assert.Null(activity.Travel));
+    }
 }
