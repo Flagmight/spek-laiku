@@ -19,5 +19,11 @@ public static class GeoDistance
         return 2 * EarthRadiusKm * Math.Asin(Math.Min(1, Math.Sqrt(a)));
     }
 
+    /// <summary>
+    /// A distance as the user sees it, to 0.1 km. It is the one rounding for place distances and trip distances,
+    /// so the shown value is also the compared value (feature 009 research section 3).
+    /// </summary>
+    public static decimal RoundToTenth(double km) => Math.Round((decimal)km, 1, MidpointRounding.AwayFromZero);
+
     private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 }

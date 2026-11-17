@@ -36,4 +36,14 @@ public sealed class GeoDistanceTests
 
         Assert.Equal(there, back, 1e-9);
     }
+
+    [Theory]
+    [InlineData(30.04, "30.0")]
+    [InlineData(30.05, "30.1")]
+    [InlineData(0.0, "0.0")]
+    [InlineData(4.249, "4.2")]
+    public void RoundToTenth_RoundsHalfAwayFromZeroToOneDecimal(double km, string expected)
+    {
+        Assert.Equal(decimal.Parse(expected, System.Globalization.CultureInfo.InvariantCulture), GeoDistance.RoundToTenth(km));
+    }
 }

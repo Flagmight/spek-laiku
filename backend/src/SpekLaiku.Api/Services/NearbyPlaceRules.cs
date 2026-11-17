@@ -52,7 +52,7 @@ public static class NearbyPlaceRules
             name,
             Math.Round(element.Latitude, 5, MidpointRounding.AwayFromZero),
             Math.Round(element.Longitude, 5, MidpointRounding.AwayFromZero),
-            Math.Round((decimal)distance, 1, MidpointRounding.AwayFromZero),
+            GeoDistance.RoundToTenth(distance),
             Text(element, "addr:city"),
             element.Key);
     }
