@@ -76,7 +76,7 @@ npm run build
    dotnet ef database update --project .\backend\src\SpekLaiku.Api
    ```
 
-   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Features 004 to 007 add no migration.
+   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Features 004 to 009 add no migration.
 
 3. Trust the ASP.NET Core development certificate once per machine. The sign-in cookie is `Secure`, so the API runs over https:
 
@@ -100,6 +100,36 @@ npm run build
    Open the address Vite prints (usually `http://localhost:5173`). The Vite dev server forwards every `/api` request to `https://localhost:7254`, so the browser sees one origin and the sign-in cookie works without CORS.
 
 The API needs outgoing HTTPS access to `geocoding-api.open-meteo.com` for the location search on Plan setup. The browser never calls it, and the automated tests never call it either: they use fake answers, so they pass without a network connection.
+
+#### Running the API on Windows 10
+
+`overpass-api.de` (nearby places, step 3) accepts only TLS 1.3, and Windows 10 cannot make TLS 1.3 connections. On Windows 10, an API started with `dotnet run` therefore shows "Error: The map data service is unavailable. No places are shown." on Places and forecast, and no schedule can be generated. This affects only the machine that runs the API: users' browsers never contact Overpass. Windows 11, macOS and Linux are not affected.
+
+On Windows 10, run the API in a Linux container instead (Linux .NET uses OpenSSL, which supports TLS 1.3). Keep the database and the frontend as above, and replace step 4 with:
+
+1. Export the development certificate once, with a password of your choice, to a folder outside the repository:
+
+   ```powershell
+   dotnet dev-certs https -ep "$HOME\.aspnet\https\aspnetapp.pfx" -p "<certificate-password>"
+   ```
+
+2. Start the API in a container on the same address, `https://localhost:7254` (from the repository root; `host.docker.internal` is how the container reaches the database on your machine). The source is copied into the container, so your Windows `bin` and `obj` folders are not touched:
+
+   ```powershell
+   docker run -d --name speklaiku-api-linux -p 7254:7254 `
+     -v "${PWD}\backend\src\SpekLaiku.Api:/repo/SpekLaiku.Api:ro" `
+     -v "${PWD}\.editorconfig:/repo/.editorconfig:ro" `
+     -v "$HOME\.aspnet\https:/https:ro" `
+     -e ASPNETCORE_ENVIRONMENT=Development `
+     -e ASPNETCORE_URLS=https://+:7254 `
+     -e ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx `
+     -e "ASPNETCORE_Kestrel__Certificates__Default__Password=<certificate-password>" `
+     -e "ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=speklaiku;Username=<local-user>;Password=<local-password>" `
+     mcr.microsoft.com/dotnet/sdk:10.0 `
+     sh -c "mkdir -p /app/SpekLaiku.Api && cp /repo/.editorconfig /app/ && cd /repo/SpekLaiku.Api && tar --exclude=./bin --exclude=./obj -cf - . | tar -xf - -C /app/SpekLaiku.Api && cd /app && dotnet run --project SpekLaiku.Api --no-launch-profile"
+   ```
+
+   The first start restores and builds inside the container, which takes a minute or two; `docker logs -f speklaiku-api-linux` shows "Now listening on: https://[::]:7254" when it is ready. After a code change, run `docker restart speklaiku-api-linux` (it copies the source again); stop it with `docker rm -f speklaiku-api-linux`.
 
 ## Log in and log out
 
@@ -168,7 +198,7 @@ This feature needs no migration. The manual checks for a release are in `specs/0
 - **Page**: **Places and forecast** (`/plan/places`) is step 3 of a plan. It asks for the hourly forecast (Open-Meteo) and the nearby places (OpenStreetMap Overpass API) together, shows "Getting the forecast and nearby places…" until both have answered, and then shows everything at once:
   - **Plan overview**: a table with a row per activity, its nearest place, and one column per date with that date's sunrise and sunset in the heading. Each cell shows the date's longest suitable period ("★ 10:00–14:00 (4 h)", with ", too short" when it is shorter than the activity), "✗ None" or "No hours left". On phones each row is a card.
   - **Each activity**: its places, one line with its settings, its forecast summary, and **Show forecast details**, closed at first. The details list each date's suitable periods ("★ Suitable 10:00–14:00 (4 h)"), and **Show hours** opens a table of that date's hours with temperature, rain, wind, daylight and "★ Suitable" or "✗ Unsuitable" with every reason, for example "Too windy: 9.0 m/s, maximum 8.0 m/s".
-- **Places**: for each activity, at most 5 named places that have one of its category's map place tags, nearest to the plan's location first. Each shows its distance ("3.4 km away"), its town when the map data has one, and **View on map**, which opens it on OpenStreetMap in a new tab. The search radius is the plan's maximum travel distance, capped at 50 km. Activities of the same category share their places. The tags come from the category on the server and are never sent to the browser. Places are only shown here; the schedule (a later feature) chooses one per activity.
+- **Places**: for each activity, at most 5 named places that have one of its category's map place tags, nearest to the plan's location first. Each shows its distance ("3.4 km away"), its town when the map data has one, and **View on map**, which opens it on OpenStreetMap in a new tab. The search radius is the plan's maximum travel distance, capped at 50 km. Activities of the same category share their places. The tags come from the category on the server and are never sent to the browser. The schedule then chooses one of them per activity (see "Schedule overview" below).
 - **No place found**: an activity without a place shows "✗ No place found within 30 km." with **Remove** (takes it out of the plan without asking the services again; the other activities stay checked) and **Change activity** (opens Activity selection on that activity). It is never removed automatically.
 - **Rules** (decided on the server): an hour suits an Outdoor activity when its temperature, rain and wind are within the activity's limits (a value equal to a limit is accepted) and, if the activity requires daylight, the whole hour is between sunrise and sunset. Indoor activities are judged only on daylight. Values are rounded to one decimal place before they are compared, the same as shown. One forecast for the plan's location is used for every activity.
 - **Planning hours**: only the hours from 06:00 to 22:00 of each date are planned; on today's date, hours that have already started are left out.
@@ -181,10 +211,21 @@ This feature needs no migration. The manual checks for a release are in `specs/0
 
 These features need no migration. Running them needs internet access from the API host (see Deployment notes); the automated tests never call Open-Meteo or Overpass. The manual checks for a release are in `specs/006-hourly-forecast/quickstart.md` and `specs/007-nearby-places/quickstart.md`.
 
+## Schedule overview
+
+- **Page**: **Generate schedule** on Places and forecast (enabled once the forecast and the places have loaded) opens **Schedule overview** (`/plan/schedule`), step 4 of a plan. It shows "Generating your schedule…", then the activities grouped by date in date order and, within a date, by start time. Each entry shows its time, the activity, its place with the distance from the plan's location, the weather at the start ("Weather does not affect this indoor activity." for Indoor activities) and its travel.
+- **Scheduling** (decided on the server, from the same forecast and places as step 3): activities are taken in plan order, and each one gets the longest suitable period on any date that does not overlap an activity already scheduled; the whole period is its time slot. Activities that cannot be placed are listed under **Could not be scheduled** with "No place found" or "No suitable time found"; none is dropped.
+- **Travel distance**: within each date, each activity after the first shows "Travel: 4.2 km from <previous place>", the straight-line distance from the previous activity's place, rounded to 0.1 km; the first one shows "Travel: Start of the day". Dates are not linked, and there is no trip from the plan's location. When an activity's nearest place is farther than the plan's maximum travel distance from the previous place, the first of its other listed places that is within the maximum is used. When none is, it keeps its nearest place and the trip is marked "Travel: ✗ 42.0 km from <previous place>, more than your 30 km limit". The top of the page then says "✓ All trips within your 30 km limit." or "✗ 1 trip longer than your 30 km limit." (only when a date has two or more activities). A trip exactly at the limit is within it. Times never move because of travel, and travel time is not taken into account. The maximum is changed on Plan setup.
+- **Not saved**: the schedule exists only while the page is open. Leaving it (Back or the progress bar) clears it, and **Generate schedule** makes a new one.
+- **Requests and failures**: each generation is one request that counts toward the shared `RateLimiting:PlanSetup` limit. It uses the cached forecast and places when they are still fresh. Failures show the same messages as step 3 ("Error: The weather service is unavailable.", "Error: The map data service is unavailable. No places are shown.", "Error: Too many requests. Wait a minute and try again." or "Error: Something went wrong. Try again.") with **Retry**, and an out-of-date plan sends the user back to step 1 or 2.
+- **Who can use it**: visitors (no account needed) and Active Registered Users. An Administrator or a Suspended user is refused with `403`, as in step 3.
+
+This feature needs no migration. The manual checks for a release are in `specs/008-generate-schedule/quickstart.md` and `specs/009-travel-distance/quickstart.md`.
+
 ## Deployment notes
 
 - **Behind a reverse proxy**: the plan setup request limit counts requests per client network address. Behind a reverse proxy every request arrives from the proxy's address, so all users would share one limit. Configure the ASP.NET Core forwarded-headers middleware for the trusted proxy before going live.
-- **Outgoing access**: the API host needs outgoing HTTPS access to `geocoding-api.open-meteo.com` (location search), `api.open-meteo.com` (forecast) and `overpass-api.de` (nearby places).
+- **Outgoing access**: the API host needs outgoing HTTPS access to `geocoding-api.open-meteo.com` (location search), `api.open-meteo.com` (forecast) and `overpass-api.de` (nearby places). `overpass-api.de` accepts only TLS 1.3, so the API host's operating system must support it: Linux (the Linux .NET images), Windows Server 2022 or later, or Windows 11. Windows 10 and Windows Server 2019 cannot reach it (see "Running the API on Windows 10").
 - **Forecast and places cache**: forecasts are kept in the API's memory for up to `Forecast:MaxAgeMinutes`, and places for up to `Places:MaxAgeHours`. With more than one API instance each keeps its own copy, which only means a few more calls to Open-Meteo and Overpass. The public Overpass service gives each address only a few requests at a time, so a busy deployment may need its own Overpass instance.
 - **Time zone data**: the date limits use the `Europe/Vilnius` time zone, so the API host needs time zone data. Slim Linux container images need the `tzdata` package; Windows needs ICU, so do not turn on invariant globalization mode.
 

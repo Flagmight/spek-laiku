@@ -517,7 +517,7 @@ until it is unreadable.
 | Plan Setup | Distance and date fields side by side, date chips in a row | Fields stacked, date chips wrap onto new lines |
 | Activity Selection | Categories on the left, activity settings on the right | Categories first, then the settings, all in one column. Each setting is on its own row. |
 | Places and Forecast | The Plan overview table (activities by dates), then each activity with its places as a list, and its forecast details and hours tables when opened | Each overview row becomes a card titled with the activity, each value as "Place: …" or "Sat 14 Nov: …"; each hour becomes a card. Buttons are full width. Suitable and unsuitable still use ★ and ✗ with words. |
-| Schedule Overview | Table grouped by day, columns Time / Activity / Place / Weather / Travel | Day heading, then one card per activity with the time shown first |
+| Schedule Overview | A heading per day, then a list with one entry per activity: time, activity, place, weather and "Travel: …" (features 008 and 009) | The same list; each entry wraps inside the screen width. A trip over the limit still uses ✗ with words. |
 | Plan Problems and Alternatives | Option table with details | Options as cards. Choosing one is a large tap target. |
 | My Plans | Table with Open, Duplicate, Delete in the last column | Plan name as card title, the buttons below it. Delete still asks for confirmation. |
 | Admin: Activity Categories | List on the left, edit form on the right | List first, form below. Editing a category scrolls to the form. |
