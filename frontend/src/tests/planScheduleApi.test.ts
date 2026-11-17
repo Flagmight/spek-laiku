@@ -42,9 +42,11 @@ const schedule = {
         windMs: 3.1,
         isIndoor: false,
       },
+      travel: null,
     },
   ],
   unscheduled: [],
+  travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
 }
 
 describe("getPlanSchedule", () => {

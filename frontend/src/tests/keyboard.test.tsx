@@ -914,7 +914,11 @@ describe("keyboard use of the schedule overview", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
-        jsonResponse(200, { scheduled: [], unscheduled: [] }),
+        jsonResponse(200, {
+          scheduled: [],
+          unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
+        }),
     })
     const user = userEvent.setup()
     renderApp("/plan/schedule")
@@ -936,6 +940,60 @@ describe("keyboard use of the schedule overview", () => {
       await user.tab()
       expect(element).toHaveFocus()
     }
+  })
+
+  it("adds no tab stops for the travel information: Back still follows the progress links", async () => {
+    const entry = {
+      date: "2026-11-15",
+      endTime: "12:00",
+      place: {
+        name: "Slipway",
+        latitude: 54.89,
+        longitude: 23.93,
+        distanceKm: 3.4,
+        area: "Kaunas",
+      },
+      weather: {
+        temperatureC: 18.5,
+        rainMmPerHour: 0.2,
+        windMs: 3.1,
+        isIndoor: false,
+      },
+    }
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, {
+          scheduled: [
+            {
+              ...entry,
+              activityName: "Kayaking",
+              startTime: "08:00",
+              travel: null,
+            },
+            {
+              ...entry,
+              activityName: "Picnic",
+              startTime: "13:00",
+              travel: {
+                fromPlaceName: "Slipway",
+                distanceKm: 42,
+                overLimit: true,
+              },
+            },
+          ],
+          unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 1 },
+        }),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+    await screen.findByText(/Travel: ✗/)
+    screen.getByRole("link", { name: "Places and forecast" }).focus()
+
+    await user.tab()
+    expect(screen.getByRole("link", { name: "Back" })).toHaveFocus()
   })
 
   it("reaches the Retry button after an error", async () => {

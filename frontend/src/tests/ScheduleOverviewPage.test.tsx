@@ -68,6 +68,7 @@ const scheduledKayaking = {
     windMs: 3.1,
     isIndoor: false,
   },
+  travel: null,
 }
 
 const scheduledMuseum = {
@@ -88,6 +89,7 @@ const scheduledMuseum = {
     windMs: null,
     isIndoor: true,
   },
+  travel: null,
 }
 
 function acceptPlan() {
@@ -106,7 +108,12 @@ function render(scheduleResponse: () => Response) {
 }
 
 function schedule(override: Partial<PlanSchedule> = {}): PlanSchedule {
-  return { scheduled: [scheduledKayaking], unscheduled: [], ...override }
+  return {
+    scheduled: [scheduledKayaking],
+    unscheduled: [],
+    travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
+    ...override,
+  }
 }
 
 describe("ScheduleOverviewPage", () => {
@@ -189,6 +196,7 @@ describe("ScheduleOverviewPage", () => {
       jsonResponse(200, {
         scheduled: [scheduledKayaking, scheduledMuseum],
         unscheduled: [],
+        travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
       }),
     )
 
@@ -223,6 +231,171 @@ describe("ScheduleOverviewPage", () => {
     expect(item).toHaveTextContent("18.5 °C")
   })
 
+  it("shows the place distance with one decimal place, like the trip distance", async () => {
+    acceptPlan()
+    const picnic = {
+      ...scheduledKayaking,
+      activityName: "Picnic",
+      startTime: "13:00",
+      place: { ...scheduledKayaking.place, name: "Parkas", distanceKm: 2 },
+      travel: { fromPlaceName: "Slipway", distanceKm: 2, overLimit: false },
+    }
+    render(() =>
+      jsonResponse(200, schedule({ scheduled: [scheduledKayaking, picnic] })),
+    )
+
+    await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
+
+    const entry = screen.getByText("Picnic").closest("li")!
+    expect(entry).toHaveTextContent("Parkas (2.0 km)")
+    expect(entry).toHaveTextContent("Travel: 2.0 km from Slipway")
+  })
+
+  it("shows the travel of each activity: the start of the day, then the trip from the previous place", async () => {
+    acceptPlan()
+    const picnic = {
+      ...scheduledKayaking,
+      activityName: "Picnic",
+      startTime: "13:00",
+      endTime: "15:00",
+      place: { ...scheduledKayaking.place, name: "Santakos parkas" },
+      travel: { fromPlaceName: "Slipway", distanceKm: 4.2, overLimit: false },
+    }
+    render(() =>
+      jsonResponse(200, schedule({ scheduled: [scheduledKayaking, picnic] })),
+    )
+
+    await screen.findByRole("heading", { level: 1, name: "Schedule overview" })
+
+    const first = screen.getByText("Kayaking").closest("li")!
+    const second = screen.getByText("Picnic").closest("li")!
+    expect(first).toHaveTextContent("Travel: Start of the day")
+    expect(second).toHaveTextContent("Travel: 4.2 km from Slipway")
+    // The travel comes after the place and the weather in the entry.
+    expect(second.textContent!.indexOf("Travel:")).toBeGreaterThan(
+      second.textContent!.indexOf("18.5 °C"),
+    )
+  })
+
+  describe("travel limit", () => {
+    // The layout has its own status region for success banners outside <main>; the page has one inside.
+    async function pageStatus() {
+      return within(await screen.findByRole("main")).findByRole("status")
+    }
+
+    function stop(
+      activityName: string,
+      startTime: string,
+      travel: { distanceKm: number; overLimit: boolean },
+    ) {
+      return {
+        ...scheduledKayaking,
+        activityName,
+        startTime,
+        endTime: startTime,
+        travel: { fromPlaceName: "Slipway", ...travel },
+      }
+    }
+
+    it("marks a trip over the limit and counts it in the summary", async () => {
+      acceptPlan()
+      render(() =>
+        jsonResponse(
+          200,
+          schedule({
+            scheduled: [
+              scheduledKayaking,
+              stop("Picnic", "13:00", { distanceKm: 42, overLimit: true }),
+            ],
+            travel: { maxDistanceKm: 30, tripsOverLimit: 1 },
+          }),
+        ),
+      )
+
+      const status = await pageStatus()
+      expect(status).toHaveTextContent("✓ All activities scheduled.")
+      expect(status).toHaveTextContent("✗ 1 trip longer than your 30 km limit.")
+      expect(screen.getByText("Picnic").closest("li")).toHaveTextContent(
+        "Travel: ✗ 42.0 km from Slipway, more than your 30 km limit",
+      )
+    })
+
+    it("counts several trips over the limit in the plural", async () => {
+      acceptPlan()
+      render(() =>
+        jsonResponse(
+          200,
+          schedule({
+            scheduled: [
+              scheduledKayaking,
+              stop("Picnic", "13:00", { distanceKm: 42, overLimit: true }),
+              stop("Cycling", "16:00", { distanceKm: 35, overLimit: true }),
+            ],
+            travel: { maxDistanceKm: 30, tripsOverLimit: 2 },
+          }),
+        ),
+      )
+
+      expect(await pageStatus()).toHaveTextContent(
+        "✗ 2 trips longer than your 30 km limit.",
+      )
+    })
+
+    it("says all trips are within the limit, in the same status area as the scheduling summary", async () => {
+      acceptPlan()
+      render(() =>
+        jsonResponse(
+          200,
+          schedule({
+            scheduled: [
+              scheduledKayaking,
+              stop("Picnic", "13:00", { distanceKm: 4.2, overLimit: false }),
+            ],
+          }),
+        ),
+      )
+
+      const status = await pageStatus()
+      expect(
+        within(screen.getByRole("main")).getAllByRole("status"),
+      ).toHaveLength(1)
+      expect(status).toHaveTextContent("✓ All activities scheduled.")
+      expect(status).toHaveTextContent("✓ All trips within your 30 km limit.")
+      expect(screen.getByText("Picnic").closest("li")).not.toHaveTextContent(
+        "✗",
+      )
+    })
+
+    it("has no travel summary when every date has one activity", async () => {
+      acceptPlan()
+      render(() => jsonResponse(200, schedule()))
+
+      expect(await pageStatus()).toHaveTextContent(
+        "✓ All activities scheduled.",
+      )
+      expect(screen.queryByText(/trips? (within|longer)/)).toBeNull()
+    })
+
+    it("has no travel summary when no activity could be scheduled", async () => {
+      acceptPlan()
+      render(() =>
+        jsonResponse(
+          200,
+          schedule({
+            scheduled: [],
+            unscheduled: [{ activityName: "Kayaking", reason: "noPlace" }],
+          }),
+        ),
+      )
+
+      expect(
+        await screen.findByText(/No suitable time found for any activity/),
+      ).toBeInTheDocument()
+      expect(within(screen.getByRole("main")).queryByRole("status")).toBeNull()
+      expect(screen.queryByText(/trips? (within|longer)/)).toBeNull()
+    })
+  })
+
   it("shows the indoor weather message for an indoor activity", async () => {
     acceptPlan()
     render(() => jsonResponse(200, schedule({ scheduled: [scheduledMuseum] })))
@@ -241,6 +414,7 @@ describe("ScheduleOverviewPage", () => {
       jsonResponse(200, {
         scheduled: [scheduledKayaking],
         unscheduled: [{ activityName: "Cycling", reason: "noSuitableTime" }],
+        travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
       }),
     )
 
@@ -260,6 +434,7 @@ describe("ScheduleOverviewPage", () => {
       jsonResponse(200, {
         scheduled: [],
         unscheduled: [{ activityName: "Kayaking", reason: "noPlace" }],
+        travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
       }),
     )
 
@@ -274,6 +449,7 @@ describe("ScheduleOverviewPage", () => {
       jsonResponse(200, {
         scheduled: [],
         unscheduled: [{ activityName: "Kayaking", reason: "noSuitableTime" }],
+        travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
       }),
     )
 
@@ -294,6 +470,7 @@ describe("ScheduleOverviewPage", () => {
       jsonResponse(200, {
         scheduled: [scheduledKayaking],
         unscheduled: [{ activityName: "Cycling", reason: "noSuitableTime" }],
+        travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
       }),
     )
 

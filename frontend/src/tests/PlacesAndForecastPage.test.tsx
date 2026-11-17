@@ -1513,7 +1513,11 @@ describe("Places and forecast page: the overview", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
-        jsonResponse(200, { scheduled: [], unscheduled: [] }),
+        jsonResponse(200, {
+          scheduled: [],
+          unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
+        }),
     })
     await user.click(button)
 

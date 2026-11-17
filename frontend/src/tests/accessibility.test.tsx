@@ -1098,7 +1098,11 @@ describe("Schedule Overview accessibility", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
-        jsonResponse(200, { scheduled: [], unscheduled: [] }),
+        jsonResponse(200, {
+          scheduled: [],
+          unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
+        }),
     })
     renderApp("/plan/schedule")
 
@@ -1133,6 +1137,7 @@ describe("Schedule Overview accessibility", () => {
                 windMs: 3.1,
                 isIndoor: false,
               },
+              travel: null,
             },
             {
               activityName: "Museum",
@@ -1152,9 +1157,11 @@ describe("Schedule Overview accessibility", () => {
                 windMs: null,
                 isIndoor: true,
               },
+              travel: null,
             },
           ],
           unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
         }),
     })
     renderApp("/plan/schedule")
@@ -1173,6 +1180,74 @@ describe("Schedule Overview accessibility", () => {
     )
   })
 
+  it("announces the travel after the place and weather, and the over-limit flag and summary in words", async () => {
+    const entry = {
+      date: "2026-11-15",
+      endTime: "12:00",
+      place: {
+        name: "Slipway",
+        latitude: 54.89,
+        longitude: 23.93,
+        distanceKm: 3.4,
+        area: "Kaunas",
+      },
+      weather: {
+        temperatureC: 18.5,
+        rainMmPerHour: 0.2,
+        windMs: 3.1,
+        isIndoor: false,
+      },
+    }
+    acceptPlan()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () =>
+        jsonResponse(200, {
+          scheduled: [
+            {
+              ...entry,
+              activityName: "Kayaking",
+              startTime: "08:00",
+              travel: null,
+            },
+            {
+              ...entry,
+              activityName: "Picnic",
+              startTime: "13:00",
+              travel: {
+                fromPlaceName: "Slipway",
+                distanceKm: 42,
+                overLimit: true,
+              },
+            },
+          ],
+          unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 1 },
+        }),
+    })
+    renderApp("/plan/schedule")
+    const main = within(await screen.findByRole("main"))
+    await main.findByRole("heading", { level: 1, name: "Schedule overview" })
+
+    // Each entry reads place, weather, then the labelled travel (spec US4 scenarios 2 and 3).
+    const picnic = main.getByText("Picnic").closest("li")!.textContent!
+    expect(picnic.indexOf("Slipway")).toBeLessThan(picnic.indexOf("m/s wind"))
+    expect(picnic.indexOf("m/s wind")).toBeLessThan(picnic.indexOf("Travel:"))
+    expect(main.getByText("Kayaking").closest("li")).toHaveTextContent(
+      "Travel: Start of the day",
+    )
+    // The flag is ✗ with words, never colour alone (spec FR-012).
+    expect(picnic).toMatch(/Travel: ✗ 42\.0 km from Slipway, more than your/)
+
+    // The summary is announced with the scheduling summary in the page's one status region; the
+    // layout keeps its own status region for success banners outside <main>.
+    const statuses = main.getAllByRole("status")
+    expect(statuses).toHaveLength(1)
+    expect(statuses[0]).toHaveTextContent(
+      "✗ 1 trip longer than your 30 km limit.",
+    )
+  })
+
   it("names the unscheduled section with a heading and states reasons with words", async () => {
     acceptPlan()
     routeFetch({
@@ -1184,6 +1259,7 @@ describe("Schedule Overview accessibility", () => {
             { activityName: "Kayaking", reason: "noSuitableTime" },
             { activityName: "Museum", reason: "noPlace" },
           ],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
         }),
     })
     renderApp("/plan/schedule")
