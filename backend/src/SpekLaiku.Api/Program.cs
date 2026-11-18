@@ -146,6 +146,7 @@ public class Program
         builder.Services.AddScoped<PlanPlacesService>();
         builder.Services.AddScoped<GeneratedScheduleService>();
         builder.Services.AddScoped<PlanScheduleService>();
+        builder.Services.AddScoped<SavedPlanService>();
         builder.Services.AddAutoMapper(_ => { }, typeof(RegistrationMappingProfile).Assembly);
         builder.Services.AddScoped<RegistrationService>();
         builder.Services.AddScoped<CurrentUserService>();

@@ -60,9 +60,9 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     public FakeMapPlacesClient MapPlaces { get; } = new();
 
     /// <summary>
-    /// The clock behind <see cref="ForecastPeriod"/> and <see cref="GeneratedScheduleService"/> only: the forecast
-    /// period, "now" and the received time of the forecast services, which read the time through it, and the
-    /// expiry of generated schedules. Tests set it before checking dates and set it back afterwards, because the
+    /// The clock behind <see cref="ForecastPeriod"/>, <see cref="GeneratedScheduleService"/> and
+    /// <see cref="SavedPlanService"/> only: the forecast period, "now" and the received time of the forecast
+    /// services, which read the time through it, the expiry of generated schedules and the saved time of plans. Tests set it before checking dates and set it back afterwards, because the
     /// collection shares it.
     /// </summary>
     public FixedTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
@@ -179,6 +179,12 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
             services.RemoveAll<GeneratedScheduleService>();
             services.AddScoped(provider => new GeneratedScheduleService(
                 provider.GetRequiredService<ApplicationDbContext>(), Clock));
+            // Saved plans take their saved time from the same clock, so the list order tests can control it.
+            services.RemoveAll<SavedPlanService>();
+            services.AddScoped(provider => new SavedPlanService(
+                provider.GetRequiredService<ApplicationDbContext>(),
+                provider.GetRequiredService<GeneratedScheduleService>(),
+                Clock));
         });
     }
 }
