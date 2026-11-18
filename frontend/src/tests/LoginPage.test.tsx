@@ -60,6 +60,17 @@ describe("LoginPage", () => {
     ).toHaveAttribute("href", "/register")
   })
 
+  it("keeps the return-to page on the Register link (feature 010 spec FR-008)", async () => {
+    stubApi(() => Promise.resolve(jsonResponse(401)))
+    renderApp("/login?returnTo=%2Fplan%2Fschedule")
+
+    expect(
+      await within(screen.getByRole("main")).findByRole("link", {
+        name: "Create an account",
+      }),
+    ).toHaveAttribute("href", "/register?returnTo=%2Fplan%2Fschedule")
+  })
+
   it("opens the home page signed in, with no success banner, after logging in", async () => {
     stubApi(() => Promise.resolve(jsonResponse(200, signedInUser)))
     const user = userEvent.setup()

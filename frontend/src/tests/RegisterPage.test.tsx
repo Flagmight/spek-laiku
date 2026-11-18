@@ -2,7 +2,7 @@ import { act, fireEvent, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { registrationTimeoutMs } from "../stores/useRegistrationStore"
-import { jsonResponse, renderApp } from "./renderApp"
+import { jsonResponse, renderApp, renderAppWithLocation } from "./renderApp"
 
 const details = {
   email: "user@example.com",
@@ -113,6 +113,50 @@ describe("RegisterPage", () => {
       await screen.findByRole("heading", { level: 1, name: "Spėk laiku" }),
     ).toBeInTheDocument()
     expect(screen.getByText("✓ Success: Account created.")).toBeInTheDocument()
+  })
+
+  describe("with a return-to page (feature 010 spec FR-008)", () => {
+    function registered() {
+      return Promise.resolve(
+        jsonResponse(201, {
+          success: true,
+          message: "Account created.",
+          accountStatus: "Active",
+        }),
+      )
+    }
+
+    it("returns to that page with the success banner", async () => {
+      stubApi(registered)
+      const user = userEvent.setup()
+      const { currentLocation } = renderAppWithLocation(
+        "/register?returnTo=%2Fplan%2Fsetup",
+      )
+      await fillForm(user)
+
+      await user.click(submitButton())
+
+      await vi.waitFor(() => expect(currentLocation()).toBe("/plan/setup"))
+      expect(
+        screen.getByText("✓ Success: Account created."),
+      ).toBeInTheDocument()
+    })
+
+    it.each(["//evil.example", "https://evil.example", "/login"])(
+      "ignores the unsafe return-to page %s and opens the home page",
+      async (returnTo) => {
+        stubApi(registered)
+        const user = userEvent.setup()
+        const { currentLocation } = renderAppWithLocation(
+          "/register?returnTo=" + encodeURIComponent(returnTo),
+        )
+        await fillForm(user)
+
+        await user.click(submitButton())
+
+        await vi.waitFor(() => expect(currentLocation()).toBe("/"))
+      },
+    )
   })
 
   it("refreshes the signed-in state after registering", async () => {

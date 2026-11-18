@@ -943,7 +943,7 @@ describe("keyboard use of the schedule overview", () => {
     }
   })
 
-  it("adds no tab stops for the travel information: Back still follows the progress links", async () => {
+  it("adds no tab stops for the travel information: only Save plan comes between the progress links and Back", async () => {
     const entry = {
       date: "2026-11-15",
       endTime: "12:00",
@@ -994,6 +994,9 @@ describe("keyboard use of the schedule overview", () => {
     await screen.findByText(/Travel: ✗/)
     screen.getByRole("link", { name: "Places and forecast" }).focus()
 
+    // The Visitor's Save plan button (feature 010 spec User Story 2) is the only stop after the schedule.
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Save plan" })).toHaveFocus()
     await user.tab()
     expect(screen.getByRole("link", { name: "Back" })).toHaveFocus()
   })

@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it } from "vitest"
+import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
@@ -668,6 +669,40 @@ describe("ScheduleOverviewPage navigation", () => {
     const { currentLocation } = renderAppWithLocation("/plan/schedule")
 
     await waitFor(() => expect(currentLocation()).toBe("/plan/activities"))
+  })
+
+  it("shows a schedule kept through Log in without generating a new one (feature 010 FR-007)", async () => {
+    acceptPlan()
+    const kept = schedule({ unscheduled: [] })
+    useKeptScheduleStore.getState().keep(checkedSetup, checkedActivities, kept)
+    const { requests } = render(() => jsonResponse(500))
+
+    expect(
+      await screen.findByText("✓ All activities scheduled."),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Generating your schedule…")).toBeNull()
+    expect(
+      requests.filter((request) => request.path === "/api/plan-schedule"),
+    ).toEqual([])
+    expect(useKeptScheduleStore.getState().kept).toBeNull()
+  })
+
+  it("generates a new schedule when the kept one belongs to a changed plan", async () => {
+    acceptPlan()
+    useKeptScheduleStore
+      .getState()
+      .keep(
+        { ...checkedSetup, dates: ["2026-11-16"] },
+        checkedActivities,
+        schedule(),
+      )
+    const { requests } = render(() => jsonResponse(200, schedule()))
+
+    await screen.findByText("✓ All activities scheduled.")
+    expect(
+      requests.filter((request) => request.path === "/api/plan-schedule"),
+    ).toHaveLength(1)
+    expect(useKeptScheduleStore.getState().kept).toBeNull()
   })
 
   it("resets the schedule store on unmount", async () => {

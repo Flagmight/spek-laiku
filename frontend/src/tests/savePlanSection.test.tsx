@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
+import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CheckedPlanActivity } from "../types/planActivity"
@@ -86,6 +87,7 @@ type Handler = (request: RecordedRequest) => Response | Promise<Response>
 function render(
   save: Handler,
   generate: Handler = () => jsonResponse(200, schedule()),
+  extraRoutes: Record<string, Handler> = {},
 ) {
   usePlanSetupStore.getState().setChecked(checkedSetup)
   usePlanActivitiesStore.getState().setChecked(checkedActivities)
@@ -94,9 +96,10 @@ function render(
     "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
     "POST /api/plan-schedule": generate,
     "POST /api/plans": save,
+    ...extraRoutes,
   })
-  renderAppWithLocation("/plan/schedule")
-  return { user, ...routes }
+  const { currentLocation } = renderAppWithLocation("/plan/schedule")
+  return { user, currentLocation, ...routes }
 }
 
 function saves(requests: RecordedRequest[]) {
@@ -107,6 +110,88 @@ async function openForm(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Save plan" }))
   return screen.getByLabelText("Plan name")
 }
+
+function generations(requests: RecordedRequest[]) {
+  return requests.filter((request) => request.path === "/api/plan-schedule")
+}
+
+describe("SavePlanSection for a Visitor (feature 010 spec User Story 2)", () => {
+  it("offers Save plan with a hint to log in or register", async () => {
+    render(() => jsonResponse(201, savedPlan), undefined, {
+      "GET /api/auth/me": () => jsonResponse(401),
+    })
+
+    const button = await screen.findByRole("button", { name: "Save plan" })
+
+    expect(button).toHaveAccessibleDescription(
+      "Log in or register to save this plan.",
+    )
+  })
+
+  it("keeps the schedule through Log in and offers the form afterwards", async () => {
+    let signedIn = false
+    const { user, currentLocation, requests } = render(
+      () => jsonResponse(201, savedPlan),
+      undefined,
+      {
+        "GET /api/auth/me": () =>
+          signedIn ? jsonResponse(200, signedInUser()) : jsonResponse(401),
+        "POST /api/auth/login": () => {
+          signedIn = true
+          return jsonResponse(200, signedInUser())
+        },
+      },
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Save plan" }))
+
+    expect(currentLocation()).toBe("/login?returnTo=%2Fplan%2Fschedule")
+    expect(screen.getByText("Log in to continue.")).toBeInTheDocument()
+    expect(useKeptScheduleStore.getState().kept).not.toBeNull()
+
+    await user.type(screen.getByLabelText("Email"), "user@example.com")
+    await user.type(screen.getByLabelText("Password"), "Password123!")
+    await user.click(screen.getByRole("button", { name: "Log in" }))
+
+    await waitFor(() => expect(currentLocation()).toBe("/plan/schedule"))
+    expect(
+      await screen.findByText("City Museum", { exact: false }),
+    ).toBeInTheDocument()
+    expect(generations(requests)).toHaveLength(1)
+    await openForm(user)
+    expect(screen.getByLabelText("Plan name")).toBeInTheDocument()
+  })
+
+  it("keeps the schedule and logs in again when the session ended while saving", async () => {
+    // The server ended the session: the save and every later request answer 401.
+    let sessionEnded = false
+    const { user, currentLocation } = render(
+      () => {
+        sessionEnded = true
+        return jsonResponse(401)
+      },
+      undefined,
+      {
+        "GET /api/auth/me": () =>
+          sessionEnded ? jsonResponse(401) : jsonResponse(200, signedInUser()),
+      },
+    )
+    const field = await openForm(user)
+    await user.type(field, "Weekend")
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() =>
+      expect(currentLocation()).toBe("/login?returnTo=%2Fplan%2Fschedule"),
+    )
+    expect(
+      screen.getByText("Your session has expired. Log in again."),
+    ).toBeInTheDocument()
+    expect(
+      useKeptScheduleStore.getState().kept?.schedule.generatedScheduleId,
+    ).toBe(firstId)
+  })
+})
 
 describe("SavePlanSection for a signed-in Registered User", () => {
   it("offers Save plan and opens a form with a labelled name field", async () => {

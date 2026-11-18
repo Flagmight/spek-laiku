@@ -36,6 +36,8 @@ export interface PlanScheduleState {
   ) => Promise<void>
   // Re-runs the last generate (always fires, even from an error state). No-op while loading.
   retry: () => Promise<void>
+  // Shows a schedule kept through Log in or Register without generating it again (feature 010 spec FR-007).
+  restore: (schedule: PlanSchedule) => void
   // Aborts a pending request and returns to idle, for example when the page closes (spec FR-014).
   reset: () => void
 }
@@ -125,6 +127,10 @@ export const usePlanScheduleStore = create<PlanScheduleState>()((set, get) => {
       if (lastSetup && lastActivities && status !== "loading") {
         await request(lastSetup, lastActivities)
       }
+    },
+    restore: (schedule) => {
+      get().controller?.abort()
+      set({ status: "loaded", schedule, controller: null })
     },
     reset: () => {
       get().controller?.abort()

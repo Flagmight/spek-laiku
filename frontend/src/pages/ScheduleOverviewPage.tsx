@@ -4,6 +4,7 @@ import { PlanProgress } from "../components/planProgress"
 import { SavePlanSection } from "../components/savePlanSection"
 import { ScheduleView } from "../components/scheduleView"
 import { usePageTitle } from "../hooks/usePageTitle"
+import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
@@ -27,7 +28,14 @@ export function ScheduleOverviewPage() {
       return
     }
     useSavePlanStore.getState().reset()
-    void generate(setup, activities)
+    // A schedule kept on the way to Log in or Register is shown again instead of a new one, as long as the
+    // plan has not changed since (feature 010 spec FR-007).
+    const kept = useKeptScheduleStore.getState().take(setup, activities)
+    if (kept) {
+      usePlanScheduleStore.getState().restore(kept)
+    } else {
+      void generate(setup, activities)
+    }
     return () => {
       reset()
       useSavePlanStore.getState().reset()
@@ -59,8 +67,13 @@ export function ScheduleOverviewPage() {
       <h1>Schedule overview</h1>
       <PlanProgress current={4} />
       <ScheduleBody status={status} schedule={schedule} onRetry={retry} />
-      {status === "loaded" && schedule && (
-        <SavePlanSection schedule={schedule} onGenerateAgain={generateAgain} />
+      {status === "loaded" && schedule && setup && activities && (
+        <SavePlanSection
+          setup={setup}
+          activities={activities}
+          schedule={schedule}
+          onGenerateAgain={generateAgain}
+        />
       )}
       <p>
         <Link to="/plan/places" className="button-link">

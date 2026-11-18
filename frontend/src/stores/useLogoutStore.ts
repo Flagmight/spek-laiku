@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { logout } from "../api/authApi"
 import { useCurrentUserStore } from "./useCurrentUserStore"
+import { useKeptScheduleStore } from "./useKeptScheduleStore"
 import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
 import { usePlanSetupStore } from "./usePlanSetupStore"
 
@@ -57,6 +58,8 @@ export const useLogoutStore = create<LogoutState>()((set, get) => ({
       usePlanSetupStore.getState().clear()
       // The activities go with it (feature 005, spec FR-019).
       usePlanActivitiesStore.getState().clear()
+      // And a schedule kept for saving after login (feature 010, spec FR-007).
+      useKeptScheduleStore.getState().clear()
     }
 
     set({ status: succeeded ? "idle" : "serverError", controller: null })

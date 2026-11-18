@@ -193,6 +193,42 @@ public class SavePlanEndpointTests(PostgreSqlApiFactory factory)
         Assert.False(await context.SavedPlans.AnyAsync(saved => saved.OwnerId == other.Id));
     }
 
+    [Fact]
+    public async Task VisitorsSchedule_CanBeSavedAfterSigningInOnTheSameClient()
+    {
+        // Feature 010 spec FR-007: the id from the Visitor's schedule still works after logging in.
+        var account = await factory.CreateUserAsync();
+        using var client = factory.CreateHttpsClient();
+        var scheduleId = await scenario.GenerateIdAsync(client);
+        using (var signIn = await client.PostAsync(
+            $"{TestSignInStartupFilter.Path}?email={Uri.EscapeDataString(account.Email!)}", content: null))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, signIn.StatusCode);
+        }
+
+        using var response = await client.PostAsJsonAsync(Path, new { generatedScheduleId = scheduleId, name = "Weekend" });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var plan = await context.SavedPlans.AsNoTracking().SingleAsync(saved => saved.GeneratedScheduleId == scheduleId);
+        Assert.Equal(account.Id, plan.OwnerId);
+    }
+
+    [Fact]
+    public async Task Visitor_Gets401AndNothingIsSaved()
+    {
+        // Project FR-026: a Visitor cannot save a plan, even by calling the API directly.
+        using var client = factory.CreateHttpsClient();
+        var scheduleId = await scenario.GenerateIdAsync(client);
+
+        using var response = await client.PostAsJsonAsync(Path, new { generatedScheduleId = scheduleId, name = "Weekend" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(string.Empty, await response.Content.ReadAsStringAsync());
+        Assert.Equal(0, await CountPlansAsync(scheduleId));
+    }
+
     private async Task<int> CountPlansAsync(Guid scheduleId)
     {
         using var scope = factory.Services.CreateScope();

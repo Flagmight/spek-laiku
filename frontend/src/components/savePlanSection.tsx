@@ -1,24 +1,37 @@
 import { useEffect, useRef } from "react"
 import type { KeyboardEvent } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { canViewSavedPlans } from "../helpers/canViewSavedPlans"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { useSavePlanStore } from "../stores/useSavePlanStore"
+import type { NavigationState } from "../types/navigationState"
+import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanSchedule } from "../types/planSchedule"
+import type { CheckedPlanSetup } from "../types/planSetup"
 import { TextField } from "./textField"
 
 const nameFieldId = "plan-name"
+const visitorHintId = "save-plan-hint"
+const logInToSave = "/login?returnTo=" + encodeURIComponent("/plan/schedule")
 
-// "Save plan" on the Schedule Overview for a signed-in, Active Registered User (feature 010 spec User Story 1,
-// FR-001 to FR-005). Only the remembered schedule's id and the name are sent. Nothing is offered when no
-// activity was scheduled. onGenerateAgain replaces an expired schedule, keeping the form and the name.
+// "Save plan" on the Schedule Overview (feature 010 spec User Stories 1 and 2, FR-001 to FR-007). A signed-in,
+// Active Registered User names and saves the schedule; only its remembered id and the name are sent. A Visitor,
+// or a user whose session ended while saving, is sent to Log in with the schedule kept, and comes back to it.
+// Nothing is offered when no activity was scheduled. onGenerateAgain replaces an expired schedule, keeping the
+// form and the name.
 export function SavePlanSection({
+  setup,
+  activities,
   schedule,
   onGenerateAgain,
 }: {
+  setup: CheckedPlanSetup
+  activities: CheckedPlanActivity[]
   schedule: PlanSchedule
   onGenerateAgain: () => void
 }) {
+  const navigate = useNavigate()
   const userStatus = useCurrentUserStore((state) => state.status)
   const user = useCurrentUserStore((state) => state.user)
   const status = useSavePlanStore((state) => state.status)
@@ -41,13 +54,43 @@ export function SavePlanSection({
     }
   }, [status])
 
-  if (schedule.scheduled.length === 0 || !canViewSavedPlans(userStatus, user)) {
+  // The session ended while saving: keep the schedule and log in again (spec Edge Cases).
+  useEffect(() => {
+    if (status === "sessionExpired") {
+      useKeptScheduleStore.getState().keep(setup, activities, schedule)
+      const state: NavigationState = { loginReason: "expired" }
+      navigate(logInToSave, { state })
+      void useCurrentUserStore.getState().refresh()
+    }
+  }, [status, setup, activities, schedule, navigate])
+
+  if (schedule.scheduled.length === 0) {
+    return null
+  }
+
+  if (userStatus === "signedOut" || userStatus === "error") {
+    const logIn = () => {
+      useKeptScheduleStore.getState().keep(setup, activities, schedule)
+      const state: NavigationState = { loginReason: "required" }
+      navigate(logInToSave, { state })
+    }
+    return (
+      <p>
+        <button type="button" aria-describedby={visitorHintId} onClick={logIn}>
+          Save plan
+        </button>{" "}
+        <span id={visitorHintId}>Log in or register to save this plan.</span>
+      </p>
+    )
+  }
+
+  if (!canViewSavedPlans(userStatus, user)) {
     return null
   }
 
   const store = useSavePlanStore.getState()
 
-  if (status === "closed") {
+  if (status === "closed" || status === "sessionExpired") {
     return (
       <p>
         <button type="button" ref={saveButton} onClick={store.open}>
