@@ -114,7 +114,7 @@ The Schedule Overview can be read and acted on at 320 px width, using only a key
 - **FR-011**: The system MUST recheck the plan setup and activities before generating the schedule, and return the same "checked again" response as the forecast and places endpoints when the plan is out of date.
 - **FR-012**: The system MUST share the existing rate limit (PlanSetup) with the forecast and places endpoints; a schedule request counts toward the shared limit.
 - **FR-013**: The system MUST return a 503 response if the forecast or map data service is unavailable during schedule generation. The response MUST carry a `service` field (`"forecast"` or `"places"`) matching the pattern from features 006/007, so the frontend can display the specific unavailability message ("Error: The weather service is unavailable." or "Error: The map data service is unavailable. No places are shown.") with its own Retry button.
-- **FR-014**: The system MUST NOT store the generated schedule between sessions (save and persist belong to feature 010). Within a session, the schedule store MUST be cleared when the user leaves the Schedule Overview, so that navigating back to step 3 and forward again requires a new generation.
+- **FR-014**: The system MUST NOT store the generated schedule between sessions (save and persist belong to feature 010; feature 010 FR-007 also keeps it in the tab while a visitor logs in or registers to save it). Within a session, the schedule store MUST be cleared when the user leaves the Schedule Overview, so that navigating back to step 3 and forward again requires a new generation.
 - **FR-015**: The progress bar on the "Places and forecast" step MUST advance to show "Schedule Overview" as the active step once the schedule is shown.
 
 ### Key Entities
