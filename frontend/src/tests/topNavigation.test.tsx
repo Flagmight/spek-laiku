@@ -231,3 +231,47 @@ describe("Create plan by role", () => {
     ).toBe(shown)
   })
 })
+
+// Feature 010 spec FR-014: My plans is shown to Active Registered Users only.
+describe("My plans by role", () => {
+  it.each([
+    ["an Active Registered User", { ...signedInUser }, true],
+    [
+      "a Suspended Registered User",
+      { ...signedInUser, accountStatus: "Suspended" },
+      false,
+    ],
+    [
+      "an Active Administrator",
+      { ...signedInUser, role: "Administrator" },
+      false,
+    ],
+    [
+      "a Suspended Administrator",
+      { ...signedInUser, role: "Administrator", accountStatus: "Suspended" },
+      false,
+    ],
+  ])("is shown to %s: %s", async (_who, user, shown) => {
+    stubFetch(() => jsonResponse(200, user))
+    renderApp("/")
+
+    await vi.waitFor(() =>
+      expect(
+        navigation().queryByRole("button", { name: "Log out" }),
+      ).not.toBeNull(),
+    )
+
+    expect(
+      navigation().queryByRole("link", { name: "My plans" }) !== null,
+    ).toBe(shown)
+  })
+
+  it("is not shown to a Visitor", async () => {
+    stubFetch(() => jsonResponse(401))
+    renderApp("/")
+
+    await navigation().findByRole("link", { name: "Log in" })
+
+    expect(navigation().queryByRole("link", { name: "My plans" })).toBeNull()
+  })
+})

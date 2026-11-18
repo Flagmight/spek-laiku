@@ -6,6 +6,7 @@ import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
 import { MyPlansPage } from "../pages/MyPlansPage"
 import { PlacesAndForecastPage } from "../pages/PlacesAndForecastPage"
+import { PlanDetailsPage } from "../pages/PlanDetailsPage"
 import { PlanSetupPage } from "../pages/PlanSetupPage"
 import { ScheduleOverviewPage } from "../pages/ScheduleOverviewPage"
 import { RegisterPage } from "../pages/RegisterPage"
@@ -76,6 +77,16 @@ export function AppRoutes() {
             <SignedInOnly>
               <RegisteredUserOnly>
                 <MyPlansPage />
+              </RegisteredUserOnly>
+            </SignedInOnly>
+          }
+        />
+        <Route
+          path="plans/:planId"
+          element={
+            <SignedInOnly>
+              <RegisteredUserOnly>
+                <PlanDetailsPage />
               </RegisteredUserOnly>
             </SignedInOnly>
           }

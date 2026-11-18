@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { ApiError } from "../api/apiClient"
-import { getSavedPlans, savePlan } from "../api/savedPlansApi"
+import { getSavedPlan, getSavedPlans, savePlan } from "../api/savedPlansApi"
 import type { SavePlanRequest } from "../types/savedPlan"
 import { jsonResponse, routeFetch } from "./renderApp"
 
@@ -115,5 +115,60 @@ describe("getSavedPlans", () => {
     routeFetch({ "GET /api/plans": () => jsonResponse(500) })
 
     await expect(getSavedPlans()).rejects.toEqual(new ApiError(500))
+  })
+})
+
+describe("getSavedPlan", () => {
+  const savedPlan = {
+    id: plan.id,
+    name: plan.name,
+    savedAt: plan.savedAt,
+    location: {
+      name: "Kaunas",
+      area: "Kaunas County",
+      latitude: 54.9,
+      longitude: 23.9,
+    },
+    dates: plan.dates,
+    maxTravelDistanceKm: 30,
+    scheduled: [],
+    unscheduled: [{ activityName: "Kayaking", reason: "noPlace" }],
+    travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
+  }
+
+  it("returns the plan on 200", async () => {
+    const { requests } = routeFetch({
+      [`GET /api/plans/${plan.id}`]: () => jsonResponse(200, savedPlan),
+    })
+
+    expect(await getSavedPlan(plan.id)).toEqual({
+      kind: "plan",
+      plan: savedPlan,
+    })
+    expect(requests[0].path).toBe(`/api/plans/${plan.id}`)
+  })
+
+  it("maps 403 to forbidden, 404 to notFound and 401 to unauthorized", async () => {
+    const route = `GET /api/plans/${plan.id}`
+    routeFetch({ [route]: () => jsonResponse(403, { status: 403 }) })
+    expect(await getSavedPlan(plan.id)).toEqual({ kind: "forbidden" })
+
+    routeFetch({
+      [route]: () =>
+        jsonResponse(404, {
+          status: 404,
+          detail: "This plan no longer exists.",
+        }),
+    })
+    expect(await getSavedPlan(plan.id)).toEqual({ kind: "notFound" })
+
+    routeFetch({ [route]: () => jsonResponse(401) })
+    expect(await getSavedPlan(plan.id)).toEqual({ kind: "unauthorized" })
+  })
+
+  it("throws ApiError for 500", async () => {
+    routeFetch({ [`GET /api/plans/${plan.id}`]: () => jsonResponse(500) })
+
+    await expect(getSavedPlan(plan.id)).rejects.toEqual(new ApiError(500))
   })
 })

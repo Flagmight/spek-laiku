@@ -892,3 +892,33 @@ fieldset.plan-activity h3 {
   border-radius: 4px;
   background: #eef1f4;
 }
+
+/* Where the user is, above a saved plan's heading (feature 010, docs/ux-design.md section 7):
+   Home › My plans › <plan name>. The separators have empty alternative text, so screen readers skip them. */
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumbs li {
+  overflow-wrap: anywhere;
+}
+
+.breadcrumbs li + li::before {
+  content: "›" / "";
+  margin-right: 8px;
+}
+
+/* A saved plan's setup: each label above its value. */
+.saved-plan-setup dt {
+  font-weight: 600;
+}
+
+.saved-plan-setup dd {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}

@@ -1,6 +1,7 @@
 import type {
   SavePlanFieldKey,
   SavePlanRequest,
+  SavedPlan,
   SavedPlanSummary,
 } from "../types/savedPlan"
 import { ApiError, apiFetch } from "./apiClient"
@@ -67,6 +68,36 @@ export async function getSavedPlans(
       return { kind: "unauthorized" }
     case 403:
       return { kind: "forbidden" }
+  }
+
+  throw new ApiError(response.status)
+}
+
+export type SavedPlanAnswer =
+  | { kind: "plan"; plan: SavedPlan }
+  | { kind: "notFound" }
+  | { kind: "forbidden" }
+  | { kind: "unauthorized" }
+
+// One of the signed-in user's plans (contracts/plans-api.md). Another user's plan is 403 and a plan that does
+// not exist 404. Anything else throws ApiError. Network and abort errors pass through.
+export async function getSavedPlan(
+  id: string,
+  signal?: AbortSignal,
+): Promise<SavedPlanAnswer> {
+  const response = await apiFetch(`${path}/${encodeURIComponent(id)}`, {
+    signal,
+  })
+
+  switch (response.status) {
+    case 200:
+      return { kind: "plan", plan: (await response.json()) as SavedPlan }
+    case 401:
+      return { kind: "unauthorized" }
+    case 403:
+      return { kind: "forbidden" }
+    case 404:
+      return { kind: "notFound" }
   }
 
   throw new ApiError(response.status)

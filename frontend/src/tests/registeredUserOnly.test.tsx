@@ -55,3 +55,49 @@ describe("RegisteredUserOnly on My plans", () => {
     },
   )
 })
+
+// The same guard on a saved plan's address (feature 010 spec User Story 5).
+describe("RegisteredUserOnly on a saved plan", () => {
+  const planPath = "/plans/0b8f4c1e-7d2a-4f3b-9e6c-5a1d2c3b4e5f"
+
+  function render(user: CurrentUser | null) {
+    const routes = routeFetch({
+      "GET /api/auth/me": () =>
+        user ? jsonResponse(200, user) : jsonResponse(401),
+    })
+    return { ...routes, ...renderAppWithLocation(planPath) }
+  }
+
+  it("sends a Visitor to Log in with the plan as the return-to page", async () => {
+    const { currentLocation } = render(null)
+
+    await waitFor(() =>
+      expect(currentLocation()).toBe(
+        "/login?returnTo=" + encodeURIComponent(planPath),
+      ),
+    )
+  })
+
+  it("shows Access denied to an Active Administrator without asking for the plan", async () => {
+    const { requests } = render(signedInUser("Administrator", "Active"))
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Access denied" }),
+    ).toBeInTheDocument()
+    // routeFetch would also fail the test for this unhandled request.
+    expect(requests.map((request) => request.path)).not.toContain(
+      "/api" + planPath,
+    )
+    expect(
+      screen.queryByRole("link", { name: "Go to My plans" }),
+    ).not.toBeInTheDocument()
+  })
+
+  it("sends a Suspended Registered User to the Account suspended page", async () => {
+    const { currentLocation } = render(
+      signedInUser("Registered User", "Suspended"),
+    )
+
+    await waitFor(() => expect(currentLocation()).toBe("/account-suspended"))
+  })
+})

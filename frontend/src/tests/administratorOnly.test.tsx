@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 import type { CurrentUser } from "../types/currentUser"
@@ -72,6 +72,12 @@ describe("/admin/categories access", () => {
     expect(
       screen.getByRole("link", { name: "Go to the home page" }),
     ).toHaveAttribute("href", "/")
+    // An Active Registered User also gets a link to their own plans (feature 010 spec FR-014).
+    expect(
+      within(screen.getByRole("main")).getByRole("link", {
+        name: "Go to My plans",
+      }),
+    ).toHaveAttribute("href", "/plans")
     expect(currentLocation()).toBe(page)
     expect(
       screen.queryByRole("heading", { name: "Activity categories" }),
