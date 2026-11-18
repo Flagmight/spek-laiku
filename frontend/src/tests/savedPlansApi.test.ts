@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { ApiError } from "../api/apiClient"
-import { savePlan } from "../api/savedPlansApi"
+import { getSavedPlans, savePlan } from "../api/savedPlansApi"
 import type { SavePlanRequest } from "../types/savedPlan"
 import { jsonResponse, routeFetch } from "./renderApp"
 
@@ -84,5 +84,36 @@ describe("savePlan", () => {
     )
 
     await expect(savePlan(request)).rejects.toBeInstanceOf(TypeError)
+  })
+})
+
+describe("getSavedPlans", () => {
+  it("returns the plans in the server's order on 200", async () => {
+    const newer = { ...plan, id: "newer", name: "Newer" }
+    const { requests } = routeFetch({
+      "GET /api/plans": () => jsonResponse(200, [newer, plan]),
+    })
+
+    expect(await getSavedPlans()).toEqual({
+      kind: "plans",
+      plans: [newer, plan],
+    })
+    expect(requests).toEqual([
+      { method: "GET", path: "/api/plans", body: undefined },
+    ])
+  })
+
+  it("maps 401 to unauthorized and 403 to forbidden", async () => {
+    routeFetch({ "GET /api/plans": () => jsonResponse(401) })
+    expect(await getSavedPlans()).toEqual({ kind: "unauthorized" })
+
+    routeFetch({ "GET /api/plans": () => jsonResponse(403, { status: 403 }) })
+    expect(await getSavedPlans()).toEqual({ kind: "forbidden" })
+  })
+
+  it("throws ApiError for 500", async () => {
+    routeFetch({ "GET /api/plans": () => jsonResponse(500) })
+
+    await expect(getSavedPlans()).rejects.toEqual(new ApiError(500))
   })
 })

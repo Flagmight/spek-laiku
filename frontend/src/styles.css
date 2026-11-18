@@ -578,29 +578,37 @@ fieldset.plan-activity h3 {
   color: #1d4ed8;
 }
 
-/* Phones: each hour, and each activity of the plan overview (feature 007), is a card titled with its
-   time or activity, and each value reads "Label: value" (docs/ux-design.md section 8). The header row
+/* Phones: each hour, each activity of the plan overview (feature 007) and each saved plan (feature 010) is
+   a card titled with its time, activity or plan name, and each value reads "Label: value" (docs/ux-design.md
+   section 8). The header row
    stays in the table for assistive technology but is hidden, because every cell carries its own label. */
 .forecast-hours,
 .forecast-hours tbody,
 .forecast-hours tr,
 .forecast-hours td,
 .plan-overview,
+.saved-plans,
 .plan-overview tbody,
+.saved-plans tbody,
 .plan-overview tr,
+.saved-plans tr,
 .plan-overview th,
-.plan-overview td {
+.saved-plans th,
+.plan-overview td,
+.saved-plans td {
   display: block;
   width: 100%;
 }
 
 .forecast-hours,
-.plan-overview {
+.plan-overview,
+.saved-plans {
   margin-top: 8px;
 }
 
 .forecast-hours caption,
-.plan-overview caption {
+.plan-overview caption,
+.saved-plans caption {
   display: block;
   margin-bottom: 8px;
   font-weight: 600;
@@ -608,7 +616,8 @@ fieldset.plan-activity h3 {
 }
 
 .forecast-hours thead,
-.plan-overview thead {
+.plan-overview thead,
+.saved-plans thead {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -618,7 +627,8 @@ fieldset.plan-activity h3 {
 }
 
 .forecast-hours tr,
-.plan-overview tr {
+.plan-overview tr,
+.saved-plans tr {
   margin-bottom: 8px;
   padding: 8px;
   border: 1px solid #d9dee3;
@@ -628,7 +638,9 @@ fieldset.plan-activity h3 {
 /* Long reasons and place names wrap instead of widening the page. */
 .forecast-hours td,
 .plan-overview th,
-.plan-overview td {
+.saved-plans th,
+.plan-overview td,
+.saved-plans td {
   padding: 2px 0;
   overflow-wrap: anywhere;
   text-align: left;
@@ -767,16 +779,19 @@ fieldset.plan-activity h3 {
   }
 
   /* The plan overview as a real table with its header row, as the hours table below. */
-  .plan-overview {
+  .plan-overview,
+  .saved-plans {
     display: table;
     border-collapse: collapse;
   }
 
-  .plan-overview caption {
+  .plan-overview caption,
+  .saved-plans caption {
     display: table-caption;
   }
 
-  .plan-overview thead {
+  .plan-overview thead,
+  .saved-plans thead {
     position: static;
     display: table-header-group;
     width: auto;
@@ -786,11 +801,13 @@ fieldset.plan-activity h3 {
     white-space: normal;
   }
 
-  .plan-overview tbody {
+  .plan-overview tbody,
+  .saved-plans tbody {
     display: table-row-group;
   }
 
-  .plan-overview tr {
+  .plan-overview tr,
+  .saved-plans tr {
     display: table-row;
     margin: 0;
     padding: 0;
@@ -800,7 +817,9 @@ fieldset.plan-activity h3 {
   }
 
   .plan-overview th,
-  .plan-overview td {
+  .saved-plans th,
+  .plan-overview td,
+  .saved-plans td {
     display: table-cell;
     width: auto;
     padding: 4px 8px;
@@ -858,4 +877,18 @@ fieldset.plan-activity h3 {
   .cell-label {
     display: none;
   }
+}
+
+/* My plans while loading (feature 010): grey rows where the plans will be. */
+.placeholder-rows {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.placeholder-rows li {
+  height: 2.5rem;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  background: #eef1f4;
 }

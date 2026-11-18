@@ -45,6 +45,33 @@ export async function savePlan(
   throw new ApiError(response.status)
 }
 
+export type SavedPlansAnswer =
+  | { kind: "plans"; plans: SavedPlanSummary[] }
+  | { kind: "unauthorized" }
+  | { kind: "forbidden" }
+
+// The signed-in user's plans, newest saved first as the server orders them (contracts/plans-api.md).
+// Anything else throws ApiError. Network and abort errors pass through.
+export async function getSavedPlans(
+  signal?: AbortSignal,
+): Promise<SavedPlansAnswer> {
+  const response = await apiFetch(path, { signal })
+
+  switch (response.status) {
+    case 200:
+      return {
+        kind: "plans",
+        plans: (await response.json()) as SavedPlanSummary[],
+      }
+    case 401:
+      return { kind: "unauthorized" }
+    case 403:
+      return { kind: "forbidden" }
+  }
+
+  throw new ApiError(response.status)
+}
+
 async function fieldErrors(
   response: Response,
 ): Promise<Partial<Record<SavePlanFieldKey, string>>> {

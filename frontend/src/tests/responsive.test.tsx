@@ -865,17 +865,24 @@ describe("Places and forecast overview and places at 320 px", () => {
   it("wraps long place names and overview cells instead of widening the page", () => {
     // jsdom does no layout, so the rules behind "no horizontal scrolling at 320 px" are checked.
     expect(styles).toMatch(/\.place-name \{[^}]*overflow-wrap: anywhere;/)
-    expect(styles).toMatch(/\.plan-overview td \{[^}]*overflow-wrap: anywhere;/)
+    expect(styles).toMatch(
+      /\.plan-overview td,\s*\.saved-plans td \{[^}]*overflow-wrap: anywhere;/,
+    )
   })
 
+  // The saved plans table (feature 010) shares these rules, so its selector is grouped with each one.
   it("shows the overview as a real table without cell labels from 40em wide", () => {
     const wide = styles.slice(styles.indexOf("@media (min-width: 40em)"))
 
-    expect(wide).toMatch(/\.plan-overview \{\s*display: table;/)
     expect(wide).toMatch(
-      /\.plan-overview thead \{[^}]*display: table-header-group;[^}]*clip-path: none;/,
+      /\.plan-overview,\s*\.saved-plans \{\s*display: table;/,
     )
-    expect(wide).toMatch(/\.plan-overview tr \{\s*display: table-row;/)
+    expect(wide).toMatch(
+      /\.plan-overview thead,\s*\.saved-plans thead \{[^}]*display: table-header-group;[^}]*clip-path: none;/,
+    )
+    expect(wide).toMatch(
+      /\.plan-overview tr,\s*\.saved-plans tr \{\s*display: table-row;/,
+    )
     expect(wide).toMatch(/\.cell-label \{\s*display: none;/)
   })
 })

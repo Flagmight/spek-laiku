@@ -4,6 +4,7 @@ import { ActivitySelectionPage } from "../pages/ActivitySelectionPage"
 import { ActivityCategoriesPage } from "../pages/ActivityCategoriesPage"
 import { HomePage } from "../pages/HomePage"
 import { LoginPage } from "../pages/LoginPage"
+import { MyPlansPage } from "../pages/MyPlansPage"
 import { PlacesAndForecastPage } from "../pages/PlacesAndForecastPage"
 import { PlanSetupPage } from "../pages/PlanSetupPage"
 import { ScheduleOverviewPage } from "../pages/ScheduleOverviewPage"
@@ -11,6 +12,7 @@ import { RegisterPage } from "../pages/RegisterPage"
 import { AdministratorOnly } from "./administratorOnly"
 import { Layout } from "./layout"
 import { PlanCreatorOnly } from "./planCreatorOnly"
+import { RegisteredUserOnly } from "./registeredUserOnly"
 import { SignedInOnly } from "./signedInOnly"
 import { SignedOutOnly } from "./signedOutOnly"
 import { SuspendedOnly } from "./suspendedOnly"
@@ -66,6 +68,16 @@ export function AppRoutes() {
             <PlanCreatorOnly>
               <ScheduleOverviewPage />
             </PlanCreatorOnly>
+          }
+        />
+        <Route
+          path="plans"
+          element={
+            <SignedInOnly>
+              <RegisteredUserOnly>
+                <MyPlansPage />
+              </RegisteredUserOnly>
+            </SignedInOnly>
           }
         />
         <Route

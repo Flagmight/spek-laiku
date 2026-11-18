@@ -204,7 +204,7 @@ describe("keyboard use of the Log in page", () => {
 })
 
 describe("keyboard use of Log out", () => {
-  it("reaches Log out after Home and logs out with Enter", async () => {
+  it("reaches Log out after Home, Create plan and My plans and logs out with Enter", async () => {
     let signedIn = true
     vi.stubGlobal(
       "fetch",
@@ -233,6 +233,8 @@ describe("keyboard use of Log out", () => {
         { name: "Create plan" },
       ),
     ).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole("link", { name: "My plans" })).toHaveFocus()
     await user.tab()
     expect(logOut).toHaveFocus()
     await user.keyboard("{Enter}")
