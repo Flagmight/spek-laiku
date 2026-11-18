@@ -23,6 +23,32 @@ public sealed class SavedPlanMappingProfile : Profile
             .ForCtorParam(
                 nameof(SavedPlanSummaryResponse.SavedAt),
                 options => options.MapFrom(plan => AsUtc(plan.SavedAtUtc)));
+
+        CreateMap<PlaceLocation, SavedPlanLocationResponse>();
+        // The setup and the schedule come from the stored snapshot; their items use the schedule maps in
+        // PlanScheduleMappingProfile.
+        CreateMap<SavedPlan, SavedPlanResponse>()
+            .ForCtorParam(
+                nameof(SavedPlanResponse.SavedAt),
+                options => options.MapFrom(plan => AsUtc(plan.SavedAtUtc)))
+            .ForCtorParam(
+                nameof(SavedPlanResponse.Location),
+                options => options.MapFrom(plan => plan.Snapshot.Setup.Location))
+            .ForCtorParam(
+                nameof(SavedPlanResponse.Dates),
+                options => options.MapFrom(plan => plan.Snapshot.Setup.Dates))
+            .ForCtorParam(
+                nameof(SavedPlanResponse.MaxTravelDistanceKm),
+                options => options.MapFrom(plan => plan.Snapshot.Setup.MaxTravelDistanceKm))
+            .ForCtorParam(
+                nameof(SavedPlanResponse.Scheduled),
+                options => options.MapFrom(plan => plan.Snapshot.Schedule.Scheduled))
+            .ForCtorParam(
+                nameof(SavedPlanResponse.Unscheduled),
+                options => options.MapFrom(plan => plan.Snapshot.Schedule.Unscheduled))
+            .ForCtorParam(
+                nameof(SavedPlanResponse.Travel),
+                options => options.MapFrom(plan => plan.Snapshot.Schedule.Travel));
     }
 
     // The database returns UTC; the kind is set so the offset is always zero.

@@ -31,7 +31,8 @@ public class SavePlanEndpointTests(PostgreSqlApiFactory factory)
         var body = await ReadAsync(response);
         Assert.Equal(["id", "name", "locationName", "dates", "savedAt"], Keys(body));
         var id = body.GetProperty("id").GetGuid();
-        Assert.Equal($"/api/plans/{id}", response.Headers.Location?.OriginalString);
+        // CreatedAtAction writes the address of GET /api/plans/{id} (absolute, with the request's host).
+        Assert.EndsWith($"/api/plans/{id}", response.Headers.Location?.ToString());
         Assert.Equal("Weekend in Kaunas", body.GetProperty("name").GetString());
         Assert.Equal("Testinė", body.GetProperty("locationName").GetString());
         Assert.Equal([ScheduleScenario.PlanDate], body.GetProperty("dates").EnumerateArray().Select(date => date.GetString()));

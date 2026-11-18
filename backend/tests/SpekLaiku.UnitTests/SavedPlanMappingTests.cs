@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;
 using SpekLaiku.Api.DTOs.Responses;
@@ -60,6 +61,46 @@ public sealed class SavedPlanMappingTests : IDisposable
         Assert.Equal(
             ["Id", "Name", "LocationName", "Dates", "SavedAt"],
             typeof(SavedPlanSummaryResponse).GetProperties().Select(property => property.Name));
+    }
+
+    [Fact]
+    public void SavedPlan_MapsTheSetupAndScheduleFromItsSnapshot()
+    {
+        var plan = CreatePlan();
+
+        var response = mapper.Map<SavedPlanResponse>(plan);
+
+        Assert.Equal(plan.Id, response.Id);
+        Assert.Equal("Weekend in Kaunas", response.Name);
+        Assert.Equal(new DateTimeOffset(2026, 11, 18, 12, 5, 0, TimeSpan.Zero), response.SavedAt);
+        Assert.Equal(new SavedPlanLocationResponse("Kaunas", "Kaunas City Municipality", 54.90272, 23.90961), response.Location);
+        Assert.Equal(plan.Snapshot.Setup.Dates, response.Dates);
+        Assert.Equal(30, response.MaxTravelDistanceKm);
+        Assert.Equal(["Cycling", "Museum"], response.Scheduled.Select(activity => activity.ActivityName));
+        Assert.Equal(["Kayaking", "Picnic"], response.Unscheduled.Select(activity => activity.ActivityName));
+        Assert.Equal(new TravelSummaryResponse(30, 0), response.Travel);
+    }
+
+    [Fact]
+    public void SavedPlan_KeepsEachTravelLegAndItsAbsence()
+    {
+        var response = mapper.Map<SavedPlanResponse>(CreatePlan());
+
+        Assert.Null(response.Scheduled[0].Travel);
+        Assert.Equal(new TravelLegResponse("Nemunas cycle path", 1.1m, false), response.Scheduled[1].Travel);
+        Assert.True(response.Scheduled[1].Weather.IsIndoor);
+        Assert.Equal("10:00", response.Scheduled[0].StartTime);
+    }
+
+    [Fact]
+    public void SavedPlan_SendsNoOwnerActivityLimitsOrInternalKeys()
+    {
+        var json = JsonSerializer.Serialize(mapper.Map<SavedPlanResponse>(CreatePlan()), JsonSerializerOptions.Web);
+
+        foreach (var hidden in new[] { "categoryId", "\"key\"", "ownerId", "activities", "durationHours", "maxWindMs", "generatedScheduleId" })
+        {
+            Assert.DoesNotContain(hidden, json);
+        }
     }
 
     public void Dispose() => provider.Dispose();

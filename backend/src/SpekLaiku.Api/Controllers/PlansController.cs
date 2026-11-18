@@ -30,6 +30,32 @@ public sealed class PlansController(
         return mapper.Map<List<SavedPlanSummaryResponse>>(plans);
     }
 
+    // Another user's plan gives 403 through the cookie handler, with the standard problem body and no plan data
+    // (spec FR-012, clarification Q4); a plan that does not exist gives 404.
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType<SavedPlanResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<SavedPlanResponse>> Get(Guid id, CancellationToken cancellationToken)
+    {
+        var lookup = await savedPlanService.GetAsync(userManager.GetUserId(User)!, id, cancellationToken);
+        if (lookup.Found)
+        {
+            return mapper.Map<SavedPlanResponse>(lookup.Plan);
+        }
+
+        if (lookup.IsForbidden)
+        {
+            return Forbid();
+        }
+
+        return NotFound(new ProblemDetails
+        {
+            Status = StatusCodes.Status404NotFound,
+            Title = "Not found.",
+            Detail = "This plan no longer exists."
+        });
+    }
+
     [HttpPost]
     [ProducesResponseType<SavedPlanSummaryResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<SavedPlanSummaryResponse>(StatusCodes.Status200OK)]
@@ -53,7 +79,7 @@ public sealed class PlansController(
 
         var summary = mapper.Map<SavedPlanSummaryResponse>(result.Plan);
         return result.Outcome == SavePlanOutcome.Created
-            ? Created($"/api/plans/{result.Plan.Id}", summary)
+            ? CreatedAtAction(nameof(Get), new { id = result.Plan.Id }, summary)
             : Ok(summary);
     }
 }

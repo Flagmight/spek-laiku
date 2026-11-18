@@ -82,6 +82,24 @@ public sealed class SavedPlanService(
             .Select(plan => new SavedPlanSummary(plan.Id, plan.Name, plan.LocationName, plan.Dates, plan.SavedAtUtc))
             .ToListAsync(cancellationToken);
 
+    /// <summary>
+    /// One plan, only for its owner (spec FR-010, FR-012): another user's plan is Forbidden, with no plan data.
+    /// Nothing is recalculated and no external service is called.
+    /// </summary>
+    public async Task<SavedPlanLookup> GetAsync(string ownerId, Guid id, CancellationToken cancellationToken)
+    {
+        var plan = await context.SavedPlans
+            .AsNoTracking()
+            .FirstOrDefaultAsync(saved => saved.Id == id, cancellationToken);
+
+        if (plan is null)
+        {
+            return SavedPlanLookup.NotFound;
+        }
+
+        return plan.OwnerId == ownerId ? SavedPlanLookup.Of(plan) : SavedPlanLookup.Forbidden;
+    }
+
     private async Task<SavePlanResult> InsertAsync(
         string ownerId,
         string name,
