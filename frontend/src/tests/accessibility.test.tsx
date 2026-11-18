@@ -13,6 +13,13 @@ import {
 } from "./renderApp"
 import { openCategories } from "./planCategories"
 import {
+  acceptMuseumPlan,
+  longPlanName,
+  savedPlanId,
+  savedPlanRoutes,
+  savedPlanSummaries,
+} from "./savedPlansFixtures"
+import {
   daylightActivityForecast,
   forecastDay,
   forecastRoutes,
@@ -1279,5 +1286,101 @@ describe("Schedule Overview accessibility", () => {
     expect(screen.getByText(/Museum/).closest("li")).toHaveTextContent(
       "No place found",
     )
+  })
+})
+
+// Feature 010 spec User Story 7, FR-018: saving a plan, My plans, the Home block and the plan page.
+describe("Saved plans accessibility", () => {
+  it("labels the plan name and ties its error to the field", async () => {
+    acceptMuseumPlan()
+    routeFetch(savedPlanRoutes())
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+
+    await user.click(await screen.findByRole("button", { name: "Save plan" }))
+    const field = screen.getByLabelText("Plan name")
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(field).toHaveAttribute("aria-invalid", "true")
+    expect(field).toHaveAccessibleDescription("Error: Enter a plan name.")
+    expect(field).toHaveFocus()
+  })
+
+  it("announces saving and success as status, and a failed save as an alert", async () => {
+    acceptMuseumPlan()
+    let answer: (response: Response) => void = () => {}
+    routeFetch({
+      ...savedPlanRoutes(),
+      "POST /api/plans": () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+
+    await user.click(await screen.findByRole("button", { name: "Save plan" }))
+    await user.type(screen.getByLabelText("Plan name"), "Weekend")
+    await user.click(screen.getByRole("button", { name: "Save" }))
+    expect(await screen.findByText("Saving your plan…")).toHaveAttribute(
+      "role",
+      "status",
+    )
+
+    answer(jsonResponse(500))
+    expect(
+      (await screen.findByText(/Error: Plan could not be saved/)).closest(
+        '[role="alert"]',
+      ),
+    ).not.toBeNull()
+  })
+
+  it("gives My plans one heading, a named table and Open links named after each plan", async () => {
+    routeFetch(savedPlanRoutes(savedPlanSummaries(2)))
+    renderApp("/plans")
+
+    const table = await screen.findByRole("table", { name: "Your saved plans" })
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+    expect(document.title).toBe("My plans - Spėk laiku")
+    expect(
+      within(table)
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("aria-label")),
+    ).toEqual(["Open Plan 1", "Open Plan 2"])
+  })
+
+  it("gives the plan page one heading, its name as the title and a breadcrumb trail", async () => {
+    routeFetch(savedPlanRoutes())
+    renderApp(`/plans/${savedPlanId}`)
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: longPlanName }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+    expect(document.title).toBe(`${longPlanName} - Spėk laiku`)
+    const breadcrumbs = screen.getByRole("navigation", { name: "Breadcrumb" })
+    expect(within(breadcrumbs).getAllByRole("listitem")).toHaveLength(3)
+  })
+
+  it("announces the Home block's loading and error states", async () => {
+    let answer: (response: Response) => void = () => {}
+    routeFetch({
+      ...savedPlanRoutes(),
+      "GET /api/plans": () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+    })
+    renderApp("/")
+
+    expect(
+      await screen.findByText("Loading your saved plans…"),
+    ).toHaveAttribute("role", "status")
+    answer(jsonResponse(500))
+    expect(
+      (
+        await screen.findByText(/Error: Saved plans could not be loaded/)
+      ).closest('[role="alert"]'),
+    ).not.toBeNull()
   })
 })
