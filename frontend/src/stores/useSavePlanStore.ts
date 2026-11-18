@@ -26,6 +26,9 @@ export interface SavePlanState {
   status: SavePlanStatus
   name: string
   nameError: string | null
+  // Counts every refusal of the name, so the form moves focus to the field again even when the same message
+  // is shown a second time (spec User Story 7).
+  nameRefusals: number
   savedPlan: SavedPlanSummary | null
   lastRequest: SavePlanRequest | null
   controller: AbortController | null
@@ -44,11 +47,18 @@ export interface SavePlanState {
 
 export const initialSavePlanState: Pick<
   SavePlanState,
-  "status" | "name" | "nameError" | "savedPlan" | "lastRequest" | "controller"
+  | "status"
+  | "name"
+  | "nameError"
+  | "nameRefusals"
+  | "savedPlan"
+  | "lastRequest"
+  | "controller"
 > = {
   status: "closed",
   name: "",
   nameError: null,
+  nameRefusals: 0,
   savedPlan: null,
   lastRequest: null,
   controller: null,
@@ -80,7 +90,14 @@ function toResult(answer: SavePlanAnswer | null): Result {
 export const useSavePlanStore = create<SavePlanState>()((set, get) => {
   async function send(request: SavePlanRequest) {
     const abort = new AbortController()
-    set({ status: "saving", lastRequest: request, controller: abort })
+    // An earlier refusal no longer applies while the corrected name is being saved; keeping it would also pull
+    // focus back to the field.
+    set({
+      status: "saving",
+      nameError: null,
+      lastRequest: request,
+      controller: abort,
+    })
     const clearTimer = startTimeout(abort)
     let answer: SavePlanAnswer | null = null
     try {
@@ -96,7 +113,12 @@ export const useSavePlanStore = create<SavePlanState>()((set, get) => {
       return
     }
 
-    set({ ...toResult(answer), controller: null })
+    const result = toResult(answer)
+    set({
+      ...result,
+      controller: null,
+      nameRefusals: get().nameRefusals + (result.nameError ? 1 : 0),
+    })
   }
 
   return {
@@ -114,7 +136,11 @@ export const useSavePlanStore = create<SavePlanState>()((set, get) => {
 
       const name = get().name
       if (name.trim() === "") {
-        set({ status: "invalid", nameError: nameRequiredMessage })
+        set({
+          status: "invalid",
+          nameError: nameRequiredMessage,
+          nameRefusals: get().nameRefusals + 1,
+        })
         return
       }
 

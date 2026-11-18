@@ -24,8 +24,10 @@ export interface KeptScheduleState {
     activities: CheckedPlanActivity[],
     schedule: PlanSchedule,
   ) => void
-  // Returns the kept schedule when it belongs to this plan. It is removed either way, so it is shown once.
-  take: (
+  // Returns the kept schedule when it belongs to this plan, without removing it, so a page that runs its
+  // start-up twice (React StrictMode) finds it both times. A schedule kept for a changed plan is removed.
+  // The page clears it once it has been shown, so it is shown once.
+  find: (
     setup: CheckedPlanSetup,
     activities: CheckedPlanActivity[],
   ) => PlanSchedule | null
@@ -45,10 +47,16 @@ export const useKeptScheduleStore = create<KeptScheduleState>()(
       kept: null,
       keep: (setup, activities, schedule) =>
         set({ kept: { key: planKey(setup, activities), schedule } }),
-      take: (setup, activities) => {
+      find: (setup, activities) => {
         const kept = get().kept
-        set({ kept: null })
-        return kept?.key === planKey(setup, activities) ? kept.schedule : null
+        if (kept?.key === planKey(setup, activities)) {
+          return kept.schedule
+        }
+
+        if (kept) {
+          set({ kept: null })
+        }
+        return null
       },
       clear: () => set({ kept: null }),
     }),

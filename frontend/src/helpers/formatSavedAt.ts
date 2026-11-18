@@ -12,22 +12,27 @@ const savedAtParts = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/Vilnius",
 })
 
-function part(parts: Intl.DateTimeFormatPart[], type: string): string {
-  return parts.find((candidate) => candidate.type === type)?.value ?? ""
+// The instant's parts in Lithuanian time, formatted once: "Sat 21 Nov 2026" and "14:05".
+function savedAtText(iso: string): { date: string; time: string } {
+  const parts = savedAtParts.formatToParts(new Date(iso))
+  const part = (type: string) =>
+    parts.find((candidate) => candidate.type === type)?.value ?? ""
+
+  return {
+    date: ["weekday", "day", "month", "year"].map(part).join(" "),
+    time: `${part("hour")}:${part("minute")}`,
+  }
 }
 
 // The saved date alone, "Sat 21 Nov 2026", for the plan page's note. Display only.
 export function formatSavedDate(iso: string): string {
-  const parts = savedAtParts.formatToParts(new Date(iso))
-  return ["weekday", "day", "month", "year"]
-    .map((type) => part(parts, type))
-    .join(" ")
+  return savedAtText(iso).date
 }
 
 // "2026-11-21T12:05:00Z" → "Saved on Sat 21 Nov 2026 at 14:05". Display only.
 export function formatSavedAt(iso: string): string {
-  const parts = savedAtParts.formatToParts(new Date(iso))
-  return `Saved on ${formatSavedDate(iso)} at ${part(parts, "hour")}:${part(parts, "minute")}`
+  const { date, time } = savedAtText(iso)
+  return `Saved on ${date} at ${time}`
 }
 
 // A plan's dates, which need not follow each other: "Sat 21 Nov, Sun 22 Nov" (feature 010 spec US3).

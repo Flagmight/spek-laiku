@@ -22,16 +22,16 @@ export function RegisterPage() {
   // The store outlives the page, so leaving it aborts a pending request and the next visit starts idle.
   useEffect(() => reset, [reset])
 
+  // The signed-in state is read again before leaving, so the next page already knows the user is signed in:
+  // the navigation stops offering "Register" (US1 scenario 2), and a schedule kept for saving shows its Save
+  // plan form instead of the Visitor's button (feature 010 spec FR-008).
   useEffect(() => {
     if (status === "success") {
-      // The new user is signed in, so the navigation must stop offering "Register" (US1 scenario 2).
-      void refresh()
       const state: NavigationState = { successMessage: "Account created." }
-      navigate(returnTo ?? "/", { state })
+      void refresh().then(() => navigate(returnTo ?? "/", { state }))
     } else if (status === "alreadySignedIn") {
-      // Signed in elsewhere since the page opened: home page, no banner, no error (FR-014).
-      void refresh()
-      navigate("/")
+      // Signed in elsewhere since the page opened: no banner, no error (FR-014).
+      void refresh().then(() => navigate(returnTo ?? "/"))
     }
   }, [status, refresh, navigate, returnTo])
 

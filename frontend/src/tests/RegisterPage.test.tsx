@@ -2,7 +2,12 @@ import { act, fireEvent, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { registrationTimeoutMs } from "../stores/useRegistrationStore"
-import { jsonResponse, renderApp, renderAppWithLocation } from "./renderApp"
+import {
+  jsonResponse,
+  renderApp,
+  renderAppWithLocation,
+  signedInUser,
+} from "./renderApp"
 
 const details = {
   email: "user@example.com",
@@ -157,6 +162,69 @@ describe("RegisterPage", () => {
         await vi.waitFor(() => expect(currentLocation()).toBe("/"))
       },
     )
+
+    // Code review finding 3: the next page must already know the user is signed in.
+    it("leaves only once the signed-in state has been read again", async () => {
+      let meCalls = 0
+      let answerMe: (response: Response) => void = () => {}
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((path: string) => {
+          if (path === "/api/registration") {
+            return registered()
+          }
+          if (path === "/api/auth/me" && ++meCalls > 1) {
+            return new Promise<Response>((resolve) => {
+              answerMe = resolve
+            })
+          }
+          return Promise.resolve(jsonResponse(401))
+        }),
+      )
+      const user = userEvent.setup()
+      const { currentLocation } = renderAppWithLocation(
+        "/register?returnTo=%2Fplan%2Fsetup",
+      )
+      await fillForm(user)
+
+      await user.click(submitButton())
+      await vi.waitFor(() => expect(meCalls).toBe(2))
+      expect(currentLocation()).toBe("/register?returnTo=%2Fplan%2Fsetup")
+
+      answerMe(jsonResponse(200, signedInUser()))
+      await vi.waitFor(() => expect(currentLocation()).toBe("/plan/setup"))
+    })
+
+    it("returns there too when the user was already signed in elsewhere", async () => {
+      let signedIn = false
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((path: string) => {
+          if (path === "/api/registration") {
+            signedIn = true
+            return Promise.resolve(
+              jsonResponse(403, {
+                title: "Already signed in.",
+                status: 403,
+                detail: "You are already signed in.",
+              }),
+            )
+          }
+          return Promise.resolve(
+            signedIn ? jsonResponse(200, signedInUser()) : jsonResponse(401),
+          )
+        }),
+      )
+      const user = userEvent.setup()
+      const { currentLocation } = renderAppWithLocation(
+        "/register?returnTo=%2Fplan%2Fsetup",
+      )
+      await fillForm(user)
+
+      await user.click(submitButton())
+
+      await vi.waitFor(() => expect(currentLocation()).toBe("/plan/setup"))
+    })
   })
 
   it("refreshes the signed-in state after registering", async () => {

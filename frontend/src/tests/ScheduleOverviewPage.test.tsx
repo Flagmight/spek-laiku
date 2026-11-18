@@ -1,6 +1,15 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import {
+  render as renderWithLibrary,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { StrictMode } from "react"
+import { MemoryRouter } from "react-router-dom"
 import { beforeEach, describe, expect, it } from "vitest"
+import { AppRoutes } from "../components/appRoutes"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
@@ -685,6 +694,33 @@ describe("ScheduleOverviewPage navigation", () => {
       requests.filter((request) => request.path === "/api/plan-schedule"),
     ).toEqual([])
     expect(useKeptScheduleStore.getState().kept).toBeNull()
+  })
+
+  it("shows the kept schedule under StrictMode too, as main.tsx renders the app (code review finding 2)", async () => {
+    acceptPlan()
+    const kept = schedule({ unscheduled: [] })
+    useKeptScheduleStore.getState().keep(checkedSetup, checkedActivities, kept)
+    const { requests } = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () => jsonResponse(500),
+    })
+    void useCurrentUserStore.getState().refresh()
+    renderWithLibrary(
+      <StrictMode>
+        <MemoryRouter initialEntries={["/plan/schedule"]}>
+          <AppRoutes />
+        </MemoryRouter>
+      </StrictMode>,
+    )
+
+    expect(
+      await screen.findByText("✓ All activities scheduled."),
+    ).toBeInTheDocument()
+    expect(
+      requests.filter((request) => request.path === "/api/plan-schedule"),
+    ).toEqual([])
+    expect(usePlanScheduleStore.getState().schedule).toEqual(kept)
+    await waitFor(() => expect(useKeptScheduleStore.getState().kept).toBeNull())
   })
 
   it("generates a new schedule when the kept one belongs to a changed plan", async () => {

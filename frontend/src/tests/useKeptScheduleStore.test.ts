@@ -46,11 +46,12 @@ function store() {
 }
 
 describe("useKeptScheduleStore", () => {
-  it("returns the kept schedule for the same plan once", () => {
+  it("returns the kept schedule for the same plan without using it up", () => {
     store().keep(setup, activities, schedule)
 
-    expect(store().take(setup, activities)).toEqual(schedule)
-    expect(store().take(setup, activities)).toBeNull()
+    // StrictMode runs the page start-up twice; both runs must find it. The page clears it once shown.
+    expect(store().find(setup, activities)).toEqual(schedule)
+    expect(store().find(setup, activities)).toEqual(schedule)
   })
 
   it("drops the kept schedule when the plan changed since", () => {
@@ -58,7 +59,7 @@ describe("useKeptScheduleStore", () => {
 
     const changed = { ...setup, dates: ["2026-11-15"] }
 
-    expect(store().take(changed, activities)).toBeNull()
+    expect(store().find(changed, activities)).toBeNull()
     expect(store().kept).toBeNull()
   })
 
@@ -67,7 +68,7 @@ describe("useKeptScheduleStore", () => {
 
     const changed = [{ ...activities[0], durationHours: 3 }]
 
-    expect(store().take(setup, changed)).toBeNull()
+    expect(store().find(setup, changed)).toBeNull()
   })
 
   it("is kept in sessionStorage, so it survives a reload in the same tab", async () => {
@@ -80,7 +81,7 @@ describe("useKeptScheduleStore", () => {
     sessionStorage.setItem(keptScheduleStorageKey, stored!)
     await useKeptScheduleStore.persist.rehydrate()
 
-    expect(store().take(setup, activities)).toEqual(schedule)
+    expect(store().find(setup, activities)).toEqual(schedule)
   })
 
   it("clears the kept schedule", () => {

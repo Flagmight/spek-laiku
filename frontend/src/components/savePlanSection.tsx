@@ -37,15 +37,17 @@ export function SavePlanSection({
   const status = useSavePlanStore((state) => state.status)
   const name = useSavePlanStore((state) => state.name)
   const nameError = useSavePlanStore((state) => state.nameError)
+  const nameRefusals = useSavePlanStore((state) => state.nameRefusals)
   const saveButton = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef(false)
 
-  // Focus goes to the name field when the form opens and when the name is refused (spec User Story 7).
+  // Focus goes to the name field when the form opens and every time the name is refused, even with the same
+  // message as before (spec User Story 7).
   useEffect(() => {
     if (status === "open" || nameError) {
       document.getElementById(nameFieldId)?.focus()
     }
-  }, [nameError, status])
+  }, [nameError, nameRefusals, status])
 
   useEffect(() => {
     if (status === "closed" && returnFocus.current) {
@@ -54,13 +56,14 @@ export function SavePlanSection({
     }
   }, [status])
 
-  // The session ended while saving: keep the schedule and log in again (spec Edge Cases).
+  // The session ended while saving: keep the schedule and log in again (spec Edge Cases). The user is marked
+  // signed out first, so the Log in page opens instead of sending a still "signed-in" user home.
   useEffect(() => {
     if (status === "sessionExpired") {
       useKeptScheduleStore.getState().keep(setup, activities, schedule)
+      useCurrentUserStore.getState().markSessionEnded()
       const state: NavigationState = { loginReason: "expired" }
       navigate(logInToSave, { state })
-      void useCurrentUserStore.getState().refresh()
     }
   }, [status, setup, activities, schedule, navigate])
 

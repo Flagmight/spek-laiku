@@ -30,7 +30,8 @@ export function ScheduleOverviewPage() {
     useSavePlanStore.getState().reset()
     // A schedule kept on the way to Log in or Register is shown again instead of a new one, as long as the
     // plan has not changed since (feature 010 spec FR-007).
-    const kept = useKeptScheduleStore.getState().take(setup, activities)
+    // It is only read here; it is cleared below once shown, because StrictMode runs this effect twice.
+    const kept = useKeptScheduleStore.getState().find(setup, activities)
     if (kept) {
       usePlanScheduleStore.getState().restore(kept)
     } else {
@@ -41,6 +42,13 @@ export function ScheduleOverviewPage() {
       useSavePlanStore.getState().reset()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A kept schedule is shown once: after this, leaving and coming back generates a new one (feature 008 FR-014).
+  useEffect(() => {
+    if (status === "loaded") {
+      useKeptScheduleStore.getState().clear()
+    }
+  }, [status])
 
   if (status === "setupOutdated" || (!setup && status !== "loading")) {
     return <Navigate to="/plan/setup" replace />

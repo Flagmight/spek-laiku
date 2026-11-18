@@ -358,4 +358,62 @@ describe("SavePlanSection for a signed-in Registered User", () => {
     expect(screen.queryByLabelText("Plan name")).not.toBeInTheDocument()
     expect(saves(requests)).toEqual([])
   })
+
+  it("moves focus back to the field every time an empty name is refused", async () => {
+    const { user } = render(() => jsonResponse(201, savedPlan))
+    const field = await openForm(user)
+    await user.click(screen.getByRole("button", { name: "Save" }))
+    expect(field).toHaveFocus()
+
+    // The same message again: focus must still return to the field (code review finding 5).
+    screen.getByRole("button", { name: "Save" }).focus()
+    await user.keyboard("{Enter}")
+
+    await waitFor(() => expect(field).toHaveFocus())
+  })
+
+  it("drops the earlier name message and keeps focus on Save while a corrected name is saved", async () => {
+    const { user } = render(() => new Promise<Response>(() => {}))
+    const field = await openForm(user)
+    await user.click(screen.getByRole("button", { name: "Save" }))
+    expect(
+      await screen.findByText("Error: Enter a plan name."),
+    ).toBeInTheDocument()
+
+    await user.type(field, "Weekend")
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(await screen.findByText("Saving your plan…")).toBeInTheDocument()
+    expect(screen.queryByText("Error: Enter a plan name.")).toBeNull()
+    expect(field).not.toHaveFocus()
+  })
+
+  it("opens Log in when the session ended, even before the signed-in state is read again", async () => {
+    // The save gets 401 and the next /me never answers: the page must not rely on it (code review finding 1).
+    let sessionEnded = false
+    const { user, currentLocation } = render(
+      () => {
+        sessionEnded = true
+        return jsonResponse(401)
+      },
+      undefined,
+      {
+        "GET /api/auth/me": () =>
+          sessionEnded
+            ? new Promise<Response>(() => {})
+            : jsonResponse(200, signedInUser()),
+      },
+    )
+    const field = await openForm(user)
+    await user.type(field, "Weekend")
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() =>
+      expect(currentLocation()).toBe("/login?returnTo=%2Fplan%2Fschedule"),
+    )
+    expect(
+      await screen.findByText("Your session has expired. Log in again."),
+    ).toBeInTheDocument()
+  })
 })
