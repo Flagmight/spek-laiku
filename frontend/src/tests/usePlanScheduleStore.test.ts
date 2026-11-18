@@ -39,6 +39,7 @@ const activities: CheckedPlanActivity[] = [
 ]
 
 const planSchedule = {
+  generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
   scheduled: [
     {
       activityName: "Kayaking",

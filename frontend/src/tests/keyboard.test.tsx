@@ -915,6 +915,7 @@ describe("keyboard use of the schedule overview", () => {
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
+          generatedScheduleId: null,
           scheduled: [],
           unscheduled: [],
           travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -965,6 +966,7 @@ describe("keyboard use of the schedule overview", () => {
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
+          generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
           scheduled: [
             {
               ...entry,

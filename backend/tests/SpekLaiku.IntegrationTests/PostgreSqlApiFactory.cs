@@ -60,9 +60,10 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     public FakeMapPlacesClient MapPlaces { get; } = new();
 
     /// <summary>
-    /// The clock behind <see cref="ForecastPeriod"/> only: the forecast period, and "now" and the received time
-    /// of the forecast services, which read the time through it. Tests set it before checking dates and set
-    /// it back afterwards, because the collection shares it.
+    /// The clock behind <see cref="ForecastPeriod"/> and <see cref="GeneratedScheduleService"/> only: the forecast
+    /// period, "now" and the received time of the forecast services, which read the time through it, and the
+    /// expiry of generated schedules. Tests set it before checking dates and set it back afterwards, because the
+    /// collection shares it.
     /// </summary>
     public FixedTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
 
@@ -173,6 +174,11 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
             // services read the time through ForecastPeriod, so they follow this clock too.
             services.RemoveAll<ForecastPeriod>();
             services.AddSingleton(new ForecastPeriod(Clock));
+            // Generated schedules expire 30 minutes after this clock's time (feature 010), so the expiry tests can
+            // move it.
+            services.RemoveAll<GeneratedScheduleService>();
+            services.AddScoped(provider => new GeneratedScheduleService(
+                provider.GetRequiredService<ApplicationDbContext>(), Clock));
         });
     }
 }

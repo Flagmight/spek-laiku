@@ -21,7 +21,12 @@ public sealed class PlanScheduleMappingProfile : Profile
         // ScheduledActivity.CategoryId has no destination member, so it is never sent to the browser.
         CreateMap<ScheduledActivity, ScheduledActivityResponse>();
         CreateMap<UnscheduledActivity, UnscheduledActivityResponse>();
-        CreateMap<PlanSchedule, PlanScheduleResponse>();
+        // The id is not part of the schedule; the controller sets it from the result (feature 010). A positional
+        // record is filled through its constructor, so ForMember(...).Ignore() would not cover it.
+        CreateMap<PlanSchedule, PlanScheduleResponse>()
+            .ForCtorParam(
+                nameof(PlanScheduleResponse.GeneratedScheduleId),
+                options => options.MapFrom(_ => (Guid?)null));
     }
 
 }

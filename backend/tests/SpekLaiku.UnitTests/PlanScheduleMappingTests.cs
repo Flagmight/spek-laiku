@@ -33,6 +33,16 @@ public sealed class PlanScheduleMappingTests : IDisposable
     }
 
     [Fact]
+    public void PlanSchedule_LeavesTheGeneratedScheduleIdToTheController()
+    {
+        var schedule = new PlanSchedule([], [], new TravelSummary(30, 0));
+
+        var response = mapper.Map<PlanScheduleResponse>(schedule);
+
+        Assert.Null(response.GeneratedScheduleId);
+    }
+
+    [Fact]
     public void PlanSchedule_MapsEveryField()
     {
         var place = new NearbyPlace("Slipway", 54.89, 23.93, 3.4m, "Kaunas", "node/1");
@@ -117,8 +127,9 @@ public sealed class PlanScheduleMappingTests : IDisposable
     public void PlanScheduleResponse_HasTheExpectedPropertyNames()
     {
         // ScheduledActivity.CategoryId is internal to the server (feature 009 research section 6).
+        // GeneratedScheduleId refers to the copy remembered for saving (feature 010 contracts/plan-schedule-api.md).
         Assert.Equal(
-            ["Scheduled", "Unscheduled", "Travel"],
+            ["GeneratedScheduleId", "Scheduled", "Unscheduled", "Travel"],
             typeof(PlanScheduleResponse).GetProperties().Select(property => property.Name));
     }
 

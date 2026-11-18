@@ -10,13 +10,15 @@ namespace SpekLaiku.Api.Services;
 /// activities are checked again before the weather and map data services are contacted. The forecast and
 /// places are fetched from their caches, so both services are only called when the cache is stale. After the
 /// time slots are assigned, the travel check chooses the places and the trips between consecutive activities
-/// against the plan's maximum travel distance (feature 009 spec FR-001 to FR-006, research section 4).
+/// against the plan's maximum travel distance (feature 009 spec FR-001 to FR-006, research section 4). A schedule
+/// with at least one scheduled activity is remembered for 30 minutes so it can be saved (feature 010 FR-004).
 /// </summary>
 public sealed class PlanScheduleService(
     PlanRecheckService planRecheckService,
     WeatherForecastService weatherForecastService,
     ApplicationDbContext context,
     NearbyPlacesService nearbyPlacesService,
+    GeneratedScheduleService generatedScheduleService,
     ForecastPeriod forecastPeriod,
     IOptions<ForecastOptions> forecastOptions,
     IOptions<PlacesOptions> placesOptions)
@@ -62,6 +64,12 @@ public sealed class PlanScheduleService(
         var (withTravel, travel) = TravelDistanceRules.Apply(
             scheduled, categoryPlaces, plan.Setup.MaxTravelDistanceKm);
 
-        return PlanScheduleResult.Success(new PlanSchedule(withTravel, unscheduled, travel));
+        var schedule = new PlanSchedule(withTravel, unscheduled, travel);
+        Guid? generatedScheduleId = schedule.Scheduled.Count > 0
+            ? await generatedScheduleService.RememberAsync(
+                new PlanSnapshot(plan.Setup, plan.Activities, schedule), cancellationToken)
+            : null;
+
+        return PlanScheduleResult.Success(schedule, generatedScheduleId);
     }
 }

@@ -109,6 +109,7 @@ function render(scheduleResponse: () => Response) {
 
 function schedule(override: Partial<PlanSchedule> = {}): PlanSchedule {
   return {
+    generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
     scheduled: [scheduledKayaking],
     unscheduled: [],
     travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -194,6 +195,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
         scheduled: [scheduledKayaking, scheduledMuseum],
         unscheduled: [],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -412,6 +414,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
         scheduled: [scheduledKayaking],
         unscheduled: [{ activityName: "Cycling", reason: "noSuitableTime" }],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -432,6 +435,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: null,
         scheduled: [],
         unscheduled: [{ activityName: "Kayaking", reason: "noPlace" }],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -447,6 +451,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: null,
         scheduled: [],
         unscheduled: [{ activityName: "Kayaking", reason: "noSuitableTime" }],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -468,6 +473,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
         scheduled: [scheduledKayaking],
         unscheduled: [{ activityName: "Cycling", reason: "noSuitableTime" }],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },

@@ -17,9 +17,16 @@ public sealed record PlanScheduleResult
 
     public PlanSchedule? Schedule { get; private init; }
 
+    /// <summary>
+    /// The id under which the schedule is remembered for saving, or <c>null</c> when nothing was scheduled
+    /// (feature 010 contracts/plan-schedule-api.md).
+    /// </summary>
+    public Guid? GeneratedScheduleId { get; private init; }
+
     public IReadOnlyList<KeyValuePair<string, string>> Errors { get; private init; } = [];
 
-    public static PlanScheduleResult Success(PlanSchedule schedule) => new() { Succeeded = true, Schedule = schedule };
+    public static PlanScheduleResult Success(PlanSchedule schedule, Guid? generatedScheduleId) =>
+        new() { Succeeded = true, Schedule = schedule, GeneratedScheduleId = generatedScheduleId };
 
     public static PlanScheduleResult Invalid(IReadOnlyList<KeyValuePair<string, string>> errors) => new() { Errors = errors };
 }

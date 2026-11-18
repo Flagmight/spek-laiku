@@ -40,6 +40,9 @@ public sealed class PlanScheduleController(PlanScheduleService planScheduleServi
             });
         }
 
-        return mapper.Map<PlanScheduleResponse>(result.Schedule);
+        return mapper.Map<PlanScheduleResponse>(result.Schedule) with
+        {
+            GeneratedScheduleId = result.GeneratedScheduleId
+        };
     }
 }
