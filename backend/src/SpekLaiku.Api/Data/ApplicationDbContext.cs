@@ -9,11 +9,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<ActivityCategory> ActivityCategories => Set<ActivityCategory>();
+    public DbSet<SavedPlan> SavedPlans => Set<SavedPlan>();
+    public DbSet<GeneratedSchedule> GeneratedSchedules => Set<GeneratedSchedule>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
         builder.ApplyConfiguration(new ActivityCategoryConfiguration());
+        builder.ApplyConfiguration(new SavedPlanConfiguration());
+        builder.ApplyConfiguration(new GeneratedScheduleConfiguration());
         builder.Entity<ApplicationUser>()
             .Property(user => user.AccountStatus)
             .HasConversion<int>()

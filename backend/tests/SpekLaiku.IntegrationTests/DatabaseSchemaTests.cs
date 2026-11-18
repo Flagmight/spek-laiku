@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using SpekLaiku.Api.Data;
 using SpekLaiku.Api.Entities;
+using SpekLaiku.Api.Services;
 
 namespace SpekLaiku.IntegrationTests;
 
@@ -159,6 +160,81 @@ public class DatabaseSchemaTests(PostgreSqlApiFactory factory)
         var postgresException = Assert.IsType<PostgresException>(exception.InnerException);
         Assert.Equal(PostgresErrorCodes.UniqueViolation, postgresException.SqlState);
         Assert.Equal("IX_ActivityCategories_NormalizedName", postgresException.ConstraintName);
+    }
+
+    [Theory]
+    [InlineData("SavedPlans", "Snapshot", "jsonb")]
+    [InlineData("SavedPlans", "Dates", "_date")]
+    [InlineData("SavedPlans", "Name", "varchar")]
+    [InlineData("SavedPlans", "OwnerId", "text")]
+    [InlineData("GeneratedSchedules", "Snapshot", "jsonb")]
+    [InlineData("GeneratedSchedules", "ExpiresAtUtc", "timestamptz")]
+    public async Task Migrations_CreateSavedPlanColumns(string table, string column, string type)
+    {
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var columnType = await context.Database
+            .SqlQuery<string>(
+                $"SELECT udt_name AS \"Value\" FROM information_schema.columns WHERE table_name = {table} AND column_name = {column}")
+            .SingleAsync();
+
+        Assert.Equal(type, columnType);
+    }
+
+    [Fact]
+    public async Task Migrations_LimitSavedPlanNamesTo80Characters()
+    {
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var length = await context.Database
+            .SqlQuery<int>(
+                $"SELECT character_maximum_length AS \"Value\" FROM information_schema.columns WHERE table_name = 'SavedPlans' AND column_name = 'Name'")
+            .SingleAsync();
+
+        Assert.Equal(80, length);
+    }
+
+    [Fact]
+    public async Task Migrations_MakeTheGeneratedScheduleIdUnique()
+    {
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var definition = await context.Database
+            .SqlQuery<string>(
+                $"SELECT indexdef AS \"Value\" FROM pg_indexes WHERE indexname = 'IX_SavedPlans_GeneratedScheduleId'")
+            .SingleAsync();
+
+        Assert.StartsWith("CREATE UNIQUE INDEX", definition);
+    }
+
+    [Fact]
+    public async Task Schema_DeletesSavedPlansWithTheirOwner()
+    {
+        var owner = await factory.CreateUserAsync();
+        var planId = Guid.NewGuid();
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        context.SavedPlans.Add(new SavedPlan
+        {
+            Id = planId,
+            OwnerId = owner.Id,
+            Name = "Weekend in Kaunas",
+            SavedAtUtc = DateTime.UtcNow,
+            LocationName = "Kaunas",
+            Dates = [new DateOnly(2026, 11, 21)],
+            Snapshot = new PlanSnapshot(
+                new CheckedPlanSetup(new PlaceLocation(1, "Kaunas", "Kaunas", 54.9, 23.9), [new DateOnly(2026, 11, 21)], 30),
+                [],
+                new PlanSchedule([], [], new TravelSummary(30, 0)))
+        });
+        await context.SaveChangesAsync();
+
+        await context.Users.Where(user => user.Id == owner.Id).ExecuteDeleteAsync();
+
+        Assert.False(await context.SavedPlans.AnyAsync(plan => plan.Id == planId));
     }
 
     private static ActivityCategory CreateCategory(string name, string normalizedName) => new()

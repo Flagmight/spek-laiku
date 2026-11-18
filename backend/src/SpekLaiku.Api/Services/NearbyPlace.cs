@@ -5,6 +5,10 @@ namespace SpekLaiku.Api.Services;
 /// places, its distance from the plan's location rounded to 0.1 km, and its town or area when known.
 /// <see cref="Key"/> is the map element's key; it only orders equal places and is not sent to the browser.
 /// </summary>
+/// <remarks>
+/// Stored as JSON in saved plans (feature 010 research section 4); do not rename members without a data
+/// migration.
+/// </remarks>
 public sealed record NearbyPlace(
     string Name,
     double Latitude,

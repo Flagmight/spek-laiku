@@ -291,6 +291,73 @@ namespace SpekLaiku.Api.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("SpekLaiku.Api.Entities.GeneratedSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Snapshot")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAtUtc")
+                        .HasDatabaseName("IX_GeneratedSchedules_ExpiresAtUtc");
+
+                    b.ToTable("GeneratedSchedules", (string)null);
+                });
+
+            modelBuilder.Entity("SpekLaiku.Api.Entities.SavedPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.PrimitiveCollection<List<DateOnly>>("Dates")
+                        .IsRequired()
+                        .HasColumnType("date[]");
+
+                    b.Property<Guid?>("GeneratedScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LocationName")
+                        .IsRequired()
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("SavedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Snapshot")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GeneratedScheduleId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SavedPlans_GeneratedScheduleId");
+
+                    b.HasIndex("OwnerId", "SavedAtUtc")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("IX_SavedPlans_OwnerId_SavedAtUtc");
+
+                    b.ToTable("SavedPlans", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -338,6 +405,15 @@ namespace SpekLaiku.Api.Migrations
                     b.HasOne("SpekLaiku.Api.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SpekLaiku.Api.Entities.SavedPlan", b =>
+                {
+                    b.HasOne("SpekLaiku.Api.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
