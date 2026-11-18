@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom"
+import { SavedPlansBlock } from "../components/savedPlansBlock"
 import { canCreatePlan } from "../helpers/canCreatePlan"
+import { canViewSavedPlans } from "../helpers/canViewSavedPlans"
 import { usePageTitle } from "../hooks/usePageTitle"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 
@@ -19,6 +21,8 @@ export function HomePage() {
           </Link>
         </p>
       )}
+      {/* Only Active Registered Users have saved plans (feature 010 spec FR-011). */}
+      {canViewSavedPlans(status, user) && <SavedPlansBlock />}
     </>
   )
 }

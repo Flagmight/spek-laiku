@@ -209,6 +209,11 @@ describe("keyboard use of Log out", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((path: string) => {
+        // Home asks for an Active Registered User's saved plans (feature 010); none here.
+        if (path === "/api/plans") {
+          return Promise.resolve(jsonResponse(200, []))
+        }
+
         if (path === "/api/auth/logout") {
           signedIn = false
           return Promise.resolve(new Response(null, { status: 204 }))

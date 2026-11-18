@@ -71,7 +71,10 @@ describe("top navigation", () => {
         Promise.resolve(
           path === "/api/auth/login"
             ? jsonResponse(200, signedInUser)
-            : jsonResponse(401),
+            : // Home asks for the saved plans after login (feature 010); none here.
+              path === "/api/plans"
+              ? jsonResponse(200, [])
+              : jsonResponse(401),
         ),
       ),
     )
@@ -112,6 +115,11 @@ describe("top navigation", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn((path: string) => {
+        // Home asks for an Active Registered User's saved plans (feature 010); none here.
+        if (path === "/api/plans") {
+          return Promise.resolve(jsonResponse(200, []))
+        }
+
         if (path === "/api/registration") {
           signedIn = true
           return Promise.resolve(jsonResponse(201, {}))

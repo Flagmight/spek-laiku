@@ -27,6 +27,11 @@ function navigation() {
 function stubApi(user: CurrentUser, respondToLogout: () => Response) {
   let signedIn = true
   const fetchMock = vi.fn((path: string) => {
+    // Home asks for an Active Registered User's saved plans (feature 010); none here.
+    if (path === "/api/plans") {
+      return Promise.resolve(jsonResponse(200, []))
+    }
+
     if (path === "/api/auth/logout") {
       const response = respondToLogout()
       if (response.status === 204) {

@@ -31,6 +31,11 @@ describe("login refused because the user is already signed in", () => {
     // Signed out when the page opened, signed in (another tab) by the time the form is sent.
     let signedIn = false
     const fetchMock = vi.fn((path: string) => {
+      // Home asks for an Active Registered User's saved plans (feature 010); none here.
+      if (path === "/api/plans") {
+        return Promise.resolve(jsonResponse(200, []))
+      }
+
       if (path === "/api/auth/login") {
         signedIn = true
         return Promise.resolve(

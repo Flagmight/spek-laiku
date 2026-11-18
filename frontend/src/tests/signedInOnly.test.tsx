@@ -67,6 +67,11 @@ function renderWithProtectedRoute(initialEntry: string) {
 function stubApi(signedInAtStart = false) {
   let signedIn = signedInAtStart
   const fetchMock = vi.fn((path: string) => {
+    // Home asks for an Active Registered User's saved plans (feature 010); none here.
+    if (path === "/api/plans") {
+      return Promise.resolve(jsonResponse(200, []))
+    }
+
     if (path === "/api/auth/login") {
       signedIn = true
       return Promise.resolve(jsonResponse(200, activeUser))
