@@ -99,9 +99,14 @@ public class Program
                 .AddRequirements(new ActiveAdministratorRequirement()))
             // Visitors are allowed, so this policy does not require a signed-in user (research section 8).
             .AddPolicy(AuthorizationPolicies.PlanCreator, policy => policy
-                .AddRequirements(new PlanCreatorRequirement()));
+                .AddRequirements(new PlanCreatorRequirement()))
+            // Saved plans: a Visitor gets 401, any other signed-in account 403 (feature 010 research section 7).
+            .AddPolicy(AuthorizationPolicies.ActiveRegisteredUser, policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new ActiveRegisteredUserRequirement()));
         builder.Services.AddScoped<IAuthorizationHandler, ActiveAdministratorHandler>();
         builder.Services.AddScoped<IAuthorizationHandler, PlanCreatorHandler>();
+        builder.Services.AddScoped<IAuthorizationHandler, ActiveRegisteredUserHandler>();
         builder.Services.AddPlanSetupRateLimit(builder.Configuration);
         builder.Services.AddMemoryCache();
         builder.Services.TryAddSingleton(TimeProvider.System);
