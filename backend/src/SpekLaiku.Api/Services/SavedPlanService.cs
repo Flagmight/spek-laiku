@@ -69,6 +69,19 @@ public sealed class SavedPlanService(
         return await InsertAsync(ownerId, name!, scheduleId, snapshot!, cancellationToken);
     }
 
+    /// <summary>
+    /// The user's plans, newest saved first (ties by id, so the order is stable), without their stored schedules
+    /// (spec FR-009, research section 5).
+    /// </summary>
+    public async Task<IReadOnlyList<SavedPlanSummary>> ListAsync(string ownerId, CancellationToken cancellationToken) =>
+        await context.SavedPlans
+            .AsNoTracking()
+            .Where(plan => plan.OwnerId == ownerId)
+            .OrderByDescending(plan => plan.SavedAtUtc)
+            .ThenBy(plan => plan.Id)
+            .Select(plan => new SavedPlanSummary(plan.Id, plan.Name, plan.LocationName, plan.Dates, plan.SavedAtUtc))
+            .ToListAsync(cancellationToken);
+
     private async Task<SavePlanResult> InsertAsync(
         string ownerId,
         string name,

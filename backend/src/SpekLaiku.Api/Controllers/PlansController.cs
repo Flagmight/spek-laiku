@@ -22,6 +22,14 @@ public sealed class PlansController(
     UserManager<ApplicationUser> userManager,
     IMapper mapper) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType<List<SavedPlanSummaryResponse>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<SavedPlanSummaryResponse>>> List(CancellationToken cancellationToken)
+    {
+        var plans = await savedPlanService.ListAsync(userManager.GetUserId(User)!, cancellationToken);
+        return mapper.Map<List<SavedPlanSummaryResponse>>(plans);
+    }
+
     [HttpPost]
     [ProducesResponseType<SavedPlanSummaryResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<SavedPlanSummaryResponse>(StatusCodes.Status200OK)]
