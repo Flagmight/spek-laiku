@@ -11,17 +11,20 @@ namespace SpekLaiku.Api.Services;
 /// random bits from the operating system's secure generator. A version 7 GUID would start with a timestamp
 /// and be easier to guess, and anyone holding an id can save that schedule (research section 3).
 /// </summary>
-public sealed class GeneratedScheduleService(ApplicationDbContext context, TimeProvider timeProvider)
+public sealed class GeneratedScheduleService(
+    ApplicationDbContext context,
+    TimeProvider timeProvider,
+    ILogger<GeneratedScheduleService> logger)
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(30);
 
-    public async Task<Guid> RememberAsync(PlanSnapshot snapshot, CancellationToken cancellationToken)
+    /// <summary>
+    /// Stores the snapshot and returns its id, or <c>null</c> when the database cannot store it. The schedule is
+    /// then still shown, it only cannot be saved: a failed write must not turn a computed schedule into an error.
+    /// </summary>
+    public async Task<Guid?> RememberAsync(PlanSnapshot snapshot, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
-        await context.GeneratedSchedules
-            .Where(schedule => schedule.ExpiresAtUtc <= now)
-            .ExecuteDeleteAsync(cancellationToken);
-
         var generated = new GeneratedSchedule
         {
             Id = Guid.NewGuid(),
@@ -29,10 +32,25 @@ public sealed class GeneratedScheduleService(ApplicationDbContext context, TimeP
             ExpiresAtUtc = now + Lifetime,
             Snapshot = snapshot
         };
-        context.GeneratedSchedules.Add(generated);
-        await context.SaveChangesAsync(cancellationToken);
 
-        return generated.Id;
+        try
+        {
+            await context.GeneratedSchedules
+                .Where(schedule => schedule.ExpiresAtUtc <= now)
+                .ExecuteDeleteAsync(cancellationToken);
+            context.GeneratedSchedules.Add(generated);
+            await context.SaveChangesAsync(cancellationToken);
+            return generated.Id;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            context.Entry(generated).State = EntityState.Detached;
+            // Only the kind of failure is logged, never the plan (constitution IV).
+            logger.LogWarning(
+                "A generated schedule could not be stored, so it cannot be saved: {ExceptionType}",
+                exception.GetType().Name);
+            return null;
+        }
     }
 
     /// <summary>The remembered snapshot, or <c>null</c> when the id is unknown or its 30 minutes have passed.</summary>

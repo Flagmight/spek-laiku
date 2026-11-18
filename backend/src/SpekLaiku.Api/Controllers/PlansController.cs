@@ -6,6 +6,7 @@ using SpekLaiku.Api.Authorization;
 using SpekLaiku.Api.DTOs.Requests;
 using SpekLaiku.Api.DTOs.Responses;
 using SpekLaiku.Api.Entities;
+using SpekLaiku.Api.Errors;
 using SpekLaiku.Api.Services;
 
 namespace SpekLaiku.Api.Controllers;
@@ -67,14 +68,7 @@ public sealed class PlansController(
         var result = await savedPlanService.SaveAsync(userManager.GetUserId(User)!, request, cancellationToken);
         if (!result.Succeeded)
         {
-            var errors = result.Errors
-                .GroupBy(error => error.Key)
-                .ToDictionary(group => group.Key, group => group.Select(error => error.Value).ToArray());
-            return BadRequest(new ValidationProblemDetails(errors)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "One or more request fields are invalid."
-            });
+            return BadRequest(result.Errors.ToValidationProblem());
         }
 
         var summary = mapper.Map<SavedPlanSummaryResponse>(result.Plan);

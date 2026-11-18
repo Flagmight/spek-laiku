@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using SpekLaiku.Api;
 using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.Data;
@@ -178,7 +179,9 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
             // move it.
             services.RemoveAll<GeneratedScheduleService>();
             services.AddScoped(provider => new GeneratedScheduleService(
-                provider.GetRequiredService<ApplicationDbContext>(), Clock));
+                provider.GetRequiredService<ApplicationDbContext>(),
+                Clock,
+                provider.GetRequiredService<ILogger<GeneratedScheduleService>>()));
             // Saved plans take their saved time from the same clock, so the list order tests can control it.
             services.RemoveAll<SavedPlanService>();
             services.AddScoped(provider => new SavedPlanService(
