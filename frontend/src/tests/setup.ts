@@ -23,6 +23,7 @@ import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
 import { usePlanSetupCheckStore } from "../stores/usePlanSetupCheckStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import { useRegistrationStore } from "../stores/useRegistrationStore"
+import { useSavePlanStore } from "../stores/useSavePlanStore"
 
 afterEach(() => {
   cleanup()
@@ -43,6 +44,7 @@ afterEach(() => {
   usePlanForecastStore.getState().reset()
   usePlanPlacesStore.getState().reset()
   usePlanScheduleStore.getState().reset()
+  useSavePlanStore.getState().reset()
   // The plan setup store saves itself to sessionStorage; nothing may carry over to the next test.
   sessionStorage.clear()
   vi.restoreAllMocks()
