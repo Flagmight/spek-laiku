@@ -16,11 +16,16 @@ const serverErrorMessage = "Error: Something went wrong. Try again."
 
 // The visitor is signed out; every login request is answered by respond.
 function stubApi(respond: (init: RequestInit) => Promise<Response>) {
-  const fetchMock = vi.fn((path: string, init: RequestInit = {}) =>
-    path === "/api/auth/login"
-      ? respond(init)
-      : Promise.resolve(jsonResponse(401)),
-  )
+  const fetchMock = vi.fn((path: string, init: RequestInit = {}) => {
+    if (path === "/api/auth/login") {
+      return respond(init)
+    }
+
+    // Home asks for an Active Registered User's saved plans after login (feature 010); none here.
+    return Promise.resolve(
+      path === "/api/plans" ? jsonResponse(200, []) : jsonResponse(401),
+    )
+  })
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
 }
@@ -58,6 +63,17 @@ describe("LoginPage", () => {
         name: "Create an account",
       }),
     ).toHaveAttribute("href", "/register")
+  })
+
+  it("keeps the return-to page on the Register link (feature 010 spec FR-008)", async () => {
+    stubApi(() => Promise.resolve(jsonResponse(401)))
+    renderApp("/login?returnTo=%2Fplan%2Fschedule")
+
+    expect(
+      await within(screen.getByRole("main")).findByRole("link", {
+        name: "Create an account",
+      }),
+    ).toHaveAttribute("href", "/register?returnTo=%2Fplan%2Fschedule")
   })
 
   it("opens the home page signed in, with no success banner, after logging in", async () => {

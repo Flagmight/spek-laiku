@@ -76,6 +76,8 @@ function stubSession(
     "GET /api/auth/me": () =>
       session.user ? jsonResponse(200, session.user) : jsonResponse(401),
     "GET /api/plan-setup/period": () => jsonResponse(200, period),
+    // Home asks for a signed-in user's saved plans (feature 010); none here.
+    "GET /api/plans": () => jsonResponse(200, []),
     ...extra,
   })
   return session

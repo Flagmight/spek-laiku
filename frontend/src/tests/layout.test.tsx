@@ -180,6 +180,7 @@ describe("skip link and structure on /plan/schedule", () => {
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
+          generatedScheduleId: null,
           scheduled: [],
           unscheduled: [],
           travel: { maxDistanceKm: 30, tripsOverLimit: 0 },

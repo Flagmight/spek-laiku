@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { logoutTimeoutMs, useLogoutStore } from "../stores/useLogoutStore"
 import type { CurrentUser } from "../types/currentUser"
 import { jsonResponse, stubFetch } from "./renderApp"
@@ -75,6 +76,28 @@ describe("useLogoutStore", () => {
     expect(useCurrentUserStore.getState().status).toBe("signedOut")
     // Logging out is not an expired session (FR-020).
     expect(useCurrentUserStore.getState().sessionExpired).toBe(false)
+  })
+
+  it("clears a schedule kept for saving after login (feature 010 spec FR-007)", async () => {
+    stubFetch(() => new Response(null, { status: 204 }))
+    useKeptScheduleStore.setState({
+      kept: {
+        key: "plan",
+        schedule: {
+          generatedScheduleId: null,
+          scheduled: [],
+          unscheduled: [],
+          travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
+        },
+      },
+    })
+    const { result } = renderHook(() => useLogoutStore())
+
+    await act(async () => {
+      await result.current.submit()
+    })
+
+    expect(useKeptScheduleStore.getState().kept).toBeNull()
   })
 
   it("ignores a second submit while a request is pending", async () => {

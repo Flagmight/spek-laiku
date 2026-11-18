@@ -34,7 +34,9 @@ public class PlanScheduleEndpointTests(PostgreSqlApiFactory factory)
         });
 
         Assert.Equal(HttpStatusCode.OK, status);
-        Assert.Equal(["scheduled", "unscheduled", "travel"], Keys(body));
+        Assert.Equal(["generatedScheduleId", "scheduled", "unscheduled", "travel"], Keys(body));
+        // Something was scheduled, so the schedule is remembered for saving (feature 010 contracts).
+        Assert.True(Guid.TryParse(body.GetProperty("generatedScheduleId").GetString(), out _));
 
         var scheduled = body.GetProperty("scheduled").EnumerateArray().ToList();
         Assert.Single(scheduled);

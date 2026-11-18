@@ -14,9 +14,18 @@ export function jsonResponse(status: number, body?: unknown) {
   })
 }
 
-// Stubs fetch so every call returns a fresh copy of the given response.
+// Stubs fetch so every call returns a fresh copy of the given response. The one exception is the saved plans
+// list, which Home asks for once an Active Registered User is signed in (feature 010 spec FR-011): it is
+// answered with no plans, so tests about something else need not know about it. Tests about saved plans use
+// routeFetch.
 export function stubFetch(createResponse: () => Response) {
-  const fetchMock = vi.fn(() => Promise.resolve(createResponse()))
+  const fetchMock = vi.fn((input: RequestInfo | URL) =>
+    Promise.resolve(
+      requestPath(input) === "/api/plans"
+        ? jsonResponse(200, [])
+        : createResponse(),
+    ),
+  )
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
 }

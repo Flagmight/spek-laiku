@@ -11,6 +11,11 @@ import {
   signedInUser as routeSignedInUser,
 } from "./renderApp"
 import { openCategories } from "./planCategories"
+import {
+  acceptMuseumPlan,
+  savedPlanRoutes,
+  savedPlanSummaries,
+} from "./savedPlansFixtures"
 import { forecastRoutes } from "./forecastFixtures"
 import { placesRoutes } from "./placesFixtures"
 import { acceptKayakingAndMuseum, placesStepRoutes } from "./placesStep"
@@ -204,11 +209,16 @@ describe("keyboard use of the Log in page", () => {
 })
 
 describe("keyboard use of Log out", () => {
-  it("reaches Log out after Home and logs out with Enter", async () => {
+  it("reaches Log out after Home, Create plan and My plans and logs out with Enter", async () => {
     let signedIn = true
     vi.stubGlobal(
       "fetch",
       vi.fn((path: string) => {
+        // Home asks for an Active Registered User's saved plans (feature 010); none here.
+        if (path === "/api/plans") {
+          return Promise.resolve(jsonResponse(200, []))
+        }
+
         if (path === "/api/auth/logout") {
           signedIn = false
           return Promise.resolve(new Response(null, { status: 204 }))
@@ -233,6 +243,8 @@ describe("keyboard use of Log out", () => {
         { name: "Create plan" },
       ),
     ).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole("link", { name: "My plans" })).toHaveFocus()
     await user.tab()
     expect(logOut).toHaveFocus()
     await user.keyboard("{Enter}")
@@ -915,6 +927,7 @@ describe("keyboard use of the schedule overview", () => {
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
+          generatedScheduleId: null,
           scheduled: [],
           unscheduled: [],
           travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -942,7 +955,7 @@ describe("keyboard use of the schedule overview", () => {
     }
   })
 
-  it("adds no tab stops for the travel information: Back still follows the progress links", async () => {
+  it("adds no tab stops for the travel information: only Save plan comes between the progress links and Back", async () => {
     const entry = {
       date: "2026-11-15",
       endTime: "12:00",
@@ -965,6 +978,7 @@ describe("keyboard use of the schedule overview", () => {
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
+          generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
           scheduled: [
             {
               ...entry,
@@ -992,6 +1006,9 @@ describe("keyboard use of the schedule overview", () => {
     await screen.findByText(/Travel: ✗/)
     screen.getByRole("link", { name: "Places and forecast" }).focus()
 
+    // The Visitor's Save plan button (feature 010 spec User Story 2) is the only stop after the schedule.
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Save plan" })).toHaveFocus()
     await user.tab()
     expect(screen.getByRole("link", { name: "Back" })).toHaveFocus()
   })
@@ -1009,5 +1026,68 @@ describe("keyboard use of the schedule overview", () => {
     screen.getByRole("link", { name: "Places and forecast" }).focus()
     await user.tab()
     expect(screen.getByRole("button", { name: "Retry" })).toHaveFocus()
+  })
+})
+
+// Feature 010 spec User Story 7: the Save plan form and My plans with the keyboard only.
+describe("keyboard use of saved plans", () => {
+  it("opens the form, moves through the field, Save and Cancel, and submits with Enter", async () => {
+    acceptMuseumPlan()
+    const { requests } = routeFetch({
+      ...savedPlanRoutes(),
+      "POST /api/plans": () => jsonResponse(201, savedPlanSummaries(1)[0]),
+    })
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+    const savePlan = await screen.findByRole("button", { name: "Save plan" })
+    savePlan.focus()
+
+    await user.keyboard("{Enter}")
+    const field = screen.getByLabelText("Plan name")
+    expect(field).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Save" })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus()
+
+    await user.click(field)
+    await user.keyboard("Weekend{Enter}")
+
+    expect(
+      await screen.findByText(/✓ Success: Plan saved\./),
+    ).toBeInTheDocument()
+    expect(
+      requests.filter((request) => request.path === "/api/plans"),
+    ).toHaveLength(1)
+  })
+
+  it("closes the form with Escape and returns focus to Save plan", async () => {
+    acceptMuseumPlan()
+    routeFetch(savedPlanRoutes())
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+    const savePlan = await screen.findByRole("button", { name: "Save plan" })
+    savePlan.focus()
+    await user.keyboard("{Enter}")
+
+    await user.keyboard("{Escape}")
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save plan" })).toHaveFocus(),
+    )
+  })
+
+  it("reaches each Open link on My plans in order", async () => {
+    routeFetch(savedPlanRoutes(savedPlanSummaries(3)))
+    const user = userEvent.setup()
+    renderApp("/plans")
+    await screen.findByRole("table", { name: "Your saved plans" })
+    // Log out is the last stop before the page content.
+    screen.getByRole("button", { name: "Log out" }).focus()
+
+    for (const name of ["Open Plan 1", "Open Plan 2", "Open Plan 3"]) {
+      await user.tab()
+      expect(screen.getByRole("link", { name })).toHaveFocus()
+    }
   })
 })

@@ -7,6 +7,13 @@ import styles from "../styles.css?inline"
 import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
 import { openCategories } from "./planCategories"
+import {
+  acceptMuseumPlan,
+  longPlanName,
+  savedPlanId,
+  savedPlanRoutes,
+  savedPlanSummaries,
+} from "./savedPlansFixtures"
 import { forecastRoutes } from "./forecastFixtures"
 import { placesRoutes } from "./placesFixtures"
 import { acceptKayakingAndMuseum, placesStepRoutes } from "./placesStep"
@@ -865,17 +872,24 @@ describe("Places and forecast overview and places at 320 px", () => {
   it("wraps long place names and overview cells instead of widening the page", () => {
     // jsdom does no layout, so the rules behind "no horizontal scrolling at 320 px" are checked.
     expect(styles).toMatch(/\.place-name \{[^}]*overflow-wrap: anywhere;/)
-    expect(styles).toMatch(/\.plan-overview td \{[^}]*overflow-wrap: anywhere;/)
+    expect(styles).toMatch(
+      /\.plan-overview td,\s*\.saved-plans td \{[^}]*overflow-wrap: anywhere;/,
+    )
   })
 
+  // The saved plans table (feature 010) shares these rules, so its selector is grouped with each one.
   it("shows the overview as a real table without cell labels from 40em wide", () => {
     const wide = styles.slice(styles.indexOf("@media (min-width: 40em)"))
 
-    expect(wide).toMatch(/\.plan-overview \{\s*display: table;/)
     expect(wide).toMatch(
-      /\.plan-overview thead \{[^}]*display: table-header-group;[^}]*clip-path: none;/,
+      /\.plan-overview,\s*\.saved-plans \{\s*display: table;/,
     )
-    expect(wide).toMatch(/\.plan-overview tr \{\s*display: table-row;/)
+    expect(wide).toMatch(
+      /\.plan-overview thead,\s*\.saved-plans thead \{[^}]*display: table-header-group;[^}]*clip-path: none;/,
+    )
+    expect(wide).toMatch(
+      /\.plan-overview tr,\s*\.saved-plans tr \{\s*display: table-row;/,
+    )
     expect(wide).toMatch(/\.cell-label \{\s*display: none;/)
   })
 })
@@ -915,6 +929,7 @@ describe("Schedule overview at 320 px", () => {
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
+          generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
           scheduled: [
             {
               activityName: "Kayaking",
@@ -986,6 +1001,7 @@ describe("Schedule overview at 320 px", () => {
       "GET /api/auth/me": () => jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
+          generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
           scheduled: [
             {
               activityName: "Kayaking",
@@ -1030,5 +1046,72 @@ describe("Schedule overview at 320 px", () => {
       expect(getComputedStyle(element).whiteSpace).not.toBe("nowrap")
       expect(element.style.width).toBe("")
     }
+  })
+})
+
+// Feature 010 spec User Story 7, SC-006: the saved plan screens at 320 px.
+describe("Saved plans at 320 px", () => {
+  it("makes the plan name field full width with 16 px text, and Save and Cancel 44 × 44 px", async () => {
+    acceptMuseumPlan()
+    routeFetch(savedPlanRoutes())
+    const user = userEvent.setup()
+    renderApp("/plan/schedule")
+    await user.click(await screen.findByRole("button", { name: "Save plan" }))
+
+    const style = getComputedStyle(screen.getByLabelText("Plan name"))
+    expect(style.width).toBe("100%")
+    expect(px(style.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
+    for (const name of ["Save", "Cancel"]) {
+      expectTouchTarget(screen.getByRole("button", { name }))
+    }
+  })
+
+  it("shows My plans as cards that wrap an 80-character name", async () => {
+    routeFetch(savedPlanRoutes(savedPlanSummaries(2, () => longPlanName)))
+    renderApp("/plans")
+
+    const table = await screen.findByRole("table", { name: "Your saved plans" })
+    expect(getComputedStyle(table).display).toBe("block")
+    const row = within(table).getAllByRole("row")[1]
+    expect(getComputedStyle(row).display).toBe("block")
+    const name = within(row).getByRole("rowheader")
+    expect(getComputedStyle(name).overflowWrap).toBe("anywhere")
+    expect(within(row).getByText("Location:")).toBeVisible()
+    for (const link of within(table).getAllByRole("link")) {
+      expectTouchTarget(link)
+    }
+  })
+
+  it("keeps the Home block's links 44 × 44 px", async () => {
+    routeFetch(savedPlanRoutes(savedPlanSummaries(2)))
+    renderApp("/")
+
+    const block = await screen.findByRole("region", {
+      name: "Your saved plans",
+    })
+    await within(block).findByRole("table")
+    for (const link of within(block).getAllByRole("link")) {
+      expectTouchTarget(link)
+    }
+  })
+
+  it("wraps a long plan name in the plan page's breadcrumbs and setup", async () => {
+    routeFetch(savedPlanRoutes())
+    renderApp(`/plans/${savedPlanId}`)
+
+    const breadcrumbs = await screen.findByRole("navigation", {
+      name: "Breadcrumb",
+    })
+    const current = within(breadcrumbs).getByText(longPlanName)
+    expect(getComputedStyle(current).overflowWrap).toBe("anywhere")
+    expect(
+      getComputedStyle(within(breadcrumbs).getByRole("list")).flexWrap,
+    ).toBe("wrap")
+    for (const link of within(breadcrumbs).getAllByRole("link")) {
+      expectTouchTarget(link)
+    }
+    expect(
+      getComputedStyle(screen.getByText("Kaunas, Kaunas County")).overflowWrap,
+    ).toBe("anywhere")
   })
 })

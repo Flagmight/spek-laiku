@@ -1,6 +1,16 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import {
+  render as renderWithLibrary,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { StrictMode } from "react"
+import { MemoryRouter } from "react-router-dom"
 import { beforeEach, describe, expect, it } from "vitest"
+import { AppRoutes } from "../components/appRoutes"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
@@ -109,6 +119,7 @@ function render(scheduleResponse: () => Response) {
 
 function schedule(override: Partial<PlanSchedule> = {}): PlanSchedule {
   return {
+    generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
     scheduled: [scheduledKayaking],
     unscheduled: [],
     travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -194,6 +205,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
         scheduled: [scheduledKayaking, scheduledMuseum],
         unscheduled: [],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -412,6 +424,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
         scheduled: [scheduledKayaking],
         unscheduled: [{ activityName: "Cycling", reason: "noSuitableTime" }],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -432,6 +445,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: null,
         scheduled: [],
         unscheduled: [{ activityName: "Kayaking", reason: "noPlace" }],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -447,6 +461,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: null,
         scheduled: [],
         unscheduled: [{ activityName: "Kayaking", reason: "noSuitableTime" }],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -468,6 +483,7 @@ describe("ScheduleOverviewPage", () => {
     acceptPlan()
     render(() =>
       jsonResponse(200, {
+        generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
         scheduled: [scheduledKayaking],
         unscheduled: [{ activityName: "Cycling", reason: "noSuitableTime" }],
         travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
@@ -662,6 +678,67 @@ describe("ScheduleOverviewPage navigation", () => {
     const { currentLocation } = renderAppWithLocation("/plan/schedule")
 
     await waitFor(() => expect(currentLocation()).toBe("/plan/activities"))
+  })
+
+  it("shows a schedule kept through Log in without generating a new one (feature 010 FR-007)", async () => {
+    acceptPlan()
+    const kept = schedule({ unscheduled: [] })
+    useKeptScheduleStore.getState().keep(checkedSetup, checkedActivities, kept)
+    const { requests } = render(() => jsonResponse(500))
+
+    expect(
+      await screen.findByText("✓ All activities scheduled."),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Generating your schedule…")).toBeNull()
+    expect(
+      requests.filter((request) => request.path === "/api/plan-schedule"),
+    ).toEqual([])
+    expect(useKeptScheduleStore.getState().kept).toBeNull()
+  })
+
+  it("shows the kept schedule under StrictMode too, as main.tsx renders the app (code review finding 2)", async () => {
+    acceptPlan()
+    const kept = schedule({ unscheduled: [] })
+    useKeptScheduleStore.getState().keep(checkedSetup, checkedActivities, kept)
+    const { requests } = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(401),
+      "POST /api/plan-schedule": () => jsonResponse(500),
+    })
+    void useCurrentUserStore.getState().refresh()
+    renderWithLibrary(
+      <StrictMode>
+        <MemoryRouter initialEntries={["/plan/schedule"]}>
+          <AppRoutes />
+        </MemoryRouter>
+      </StrictMode>,
+    )
+
+    expect(
+      await screen.findByText("✓ All activities scheduled."),
+    ).toBeInTheDocument()
+    expect(
+      requests.filter((request) => request.path === "/api/plan-schedule"),
+    ).toEqual([])
+    expect(usePlanScheduleStore.getState().schedule).toEqual(kept)
+    await waitFor(() => expect(useKeptScheduleStore.getState().kept).toBeNull())
+  })
+
+  it("generates a new schedule when the kept one belongs to a changed plan", async () => {
+    acceptPlan()
+    useKeptScheduleStore
+      .getState()
+      .keep(
+        { ...checkedSetup, dates: ["2026-11-16"] },
+        checkedActivities,
+        schedule(),
+      )
+    const { requests } = render(() => jsonResponse(200, schedule()))
+
+    await screen.findByText("✓ All activities scheduled.")
+    expect(
+      requests.filter((request) => request.path === "/api/plan-schedule"),
+    ).toHaveLength(1)
+    expect(useKeptScheduleStore.getState().kept).toBeNull()
   })
 
   it("resets the schedule store on unmount", async () => {

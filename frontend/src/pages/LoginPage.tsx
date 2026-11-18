@@ -58,7 +58,17 @@ export function LoginPage() {
         onRetry={retry}
       />
       <p>
-        <Link to="/register">Create an account</Link>
+        {/* Registering instead returns to the same page, for example the schedule being saved (feature 010
+            spec FR-008). The Register page checks the address again before using it. */}
+        <Link
+          to={
+            returnTo
+              ? "/register?returnTo=" + encodeURIComponent(returnTo)
+              : "/register"
+          }
+        >
+          Create an account
+        </Link>
       </p>
     </>
   )

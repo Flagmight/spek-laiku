@@ -217,6 +217,7 @@ describe("plan pages access", () => {
         user ? jsonResponse(200, user) : jsonResponse(401),
       "POST /api/plan-schedule": () =>
         jsonResponse(200, {
+          generatedScheduleId: null,
           scheduled: [],
           unscheduled: [],
           travel: { maxDistanceKm: 30, tripsOverLimit: 0 },

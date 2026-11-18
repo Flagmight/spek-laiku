@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using SpekLaiku.Api;
 using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.Data;
@@ -60,9 +61,10 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     public FakeMapPlacesClient MapPlaces { get; } = new();
 
     /// <summary>
-    /// The clock behind <see cref="ForecastPeriod"/> only: the forecast period, and "now" and the received time
-    /// of the forecast services, which read the time through it. Tests set it before checking dates and set
-    /// it back afterwards, because the collection shares it.
+    /// The clock behind <see cref="ForecastPeriod"/>, <see cref="GeneratedScheduleService"/> and
+    /// <see cref="SavedPlanService"/> only: the forecast period, "now" and the received time of the forecast
+    /// services, which read the time through it, the expiry of generated schedules and the saved time of plans. Tests set it before checking dates and set it back afterwards, because the
+    /// collection shares it.
     /// </summary>
     public FixedTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
 
@@ -173,6 +175,19 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
             // services read the time through ForecastPeriod, so they follow this clock too.
             services.RemoveAll<ForecastPeriod>();
             services.AddSingleton(new ForecastPeriod(Clock));
+            // Generated schedules expire 30 minutes after this clock's time (feature 010), so the expiry tests can
+            // move it.
+            services.RemoveAll<GeneratedScheduleService>();
+            services.AddScoped(provider => new GeneratedScheduleService(
+                provider.GetRequiredService<ApplicationDbContext>(),
+                Clock,
+                provider.GetRequiredService<ILogger<GeneratedScheduleService>>()));
+            // Saved plans take their saved time from the same clock, so the list order tests can control it.
+            services.RemoveAll<SavedPlanService>();
+            services.AddScoped(provider => new SavedPlanService(
+                provider.GetRequiredService<ApplicationDbContext>(),
+                provider.GetRequiredService<GeneratedScheduleService>(),
+                Clock));
         });
     }
 }

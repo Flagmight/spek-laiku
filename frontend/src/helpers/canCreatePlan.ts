@@ -1,5 +1,6 @@
 import type { CurrentUserState } from "../stores/useCurrentUserStore"
 import type { CurrentUser } from "../types/currentUser"
+import { canViewSavedPlans } from "./canViewSavedPlans"
 
 // Who may set up a plan: a Visitor, or a signed-in Active Registered User (spec FR-001, FR-002).
 // Used by the navigation, the home page and the plan pages' guard. The server checks the same rule
@@ -13,9 +14,6 @@ export function canCreatePlan(
     return true
   }
 
-  return (
-    status === "signedIn" &&
-    user?.role === "Registered User" &&
-    user.accountStatus === "Active"
-  )
+  // The signed-in part is the saved plans rule, kept in one place (feature 010).
+  return canViewSavedPlans(status, user)
 }

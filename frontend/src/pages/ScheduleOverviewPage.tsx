@@ -1,16 +1,18 @@
 import { useEffect } from "react"
 import { Link, Navigate } from "react-router-dom"
 import { PlanProgress } from "../components/planProgress"
-import { ScheduledDaySection } from "../components/scheduledDaySection"
-import { scheduleReasonText, travelSummaryText } from "../helpers/scheduleText"
+import { SavePlanSection } from "../components/savePlanSection"
+import { ScheduleView } from "../components/scheduleView"
 import { usePageTitle } from "../hooks/usePageTitle"
+import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
-import type { ScheduledActivity } from "../types/planSchedule"
+import { useSavePlanStore } from "../stores/useSavePlanStore"
 
 // Step 4 of a plan (spec FR-017 to FR-019, FR-036): the generated schedule, unscheduled activities and
-// error states. Generated on mount; reset when the page closes (spec FR-014).
+// error states, and saving the schedule (feature 010). Generated on mount; the schedule and the Save plan
+// form are reset when the page closes (spec FR-014).
 export function ScheduleOverviewPage() {
   usePageTitle("Schedule overview")
   const setup = usePlanSetupStore((state) => state.checked)
@@ -25,9 +27,28 @@ export function ScheduleOverviewPage() {
     if (!setup || !activities) {
       return
     }
-    void generate(setup, activities)
-    return () => reset()
+    useSavePlanStore.getState().reset()
+    // A schedule kept on the way to Log in or Register is shown again instead of a new one, as long as the
+    // plan has not changed since (feature 010 spec FR-007).
+    // It is only read here; it is cleared below once shown, because StrictMode runs this effect twice.
+    const kept = useKeptScheduleStore.getState().find(setup, activities)
+    if (kept) {
+      usePlanScheduleStore.getState().restore(kept)
+    } else {
+      void generate(setup, activities)
+    }
+    return () => {
+      reset()
+      useSavePlanStore.getState().reset()
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A kept schedule is shown once: after this, leaving and coming back generates a new one (feature 008 FR-014).
+  useEffect(() => {
+    if (status === "loaded") {
+      useKeptScheduleStore.getState().clear()
+    }
+  }, [status])
 
   if (status === "setupOutdated" || (!setup && status !== "loading")) {
     return <Navigate to="/plan/setup" replace />
@@ -40,11 +61,28 @@ export function ScheduleOverviewPage() {
     return <Navigate to="/plan/activities" replace />
   }
 
+  // The remembered schedule expired: generate a new one and keep the Save plan form with its name
+  // (feature 010 spec FR-004).
+  function generateAgain() {
+    if (setup && activities) {
+      useSavePlanStore.getState().reopen()
+      void generate(setup, activities)
+    }
+  }
+
   return (
     <>
       <h1>Schedule overview</h1>
       <PlanProgress current={4} />
       <ScheduleBody status={status} schedule={schedule} onRetry={retry} />
+      {status === "loaded" && schedule && setup && activities && (
+        <SavePlanSection
+          setup={setup}
+          activities={activities}
+          schedule={schedule}
+          onGenerateAgain={generateAgain}
+        />
+      )}
       <p>
         <Link to="/plan/places" className="button-link">
           Back
@@ -105,67 +143,7 @@ function ScheduleBody({
     )
   }
 
-  if (!schedule) {
-    return null
-  }
-
-  const { scheduled, unscheduled, travel } = schedule
-  const allUnscheduled = scheduled.length === 0 && unscheduled.length > 0
-  const travelSummary = travelSummaryText(scheduled, travel)
-
-  // Group scheduled activities by date, sorted ascending.
-  const byDate = new Map<string, ScheduledActivity[]>()
-  for (const activity of scheduled) {
-    const existing = byDate.get(activity.date) ?? []
-    existing.push(activity)
-    byDate.set(activity.date, existing)
-  }
-  const sortedDates = [...byDate.keys()].sort()
-  for (const date of sortedDates) {
-    byDate.get(date)!.sort((a, b) => a.startTime.localeCompare(b.startTime))
-  }
-
-  return (
-    <>
-      {(unscheduled.length === 0 || travelSummary) && (
-        // One status region for both summaries (feature 009 research section 9).
-        <div role="status">
-          {unscheduled.length === 0 && <p>✓ All activities scheduled.</p>}
-          {travelSummary && <p>{travelSummary}</p>}
-        </div>
-      )}
-      {allUnscheduled && (
-        <p>
-          No suitable time found for any activity. Change the dates or the
-          weather limits.
-        </p>
-      )}
-      {sortedDates.length > 0 && (
-        <section aria-label="Scheduled activities">
-          {sortedDates.map((date) => (
-            <ScheduledDaySection
-              key={date}
-              date={date}
-              activities={byDate.get(date)!}
-              maxDistanceKm={travel.maxDistanceKm}
-            />
-          ))}
-        </section>
-      )}
-      {unscheduled.length > 0 && (
-        <section aria-label="Could not be scheduled">
-          <h2>Could not be scheduled</h2>
-          <ul>
-            {unscheduled.map((activity) => (
-              <li key={activity.activityName}>
-                {activity.activityName}: {scheduleReasonText(activity.reason)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </>
-  )
+  return schedule ? <ScheduleView schedule={schedule} /> : null
 }
 
 function ServiceError({

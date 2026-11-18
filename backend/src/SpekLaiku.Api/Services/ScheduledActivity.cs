@@ -6,6 +6,10 @@ namespace SpekLaiku.Api.Services;
 /// used to find the category's listed places and is never sent to the browser. <see cref="Travel"/> is
 /// <c>null</c> for the first scheduled activity of its date (feature 009 spec FR-001, data-model.md).
 /// </summary>
+/// <remarks>
+/// Stored as JSON in saved plans (feature 010 research section 4); do not rename members without a data
+/// migration.
+/// </remarks>
 public sealed record ScheduledActivity(
     Guid CategoryId,
     string ActivityName,

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using SpekLaiku.Api.Authorization;
 using SpekLaiku.Api.DTOs.Requests;
 using SpekLaiku.Api.DTOs.Responses;
+using SpekLaiku.Api.Errors;
 using SpekLaiku.Api.RateLimiting;
 using SpekLaiku.Api.Services;
 
@@ -32,14 +33,12 @@ public sealed class PlanScheduleController(PlanScheduleService planScheduleServi
         var result = await planScheduleService.GetAsync(request, cancellationToken);
         if (!result.Succeeded)
         {
-            var errors = result.Errors.ToDictionary(error => error.Key, error => new[] { error.Value });
-            return BadRequest(new ValidationProblemDetails(errors)
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "One or more request fields are invalid."
-            });
+            return BadRequest(result.Errors.ToValidationProblem());
         }
 
-        return mapper.Map<PlanScheduleResponse>(result.Schedule);
+        return mapper.Map<PlanScheduleResponse>(result.Schedule) with
+        {
+            GeneratedScheduleId = result.GeneratedScheduleId
+        };
     }
 }

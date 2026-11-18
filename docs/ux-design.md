@@ -36,8 +36,8 @@ must be explicitly justified.
 | Places and Forecast | Shows the places found for the chosen activities (name and location) and the hourly forecast with suitable and unsuitable hours. Lets the user remove or change an activity when no place is found, then generate the schedule. | Visitor, Registered User |
 | Schedule Overview | The generated plan in chronological order: start, end, activity, location, weather and travel distance. Includes the "Recalculate" action. | Visitor (session only), Registered User |
 | Plan Problems and Alternatives | Lists conflicts with the current plan (bad weather, overlap, too far) and suggests replacement activities or times. | Visitor, Registered User |
-| My Plans | Lists saved plans with open, duplicate and delete actions. | Registered User (own plans only) |
-| Plan Details / Edit | Views and edits one saved plan. | Plan owner |
+| My Plans | Lists saved plans with open, duplicate and delete actions (feature 010 lists and opens; duplicate and delete come with feature 011). | Registered User (own plans only) |
+| Plan Details / Edit | Views and edits one saved plan (feature 010 shows it as saved; editing comes with feature 011 and recalculating with feature 012). | Plan owner |
 | Shared Plan and Voting | Opens a plan via link or invitation, view-only or vote (optional extension). | Registered User (invited) |
 | Profile | Edit profile and preferences, delete account. | Registered User |
 | Admin: Service Status | Shows Open-Meteo and Overpass availability and error logs. | Administrator |
@@ -353,7 +353,7 @@ area.
 | Server error | Show "Error: Something went wrong. Try again." with a **Retry** button. Never show stack traces or database details. |
 | External service unavailable | Show "Error: The weather service is unavailable. No forecast is shown." (or "map data service"), with Retry. No guessed or old data is displayed (NFR-007). Saved plans stay unchanged (NFR-008). |
 | Unauthorized (not logged in) | Redirect to Log in with "Log in to continue." After login, return to the page the user wanted. |
-| Forbidden (logged in, no permission) | Show the Access Denied (403) page with "You do not have permission to open this page.", with links to Home and My plans (the My plans link comes with feature 010). |
+| Forbidden (logged in, no permission) | Show the Access Denied (403) page with "You do not have permission to open this page.", with links to Home and My plans. |
 | Not found | Show the Not Found (404) page. |
 | Success | Show "✓ Success: …" in a banner that stays until dismissed, not one that disappears by itself. |
 

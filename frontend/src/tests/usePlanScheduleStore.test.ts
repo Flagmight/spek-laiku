@@ -39,6 +39,7 @@ const activities: CheckedPlanActivity[] = [
 ]
 
 const planSchedule = {
+  generatedScheduleId: "6f1c2a8e-3b7d-4e55-9a10-0c4f2d9b7e31",
   scheduled: [
     {
       activityName: "Kayaking",
@@ -149,6 +150,28 @@ describe("usePlanScheduleStore", () => {
     expect(pending[0].signal.aborted).toBe(true)
     expect(store().status).toBe("idle")
     expect(store().schedule).toBeNull()
+  })
+
+  it("restores a kept schedule without a request (feature 010 spec FR-007)", () => {
+    const { fetchMock } = stubPendingRequests()
+
+    act(() => store().restore(planSchedule))
+
+    expect(store().status).toBe("loaded")
+    expect(store().schedule).toEqual(planSchedule)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("aborts a pending request when a kept schedule is restored", () => {
+    const { pending } = stubPendingRequests()
+    act(() => {
+      void store().generate(setup, activities)
+    })
+
+    act(() => store().restore(planSchedule))
+
+    expect(pending[0].signal.aborted).toBe(true)
+    expect(store().status).toBe("loaded")
   })
 
   it("reports a server error and keeps no schedule for a 500", async () => {

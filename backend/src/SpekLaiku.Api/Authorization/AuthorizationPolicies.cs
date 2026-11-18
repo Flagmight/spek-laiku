@@ -11,4 +11,10 @@ public static class AuthorizationPolicies
     /// spec FR-003). It does not require signing in.
     /// </summary>
     public const string PlanCreator = "PlanCreator";
+
+    /// <summary>
+    /// A signed-in account with the Registered User role and Active status; the owner of saved plans
+    /// (feature 010 spec FR-012).
+    /// </summary>
+    public const string ActiveRegisteredUser = "ActiveRegisteredUser";
 }

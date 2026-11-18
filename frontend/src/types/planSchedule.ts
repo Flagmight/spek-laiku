@@ -43,6 +43,9 @@ export interface UnscheduledActivity {
 }
 
 export interface PlanSchedule {
+  // The server remembers this schedule for 30 minutes so it can be saved (feature 010
+  // contracts/plan-schedule-api.md); null when nothing was scheduled.
+  generatedScheduleId: string | null
   scheduled: ScheduledActivity[]
   unscheduled: UnscheduledActivity[]
   travel: TravelSummary
