@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-import type { KeyboardEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { canViewSavedPlans } from "../helpers/canViewSavedPlans"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
@@ -9,9 +8,8 @@ import type { NavigationState } from "../types/navigationState"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanSchedule } from "../types/planSchedule"
 import type { CheckedPlanSetup } from "../types/planSetup"
-import { TextField } from "./textField"
+import { PlanNameForm } from "./planNameForm"
 
-const nameFieldId = "plan-name"
 const visitorHintId = "save-plan-hint"
 const logInToSave = "/login?returnTo=" + encodeURIComponent("/plan/schedule")
 
@@ -40,14 +38,6 @@ export function SavePlanSection({
   const nameRefusals = useSavePlanStore((state) => state.nameRefusals)
   const saveButton = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef(false)
-
-  // Focus goes to the name field when the form opens and every time the name is refused, even with the same
-  // message as before (spec User Story 7).
-  useEffect(() => {
-    if (status === "open" || nameError) {
-      document.getElementById(nameFieldId)?.focus()
-    }
-  }, [nameError, nameRefusals, status])
 
   useEffect(() => {
     if (status === "closed" && returnFocus.current) {
@@ -116,42 +106,21 @@ export function SavePlanSection({
     store.cancel()
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLFormElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault()
-      cancel()
-    }
-  }
-
   return (
-    <form
-      aria-label="Save plan"
-      noValidate
-      onKeyDown={onKeyDown}
-      onSubmit={(event) => {
-        event.preventDefault()
-        void store.submit(schedule.generatedScheduleId)
-      }}
+    <PlanNameForm
+      formLabel="Save plan"
+      submitLabel="Save"
+      name={name}
+      nameError={nameError}
+      nameRefusals={nameRefusals}
+      opened={status === "open"}
+      busy={status === "saving"}
+      onNameChange={store.setName}
+      onSubmit={() => void store.submit(schedule.generatedScheduleId)}
+      onCancel={cancel}
     >
-      <TextField
-        id={nameFieldId}
-        label="Plan name"
-        type="text"
-        autoComplete="off"
-        value={name}
-        error={nameError ?? undefined}
-        onChange={store.setName}
-      />
       <SaveStatus status={status} onGenerateAgain={onGenerateAgain} />
-      <p>
-        <button type="submit" disabled={status === "saving"}>
-          Save
-        </button>{" "}
-        <button type="button" onClick={cancel}>
-          Cancel
-        </button>
-      </p>
-    </form>
+    </PlanNameForm>
   )
 }
 

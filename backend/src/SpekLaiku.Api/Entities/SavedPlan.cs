@@ -3,9 +3,10 @@ using SpekLaiku.Api.Services;
 namespace SpekLaiku.Api.Entities;
 
 /// <summary>
-/// A plan kept under one Registered User's account (feature 010 data-model.md). Read-only in feature 010.
-/// <see cref="LocationName"/> and <see cref="Dates"/> are copied from <see cref="Snapshot"/> when the plan is
-/// saved, so the lists never load the stored schedule (research section 5).
+/// A plan kept under one Registered User's account (feature 010 data-model.md). Feature 011 lets its owner rename
+/// it, replace it with an edited version, copy it and delete it. <see cref="LocationName"/> and
+/// <see cref="Dates"/> are copied from <see cref="Snapshot"/> whenever the snapshot is set, so the lists never
+/// load the stored schedule (feature 010 research section 5).
 /// </summary>
 public class SavedPlan
 {
@@ -18,6 +19,13 @@ public class SavedPlan
     public string Name { get; set; } = string.Empty;
 
     public DateTime SavedAtUtc { get; set; }
+
+    /// <summary>
+    /// When this row was created, by a save or a duplicate; never changed afterwards. Breaks ties on
+    /// <see cref="SavedAtUtc"/> so a copy is listed directly above its original (feature 011 research section 5).
+    /// </summary>
+    public DateTime CreatedAtUtc { get; set; }
+
     public string LocationName { get; set; } = string.Empty;
     public List<DateOnly> Dates { get; set; } = [];
 

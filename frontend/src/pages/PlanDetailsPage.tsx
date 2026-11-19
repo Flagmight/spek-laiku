@@ -1,15 +1,9 @@
 import { useEffect } from "react"
 import { Link, useParams } from "react-router-dom"
-import { ScheduleView } from "../components/scheduleView"
-import {
-  formatPlanDates,
-  formatSavedAt,
-  formatSavedDate,
-} from "../helpers/formatSavedAt"
+import { SavedPlanView } from "../components/savedPlanView"
 import { usePageTitle } from "../hooks/usePageTitle"
 import { useSavedPlanStore } from "../stores/useSavedPlanStore"
 import type { SavedPlanStatus } from "../stores/useSavedPlanStore"
-import type { SavedPlan } from "../types/savedPlan"
 import { AccessDeniedPage } from "./AccessDeniedPage"
 
 // The tab title until the plan's own name is known.
@@ -75,42 +69,6 @@ export function PlanDetailsPage() {
       ) : (
         <p role="status">Loading your plan…</p>
       )}
-    </>
-  )
-}
-
-function SavedPlanView({ plan }: { plan: SavedPlan }) {
-  const { scheduled, unscheduled, travel } = plan
-
-  return (
-    <>
-      <nav aria-label="Breadcrumb" className="breadcrumbs">
-        <ol>
-          <li>
-            <Link to="/">Home</Link>
-          </li>
-          <li>
-            <Link to="/plans">My plans</Link>
-          </li>
-          <li aria-current="page">{plan.name}</li>
-        </ol>
-      </nav>
-      <h1>{plan.name}</h1>
-      <dl className="saved-plan-setup">
-        <dt>Location</dt>
-        <dd>{`${plan.location.name}, ${plan.location.area}`}</dd>
-        <dt>Dates</dt>
-        <dd>{formatPlanDates(plan.dates)}</dd>
-        <dt>Maximum travel distance</dt>
-        <dd>{`${plan.maxTravelDistanceKm} km`}</dd>
-      </dl>
-      <p>{formatSavedAt(plan.savedAt)}</p>
-      <p>
-        {`This is your plan as saved on ${formatSavedDate(plan.savedAt)}. The forecast may have changed since.`}
-      </p>
-      <ScheduleView
-        schedule={{ generatedScheduleId: null, scheduled, unscheduled, travel }}
-      />
     </>
   )
 }

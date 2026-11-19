@@ -64,38 +64,39 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Creation time and list order (research section 5)
 
-- [ ] T003 Add `public DateTime CreatedAtUtc { get; set; }` to `backend/src/SpekLaiku.Api/Entities/SavedPlan.cs`, with the doc comment "When this row was created, by a save or a duplicate; never changed afterwards. Breaks ties on SavedAtUtc so a copy is listed directly above its original (feature 011 research section 5)." Change the class comment from "Read-only in feature 010" to say that feature 011 renames, replaces, copies and deletes plans.
-- [ ] T004 In `backend/src/SpekLaiku.Api/Data/SavedPlanConfiguration.cs`, add `builder.Property(plan => plan.CreatedAtUtc).IsRequired();`. Then, from `backend/`:
+- [x] T003 Add `public DateTime CreatedAtUtc { get; set; }` to `backend/src/SpekLaiku.Api/Entities/SavedPlan.cs`, with the doc comment "When this row was created, by a save or a duplicate; never changed afterwards. Breaks ties on SavedAtUtc so a copy is listed directly above its original (feature 011 research section 5)." Change the class comment from "Read-only in feature 010" to say that feature 011 renames, replaces, copies and deletes plans.
+- [x] T004 In `backend/src/SpekLaiku.Api/Data/SavedPlanConfiguration.cs`, add `builder.Property(plan => plan.CreatedAtUtc).IsRequired();`. Then, from `backend/`:
   1. Run `dotnet ef migrations add AddSavedPlanCreatedAt --project src/SpekLaiku.Api`.
   2. In the generated `Up`, after `AddColumn`, add `migrationBuilder.Sql("UPDATE \"SavedPlans\" SET \"CreatedAtUtc\" = \"SavedAtUtc\";");`.
   3. Check that the migration adds only this column ("Existing rows get their `SavedAtUtc` in the migration"), and that `Down` drops only it.
   
   (depends on T003)
-- [ ] T005 In `backend/src/SpekLaiku.Api/Services/SavedPlanService.cs`:
+- [x] T005 In `backend/src/SpekLaiku.Api/Services/SavedPlanService.cs`:
   - Set `CreatedAtUtc` to the same `now` as `SavedAtUtc` in `InsertAsync`.
   - Change `ListAsync` to `.OrderByDescending(plan => plan.SavedAtUtc).ThenByDescending(plan => plan.CreatedAtUtc).ThenBy(plan => plan.Id)`.
   - Update the doc comment: "newest saved first, then the most recently created (a copy above its original), then by id".
   
   (depends on T003)
-- [ ] T006 [P] In `backend/tests/SpekLaiku.IntegrationTests/DatabaseSchemaTests.cs`, assert that `SavedPlans.CreatedAtUtc` exists as `timestamp with time zone`, `NOT NULL`. In `backend/tests/SpekLaiku.IntegrationTests/SavedPlansListEndpointTests.cs`, add a test: two plans with the same `SavedAtUtc` (set directly in the database through a scope's `ApplicationDbContext`) and different `CreatedAtUtc` are listed with the later-created one first. (depends on T004, T005)
+- [x] T006 [P] In `backend/tests/SpekLaiku.IntegrationTests/DatabaseSchemaTests.cs`, assert that `SavedPlans.CreatedAtUtc` exists as `timestamp with time zone`, `NOT NULL`. In `backend/tests/SpekLaiku.IntegrationTests/SavedPlansListEndpointTests.cs`, add a test: two plans with the same `SavedAtUtc` (set directly in the database through a scope's `ApplicationDbContext`) and different `CreatedAtUtc` are listed with the later-created one first. (depends on T004, T005)
 
 ### Change service skeleton and controller mapping (research sections 7 and 8)
 
-- [ ] T007 [P] Add `backend/src/SpekLaiku.Api/Services/SavedPlanChange.cs`: a record with a private constructor, following `SavePlanResult` and `SavedPlanLookup`.
+- [x] T007 [P] Add `backend/src/SpekLaiku.Api/Services/SavedPlanChange.cs`: a record with a private constructor, following `SavePlanResult` and `SavedPlanLookup`.
   - `Outcome` enum: `Changed | Deleted | Invalid | NotFound | Forbidden`.
   - Members: `SavedPlan? Plan`, `IReadOnlyList<KeyValuePair<string,string>> Errors` (default `[]`).
   - Factories: `Changed(SavedPlan)`, `static readonly Deleted`, `Invalid(errors)`, `static readonly NotFound`, `static readonly Forbidden`.
   - `[MemberNotNullWhen(true, nameof(Plan))] bool HasPlan => Plan is not null`.
   - Doc comment: data-model.md "SavedPlanChange". `Forbidden` never carries plan data.
-- [ ] T008 Add `SavedPlanChangeService(ApplicationDbContext context, GeneratedScheduleService generatedSchedules, TimeProvider timeProvider)` in `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`, with only the private helper:
+- [x] T008 Add `SavedPlanChangeService(ApplicationDbContext context, GeneratedScheduleService generatedSchedules, TimeProvider timeProvider)` in `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`, with only the private helper:
   - `Task<(SavedPlan? Plan, SavedPlanChange? Refusal)> FindOwnedAsync(string ownerId, Guid id, CancellationToken ct)`.
   - It reads the plan **tracked** with `FirstOrDefaultAsync(plan => plan.Id == id)`.
   - It returns `(null, SavedPlanChange.NotFound)` when missing, `(null, SavedPlanChange.Forbidden)` when `OwnerId != ownerId`, and otherwise `(plan, null)`.
   - Class doc comment: "Changes to an existing saved plan, only by its owner (feature 011 spec FR-015, research sections 7 and 8). Every operation checks ownership first; another user's plan is refused with no plan data and nothing changed."
   - Register it as scoped in `backend/src/SpekLaiku.Api/Program.cs`, next to `SavedPlanService`.
+  - Implementation note: the constructor starts with `ApplicationDbContext` only, because an unread primary-constructor parameter is a CS9113 build warning. `TimeProvider` is added with its first use in T030, and `GeneratedScheduleService` in T042.
   
   (depends on T007)
-- [ ] T009 In `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`:
+- [x] T009 In `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`:
   - Inject `SavedPlanChangeService savedPlanChangeService`.
   - Move the 404 body from `Get` into `private NotFoundObjectResult PlanNotFound()`, with title "Not found." and detail "This plan no longer exists.", and use it in `Get`.
   - Add `private ActionResult ToActionResult(SavedPlanChange change, Func<SavedPlan, ActionResult> onChanged)`:
@@ -105,12 +106,13 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - `Deleted` → `NoContent()`;
     - `Changed` → `onChanged(change.Plan)`.
   - Keep the controller thin, with no rules.
+  - Implementation note: `SavedPlanChangeService` is injected in T017, together with its first use in `Delete` (CS9113, see T008).
   
   (depends on T008)
 
 ### Shared frontend pieces (research sections 9, 11 and 12)
 
-- [ ] T010 [P] Add `confirmDialog.tsx` in `frontend/src/components/confirmDialog.tsx`: `ConfirmDialog({ question, confirmLabel, cancelLabel = "Cancel", onConfirm, onCancel, busy })`.
+- [x] T010 [P] Add `confirmDialog.tsx` in `frontend/src/components/confirmDialog.tsx`: `ConfirmDialog({ question, confirmLabel, cancelLabel = "Cancel", onConfirm, onCancel, busy })`.
   - **Markup**: a backdrop `div` and `<div role="dialog" aria-modal="true" aria-labelledby={questionId}>`. The question is a `<p id={questionId}>`. The buttons are **confirmLabel** first, then **Cancel**.
   - **Focus**: moves to the confirm button on mount.
   - **Keys**:
@@ -119,7 +121,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - **Busy**: the confirm button is disabled while `busy`.
   - **Text**: plain text only.
   - Doc comment: spec FR-002, FR-013, FR-020, research section 9 (no native `<dialog>`, because jsdom does not implement `showModal`).
-- [ ] T011 [P] Add `frontend/src/tests/confirmDialog.test.tsx`:
+- [x] T011 [P] Add `frontend/src/tests/confirmDialog.test.tsx`:
   - the role, `aria-modal` and accessible name equal to the question;
   - focus on the confirm button;
   - Tab from Cancel returns to the confirm button, and Shift+Tab from the confirm button goes to Cancel;
@@ -129,7 +131,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - a question containing `<script>` is shown as text.
   
   (depends on T010)
-- [ ] T012 Extract `planNameForm.tsx` from `frontend/src/components/savePlanSection.tsx` into `frontend/src/components/planNameForm.tsx`: `PlanNameForm({ formLabel, submitLabel, name, nameError, nameRefusals, opened, busy, onNameChange, onSubmit, onCancel, children })`.
+- [x] T012 Extract `planNameForm.tsx` from `frontend/src/components/savePlanSection.tsx` into `frontend/src/components/planNameForm.tsx`: `PlanNameForm({ formLabel, submitLabel, name, nameError, nameRefusals, opened, busy, onNameChange, onSubmit, onCancel, children })`.
   - It renders the form with `aria-label={formLabel}` and `noValidate`, and the `TextField` "Plan name" with id `plan-name`.
   - **Focus**: moves to the field when `opened` becomes true and on every refusal (`nameError` or `nameRefusals` changes).
   - **Keys**: Escape calls `onCancel`.
@@ -137,14 +139,15 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - **Buttons**: `submitLabel`, disabled while `busy`, then **Cancel**.
   
   `SavePlanSection` uses it with `formLabel="Save plan"` and `submitLabel="Save"`, and keeps its own focus return to the Save plan button. There is no behaviour change: `frontend/src/tests/savePlanSection.test.tsx` must pass unchanged. Doc comment: research section 11.
-- [ ] T013 [P] Move `SavedPlanView` out of `frontend/src/pages/PlanDetailsPage.tsx` into `frontend/src/components/savedPlanView.tsx` as an exported component `SavedPlanView({ plan, actions, notice })`.
+- [x] T013 [P] Move `SavedPlanView` out of `frontend/src/pages/PlanDetailsPage.tsx` into `frontend/src/components/savedPlanView.tsx` as an exported component `SavedPlanView({ plan, actions, notice })`.
   - `actions` (a `ReactNode`) is rendered between the `h1` and the setup list.
   - `notice` (a string or `null`) is rendered in a `<p role="status">` directly under the `h1`.
   - `PlanDetailsPage` passes neither yet.
   
   There is no behaviour change: `frontend/src/tests/PlanDetailsPage.test.tsx` must pass unchanged. Plan "Constraints": the page will grow in US1 to US4.
-- [ ] T014 [P] Add `planNotice?: "deleted" | "duplicated"` to `frontend/src/types/navigationState.ts`, with the comment "Set after a delete or duplicate from the plan page; My plans or the copy's page shows 'Plan deleted.' or 'Plan duplicated.' in its own status region (feature 011 research section 12)."
-- [ ] T015 Run the backend build and tests, and the frontend lint, tests and build. All pass with only the new tests added. (depends on T003 to T014)
+- [x] T014 [P] Add `planNotice?: "deleted" | "duplicated"` to `frontend/src/types/navigationState.ts`, with the comment "Set after a delete or duplicate from the plan page; My plans or the copy's page shows 'Plan deleted.' or 'Plan duplicated.' in its own status region (feature 011 research section 12)."
+- [x] T015 Run the backend build and tests, and the frontend lint, tests and build. All pass with only the new tests added. (depends on T003 to T014)
+  - Result (2026-11-19): backend build with 0 warnings; 654 unit and 333 integration tests (+3); `dotnet format --verify-no-changes` clean after converting the generated migration files to LF line endings. Frontend lint and Prettier clean; 82 files and 1116 tests (+1 file, +8 tests); build clean.
 
 **Checkpoint**: The migration is applied in tests, the list order is stable, and the change service, controller mapping, dialog, name form and plan view are in place. The app's behaviour is unchanged.
 

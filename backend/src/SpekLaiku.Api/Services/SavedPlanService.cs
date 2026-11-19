@@ -70,14 +70,16 @@ public sealed class SavedPlanService(
     }
 
     /// <summary>
-    /// The user's plans, newest saved first (ties by id, so the order is stable), without their stored schedules
-    /// (spec FR-009, research section 5).
+    /// The user's plans without their stored schedules (spec FR-009, research section 5): newest saved first, then
+    /// the most recently created, so a copy is listed directly above its original (feature 011 research section
+    /// 5), then by id, so the order is stable.
     /// </summary>
     public async Task<IReadOnlyList<SavedPlanSummary>> ListAsync(string ownerId, CancellationToken cancellationToken) =>
         await context.SavedPlans
             .AsNoTracking()
             .Where(plan => plan.OwnerId == ownerId)
             .OrderByDescending(plan => plan.SavedAtUtc)
+            .ThenByDescending(plan => plan.CreatedAtUtc)
             .ThenBy(plan => plan.Id)
             .Select(plan => new SavedPlanSummary(plan.Id, plan.Name, plan.LocationName, plan.Dates, plan.SavedAtUtc))
             .ToListAsync(cancellationToken);
@@ -107,12 +109,14 @@ public sealed class SavedPlanService(
         PlanSnapshot snapshot,
         CancellationToken cancellationToken)
     {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         var plan = new SavedPlan
         {
             Id = Guid.NewGuid(),
             OwnerId = ownerId,
             Name = name,
-            SavedAtUtc = timeProvider.GetUtcNow().UtcDateTime,
+            SavedAtUtc = now,
+            CreatedAtUtc = now,
             LocationName = snapshot.Setup.Location.Name,
             Dates = snapshot.Setup.Dates.ToList(),
             GeneratedScheduleId = scheduleId,

@@ -44,17 +44,7 @@ public sealed class PlansController(
             return mapper.Map<SavedPlanResponse>(lookup.Plan);
         }
 
-        if (lookup.IsForbidden)
-        {
-            return Forbid();
-        }
-
-        return NotFound(new ProblemDetails
-        {
-            Status = StatusCodes.Status404NotFound,
-            Title = "Not found.",
-            Detail = "This plan no longer exists."
-        });
+        return lookup.IsForbidden ? Forbid() : PlanNotFound();
     }
 
     [HttpPost]
@@ -76,4 +66,25 @@ public sealed class PlansController(
             ? CreatedAtAction(nameof(Get), new { id = result.Plan.Id }, summary)
             : Ok(summary);
     }
+
+    // The HTTP answer for a change to a saved plan (feature 011 contracts/plans-api.md). Another user's plan gives
+    // 403 through the cookie handler, with no plan data; onChanged builds the success answer from the plan.
+    private ActionResult ToActionResult(SavedPlanChange change, Func<SavedPlan, ActionResult> onChanged) =>
+        change.Outcome switch
+        {
+            SavedPlanChangeOutcome.Invalid => BadRequest(change.Errors.ToValidationProblem()),
+            SavedPlanChangeOutcome.NotFound => PlanNotFound(),
+            SavedPlanChangeOutcome.Forbidden => Forbid(),
+            SavedPlanChangeOutcome.Deleted => NoContent(),
+            _ when change.HasPlan => onChanged(change.Plan),
+            _ => throw new InvalidOperationException("A changed plan result must carry the plan."),
+        };
+
+    private NotFoundObjectResult PlanNotFound() =>
+        NotFound(new ProblemDetails
+        {
+            Status = StatusCodes.Status404NotFound,
+            Title = "Not found.",
+            Detail = "This plan no longer exists."
+        });
 }

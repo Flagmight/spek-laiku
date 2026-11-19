@@ -20,6 +20,7 @@ public class SavedPlanConfiguration : IEntityTypeConfiguration<SavedPlan>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Property(plan => plan.Name).HasColumnType("varchar(80)").IsRequired();
+        builder.Property(plan => plan.CreatedAtUtc).IsRequired();
         builder.Property(plan => plan.LocationName).HasColumnType("varchar(200)").IsRequired();
         // Npgsql maps List<DateOnly> to a date[] column.
         builder.Property(plan => plan.Dates).IsRequired();
