@@ -27,13 +27,25 @@ public class SavedPlanDetailsEndpointTests(PostgreSqlApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var plan = await ReadAsync(response);
+        // Feature 011 contracts/plans-api.md: the location id and the activities are added for editing.
         Assert.Equal(
-            ["id", "name", "savedAt", "location", "dates", "maxTravelDistanceKm", "scheduled", "unscheduled", "travel"],
+            [
+                "id", "name", "savedAt", "location", "dates", "maxTravelDistanceKm", "activities", "scheduled",
+                "unscheduled", "travel"
+            ],
             plan.EnumerateObject().Select(property => property.Name));
         Assert.Equal("Weekend in Kaunas", plan.GetProperty("name").GetString());
         Assert.Equal(
-            ["name", "area", "latitude", "longitude"],
+            ["id", "name", "area", "latitude", "longitude"],
             plan.GetProperty("location").EnumerateObject().Select(property => property.Name));
+        var activity = Assert.Single(plan.GetProperty("activities").EnumerateArray());
+        Assert.Equal(
+            [
+                "categoryId", "name", "type", "durationHours", "requiresDaylight", "maxWindMs", "maxRainMmPerHour",
+                "minTemperatureC", "maxTemperatureC"
+            ],
+            activity.EnumerateObject().Select(property => property.Name));
+        Assert.Equal("Indoor", activity.GetProperty("type").GetString());
         Assert.Equal("Testinė", plan.GetProperty("location").GetProperty("name").GetString());
         Assert.Equal(30, plan.GetProperty("maxTravelDistanceKm").GetInt32());
         foreach (var part in new[] { "scheduled", "unscheduled", "travel" })

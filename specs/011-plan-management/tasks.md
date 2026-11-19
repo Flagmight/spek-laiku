@@ -353,25 +353,25 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Backend for User Story 3
 
-- [ ] T039 [US3] Move the generated schedule checks into `backend/src/SpekLaiku.Api/Services/GeneratedScheduleService.cs` as `Task<(PlanSnapshot? Snapshot, KeyValuePair<string,string>? Error)> FindSavableAsync(Guid? id, CancellationToken ct)`:
+- [x] T039 [US3] Move the generated schedule checks into `backend/src/SpekLaiku.Api/Services/GeneratedScheduleService.cs` as `Task<(PlanSnapshot? Snapshot, KeyValuePair<string,string>? Error)> FindSavableAsync(Guid? id, CancellationToken ct)`:
   - `null` id, unknown or expired → the `generatedScheduleId` error "Generate the schedule again to save it.";
   - `Schedule.Scheduled.Count == 0` → "There is nothing to save in this schedule.";
   - otherwise the snapshot.
   
   Use the constants in `SavedPlanValidator`. Then change `SavedPlanService.SaveAsync` to call it, keeping its exact behaviour and order (the existing-plan check stays before it). `SavePlanEndpointTests` must pass unchanged. Add tests for the three cases to `backend/tests/SpekLaiku.UnitTests/GeneratedScheduleServiceTests.cs`. Research section 3.
-- [ ] T040 [P] [US3] Extend the details response (research section 4, contract "GET /api/plans/{id}: changed"):
+- [x] T040 [P] [US3] Extend the details response (research section 4, contract "GET /api/plans/{id}: changed"):
   - `backend/src/SpekLaiku.Api/DTOs/Responses/SavedPlanLocationResponse.cs` becomes `(long Id, string Name, string Area, double Latitude, double Longitude)`.
   - `backend/src/SpekLaiku.Api/DTOs/Responses/SavedPlanResponse.cs` gains `IReadOnlyList<CheckedPlanActivityResponse> Activities` after `MaxTravelDistanceKm`.
   - In `backend/src/SpekLaiku.Api/Mapping/SavedPlanMappingProfile.cs`, add `.ForCtorParam(nameof(SavedPlanResponse.Activities), o => o.MapFrom(plan => plan.Snapshot.Activities))`. It uses the existing `CheckedPlanActivity → CheckedPlanActivityResponse` map in `PlanActivityMappingProfile`.
   - Update the doc comments: the activities are the owner's own values, needed to edit the plan. The owner, the generated schedule id and the places' keys are still not sent.
-- [ ] T041 [US3] Update the tests for the details response:
+- [x] T041 [US3] Update the tests for the details response:
   - **`backend/tests/SpekLaiku.UnitTests/SavedPlanMappingTests.cs`**:
     - Replace the assertion that `CategoryId` and the limits are not exposed with assertions that `Location.Id` and `Activities` (category id, name, type as text, duration, daylight, limits, Indoor limits `null`) are mapped.
     - Keep the assertions that `OwnerId`, `GeneratedScheduleId` and `NearbyPlace.Key` are not exposed.
   - **`backend/tests/SpekLaiku.IntegrationTests/SavedPlanDetailsEndpointTests.cs`**: the contract body now includes `location.id` and `activities` (keys exactly as in the contract).
   
   (depends on T040)
-- [ ] T042 [US3] Add `Task<SavedPlanChange> ReplaceAsync(string ownerId, Guid id, SavePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`:
+- [x] T042 [US3] Add `Task<SavedPlanChange> ReplaceAsync(string ownerId, Guid id, SavePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`:
   1. **Ownership**: call `FindOwnedAsync`, and return its refusal if there is one.
   2. **Name**: check it with `SavedPlanValidator.CheckName`.
   3. **Repeat**: if `request.GeneratedScheduleId == plan.GeneratedScheduleId` and it is not `null`, then on no name error set `plan.Name`, save and return `Changed(plan)`, and otherwise return `Invalid`.
@@ -387,8 +387,8 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   8. **Race**: catch the unique violation on `IX_SavedPlans_GeneratedScheduleId` as `SavedPlanService.InsertAsync` does, and return `Invalid` with the expired error (detach and reload are not needed; the plan was not changed in the database).
   
   Doc comment: spec FR-010, FR-011, research section 3. (depends on T008, T039)
-- [ ] T043 [US3] Add `[HttpPut("{id:guid}")] Replace(Guid id, SavePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`. It returns `ToActionResult(change, plan => Ok(mapper.Map<SavedPlanSummaryResponse>(plan)))`, with `[ProducesResponseType]` for 200, 400 and 404. (depends on T042)
-- [ ] T044 [US3] Add `backend/tests/SpekLaiku.IntegrationTests/ReplacePlanEndpointTests.cs`. The setup saves a plan, then generates a second schedule with a different setup (another date or activity) for the id.
+- [x] T043 [US3] Add `[HttpPut("{id:guid}")] Replace(Guid id, SavePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`. It returns `ToActionResult(change, plan => Ok(mapper.Map<SavedPlanSummaryResponse>(plan)))`, with `[ProducesResponseType]` for 200, 400 and 404. (depends on T042)
+- [x] T044 [US3] Add `backend/tests/SpekLaiku.IntegrationTests/ReplacePlanEndpointTests.cs`. The setup saves a plan, then generates a second schedule with a different setup (another date or activity) for the id.
   - (a) 200, same `id`, the new name, location name and dates, and `savedAt` equal to `factory.Clock` now. `GET /api/plans/{id}` shows the new activities and schedule, `GET /api/plans` lists it once, and `CreatedAtUtc` is unchanged.
   - (b) The same request again gives 200; only the name changes when a different name is sent.
   - (c) An id already saved as another plan of the same user gives 400 `errors.generatedScheduleId` "Generate the schedule again to save it.", and the plan is unchanged.
@@ -401,19 +401,19 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Frontend for User Story 3
 
-- [ ] T045 [P] [US3] Update `frontend/src/types/savedPlan.ts` and the fixtures:
+- [x] T045 [P] [US3] Update `frontend/src/types/savedPlan.ts` and the fixtures:
   - Add `id: number` to `SavedPlan.location`.
   - Add `export type SavedPlanActivity = Omit<CheckedPlanActivity, "id">` and `activities: SavedPlanActivity[]` to `SavedPlan`.
   - Update `savedPlan` in `frontend/src/tests/savedPlansFixtures.ts` with a location id and two activities: one Outdoor with limits, and one Indoor with `null` limits.
   
   Existing tests keep passing.
-- [ ] T046 [P] [US3] Add `replacePlan(id, request: SavePlanRequest, signal)` to `frontend/src/api/savedPlansApi.ts`. It returns `SavePlanAnswer` plus `{ kind: "notFound" }`, for 200, 400 (field errors as in `savePlan`), 401, 403 and 404, and sends `PUT /api/plans/{id}` with the JSON body. Add the tests to `frontend/src/tests/savedPlansApi.test.ts`.
-- [ ] T047 [P] [US3] Add `frontend/src/helpers/planFromSavedPlan.ts`: `fillPlanFromSavedPlan(plan: SavedPlan)`. It clears and then sets `usePlanSetupStore` and `usePlanActivitiesStore` exactly as in the data-model.md table "Filling the plan in progress from a saved plan":
+- [x] T046 [P] [US3] Add `replacePlan(id, request: SavePlanRequest, signal)` to `frontend/src/api/savedPlansApi.ts`. It returns `SavePlanAnswer` plus `{ kind: "notFound" }`, for 200, 400 (field errors as in `savePlan`), 401, 403 and 404, and sends `PUT /api/plans/{id}` with the JSON body. Add the tests to `frontend/src/tests/savedPlansApi.test.ts`.
+- [x] T047 [P] [US3] Add `frontend/src/helpers/planFromSavedPlan.ts`: `fillPlanFromSavedPlan(plan: SavedPlan)`. It clears and then sets `usePlanSetupStore` and `usePlanActivitiesStore` exactly as in the data-model.md table "Filling the plan in progress from a saved plan":
   - setup `location`, `locationText = locationLabel(location)`, `dates`, `maxTravelDistanceText`, `checked: null`, `recheckNotice: false`;
   - one activity per saved activity, with `id: crypto.randomUUID()`, the numbers as text and `""` for `null`, `checked: null`.
   
   Use the stores' `setState`, without new store actions. Add `frontend/src/tests/planFromSavedPlan.test.ts`: the setup values, both activities, Indoor limits as `""`, unique ids, and nothing checked.
-- [ ] T048 [P] [US3] Add `frontend/src/stores/usePlanEditStore.ts`, persisted with `createJSONStorage(() => sessionStorage)` under the key `spek-laiku-plan-edit`, version 1, with `migrate` returning `{ edit: null, savedPlanKey: null }`.
+- [x] T048 [P] [US3] Add `frontend/src/stores/usePlanEditStore.ts`, persisted with `createJSONStorage(() => sessionStorage)` under the key `spek-laiku-plan-edit`, version 1, with `migrate` returning `{ edit: null, savedPlanKey: null }`.
   - **State**:
     - `edit: { planId: string; planName: string; ownerEmail: string } | null`;
     - `savedPlanKey: string | null` (research section 10, "Saved marker").
@@ -436,13 +436,13 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - a plan saved and unchanged is false;
   - a plan saved and then one activity changed is true;
   - an edit of another plan is true.
-- [ ] T049 [US3] Clear the edit everywhere an edit must end:
+- [x] T049 [US3] Clear the edit everywhere an edit must end:
   - **`frontend/src/stores/useLogoutStore.ts`**: also `usePlanEditStore.getState().clearAll()` (the edit and the saved marker) after a successful logout.
   - **`frontend/src/components/planActions.tsx`**: on `"deleted"`, clear the edit when `edit?.planId === plan.id`. This is added in US3 because the edit store does not exist before it.
   - **Tests**: extend `frontend/src/tests/useLogoutStore.test.tsx`, and add a case to `MyPlansPage.test.tsx`.
   
   (depends on T048)
-- [ ] T050 [US3] Add `frontend/src/components/editingNotice.tsx`. It renders nothing without an edit. Otherwise it renders a framed box (class `recheck-notice`, as `RecheckNotice`) with:
+- [x] T050 [US3] Add `frontend/src/components/editingNotice.tsx`. It renders nothing without an edit. Otherwise it renders a framed box (class `recheck-notice`, as `RecheckNotice`) with:
   - the text `` `Editing '${planName}'. Your saved plan is not changed until you save.` ``;
   - a **Cancel editing** button that clears the setup, activities, kept schedule and edit stores and navigates to `/plans/${planId}`.
   
@@ -453,7 +453,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `frontend/src/pages/ScheduleOverviewPage.tsx`.
   
   (depends on T048)
-- [ ] T051 [US3] Add **Edit plan** to the plan page. In `frontend/src/pages/PlanDetailsPage.tsx`, the actions element gets an **Edit plan** button first.
+- [x] T051 [US3] Add **Edit plan** to the plan page. In `frontend/src/pages/PlanDetailsPage.tsx`, the actions element gets an **Edit plan** button first.
   - **Start editing**:
     1. Fill the stores with `fillPlanFromSavedPlan(plan)`.
     2. Clear `useKeptScheduleStore`.
@@ -464,7 +464,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - **Cancel** and Escape close the dialog, return focus to Edit plan and keep the stores unchanged.
   
   If the page passes about 200 lines, move the action buttons into `frontend/src/components/planDetailsActions.tsx`. (depends on T047, T048, T010)
-- [ ] T052 [US3] Extend `frontend/src/stores/useSavePlanStore.ts`:
+- [x] T052 [US3] Extend `frontend/src/stores/useSavePlanStore.ts`:
   - `submit` takes one object, `submit({ generatedScheduleId, planId, setup, activities }: SaveSubmission)`, where `planId?: string`, `setup: CheckedPlanSetup` and `activities: CheckedPlanActivity[]`.
     - It sends `replacePlan(planId, request)` when `planId` is set, and otherwise `savePlan` as before.
     - The store keeps the whole submission as `lastSubmission`, replacing `lastRequest`, so `retry()` sends the same request to the same endpoint and still has the setup and activities for the saved marker.
@@ -483,7 +483,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - a save that fails with 500 and then succeeds through Retry sets `savedPlanKey`.
   
   Update the existing `useSavePlanStore.test.ts` calls to the object form, with no change to what they assert. (depends on T046, T048)
-- [ ] T053 [US3] Update `frontend/src/components/savePlanSection.tsx` for editing. When `usePlanEditStore` has an edit and the user is the Active Registered owner:
+- [x] T053 [US3] Update `frontend/src/components/savePlanSection.tsx` for editing. When `usePlanEditStore` has an edit and the user is the Active Registered owner:
   - The closed state shows a **Save changes** button. Opening it sets the store's name to `edit.planName`.
   - The form uses `PlanNameForm` with `formLabel="Save changes"` and `submitLabel="Save changes"`. Submit calls `submit({ generatedScheduleId: schedule.generatedScheduleId, planId: edit.planId, setup, activities })`.
   - The existing Save plan form calls `submit({ generatedScheduleId: schedule.generatedScheduleId, setup, activities })` (no plan id). `SavePlanSection` already receives `setup` and `activities` as props.
@@ -495,7 +495,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - **sessionExpired**: the existing feature 010 path keeps the schedule and sends the user to Log in with `returnTo=/plan/schedule`. The persisted edit store is not cleared, so the user comes back in edit mode.
   
   Keep the file under about 200 lines. Move the Save changes branch into `frontend/src/components/saveChangesSection.tsx` if needed. (depends on T012, T050, T052)
-- [ ] T054 [US3] Add `frontend/src/tests/editingNotice.test.tsx`, and extend the planning step and plan page tests:
+- [x] T054 [US3] Add `frontend/src/tests/editingNotice.test.tsx`, and extend the planning step and plan page tests:
   - **The notice**: shown on each of the four steps with the plan name; absent without an edit. **Cancel editing** clears the stores and opens `/plans/{id}`. A different signed-in email discards the edit.
   - **`PlanDetailsPage.test.tsx`**:
     - Edit plan fills Plan Setup (the location text, dates and distance are visible) and Activity Selection (both activities with their values).
@@ -514,6 +514,17 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - 401 on Save changes opens Log in with "Your session has expired. Log in again.". After logging in as the same email, the Schedule Overview shows the editing notice, the same schedule and **Save changes**.
   
   (depends on T050, T051, T053)
+  - Result (2026-11-19):
+    - **Service split (T042)**: `SavedPlanChangeService` would have passed 200 lines with rename, so `ReplaceAsync` is in a new `SavedPlanEditService`, and the ownership check is the static `SavedPlanOwnership.FindOwnedAsync`, used by both (research section 7, "Update during implementation"). T056 adds `RenameAsync` to `SavedPlanEditService`.
+    - **Test clock**: `PostgreSqlApiFactory` now registers `SavedPlanChangeService` and `SavedPlanEditService` with the test clock, like `SavedPlanService`. Before this, the Phase 4 copy order tests passed only because the real clock also moves forward.
+    - **Cancel editing (T050)**: clearing the plan in progress on a planning step made that step redirect to an earlier step, and the redirect won over the navigation to the plan page (React Router navigates as a lower-priority update). Cancel editing now ends the edit and navigates with `NavigationState.discardPlanInProgress`, and the plan page clears the setup, activities and kept schedule when it opens. The clearing is the shared helper `frontend/src/helpers/discardPlanInProgress.ts`, also used when another account's edit is discarded. A test covers Cancel editing from step 2.
+    - **New files beyond the plan**:
+      - `components/editPlanButton.tsx` (T051), so the plan page stays small.
+      - `components/savePlanStatus.tsx` (the form's status slot, out of `savePlanSection.tsx` to stay under 200 lines).
+      - `helpers/savePlanResult.ts` (T052's fallback, so `useSavePlanStore.ts` stays under 200 lines).
+      - `helpers/discardPlanInProgress.ts`.
+    - **Retry sends the same name**: `lastSubmission` keeps the name that was sent, so Retry sends exactly the same request even if the field was changed after the error, as in feature 010.
+    - **Checks**: backend build with 0 warnings; 663 unit (+4) and 354 integration tests (+7); `dotnet format` clean. Frontend lint and Prettier clean; 86 files (+3) and 1202 tests (+44); build clean.
 
 **Checkpoint**: Editing works end to end. The edit survives a reload in the same tab and is discarded by Cancel editing, logout, deleting the plan or another account. Tests are green.
 
@@ -528,7 +539,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 ### Backend for User Story 4
 
 - [ ] T055 [P] [US4] Add `backend/src/SpekLaiku.Api/DTOs/Requests/RenamePlanRequest.cs`: `public sealed record RenamePlanRequest(string? Name);`, with the doc comment "Only the name; renaming never changes the schedule or the saved time (feature 011 spec FR-014)."
-- [ ] T056 [US4] Add `Task<SavedPlanChange> RenameAsync(string ownerId, Guid id, RenamePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`:
+- [ ] T056 [US4] Add `Task<SavedPlanChange> RenameAsync(string ownerId, Guid id, RenamePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanEditService.cs` (split from `SavedPlanChangeService` in Phase 5):
   1. Call `FindOwnedAsync`, and return its refusal if there is one. Ownership comes first, so a foreign or missing plan gives 403 or 404 even with an invalid name.
   2. Check the name with `SavedPlanValidator.CheckName`. On error return `Invalid([error])`.
   3. Set `plan.Name = trimmed` only, save, and return `Changed(plan)`.

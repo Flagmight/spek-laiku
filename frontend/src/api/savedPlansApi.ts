@@ -46,6 +46,43 @@ export async function savePlan(
   throw new ApiError(response.status)
 }
 
+export type ReplacePlanAnswer = SavePlanAnswer | { kind: "notFound" }
+
+// Saves changes from an edit: replaces the plan with a remembered schedule, keeping its address (feature 011
+// contracts/plans-api.md). The body is the same as for a new plan. A plan that no longer exists is 404, so the
+// page can offer to save the schedule as a new plan. Anything else throws ApiError. Network and abort errors
+// pass through.
+export async function replacePlan(
+  id: string,
+  request: SavePlanRequest,
+  signal?: AbortSignal,
+): Promise<ReplacePlanAnswer> {
+  const response = await apiFetch(`${path}/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  })
+
+  switch (response.status) {
+    case 200:
+      return {
+        kind: "saved",
+        plan: (await response.json()) as SavedPlanSummary,
+      }
+    case 400:
+      return { kind: "invalid", errors: await fieldErrors(response) }
+    case 401:
+      return { kind: "unauthorized" }
+    case 403:
+      return { kind: "forbidden" }
+    case 404:
+      return { kind: "notFound" }
+  }
+
+  throw new ApiError(response.status)
+}
+
 export type SavedPlansAnswer =
   | { kind: "plans"; plans: SavedPlanSummary[] }
   | { kind: "unauthorized" }

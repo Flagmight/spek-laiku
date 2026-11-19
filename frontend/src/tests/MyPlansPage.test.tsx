@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
 import type { SavedPlanSummary } from "../types/savedPlan"
 import type { RecordedRequest } from "./renderApp"
 import {
@@ -463,5 +464,46 @@ describe("MyPlansPage duplicate", () => {
       await screen.findByText("This plan no longer exists."),
     ).toHaveAttribute("role", "alert")
     expect(rowNames()).not.toContain("Vilnius museums")
+  })
+})
+
+// Feature 011 spec Edge Cases: deleting the plan that is being edited in this tab ends the edit.
+describe("MyPlansPage delete while editing", () => {
+  it("ends an edit of the deleted plan and keeps an edit of another plan", async () => {
+    const user = userEvent.setup()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      "GET /api/plans": () => jsonResponse(200, plans),
+      "DELETE /api/plans/plan-3": () => jsonResponse(204),
+      "DELETE /api/plans/plan-2": () => jsonResponse(204),
+    })
+    usePlanEditStore.getState().start({
+      planId: "plan-2",
+      planName: "Vilnius museums",
+      ownerEmail: "user@example.com",
+    })
+    renderAppWithLocation("/plans")
+
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Weekend in Kaunas" }),
+    )
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    )
+    await screen.findByText("Plan deleted.")
+    expect(usePlanEditStore.getState().edit?.planId).toBe("plan-2")
+
+    await user.click(
+      screen.getByRole("button", { name: "Delete Vilnius museums" }),
+    )
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    )
+
+    await waitFor(() => expect(usePlanEditStore.getState().edit).toBeNull())
   })
 })

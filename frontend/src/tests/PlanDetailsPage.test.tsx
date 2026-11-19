@@ -1,6 +1,9 @@
 import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { SavedPlan } from "../types/savedPlan"
 import type { RecordedRequest } from "./renderApp"
 import {
@@ -9,6 +12,7 @@ import {
   routeFetch,
   signedInUser,
 } from "./renderApp"
+import { acceptMuseumPlan, savedPlan } from "./savedPlansFixtures"
 
 const id = "0b8f4c1e-7d2a-4f3b-9e6c-5a1d2c3b4e5f"
 
@@ -17,6 +21,7 @@ const plan: SavedPlan = {
   name: "Weekend in Kaunas",
   savedAt: "2026-11-18T12:05:00Z",
   location: {
+    id: 598316,
     name: "Kaunas",
     area: "Kaunas County",
     latitude: 54.90156,
@@ -24,6 +29,7 @@ const plan: SavedPlan = {
   },
   dates: ["2026-11-21", "2026-11-22"],
   maxTravelDistanceKm: 30,
+  activities: savedPlan.activities,
   scheduled: [
     {
       activityName: "Cycling",
@@ -371,5 +377,123 @@ describe("PlanDetailsPage duplicate", () => {
       await screen.findByText("This plan no longer exists."),
     ).toHaveAttribute("role", "alert")
     expect(currentLocation()).toBe(`/plans/${id}`)
+  })
+})
+
+// Feature 011 User Story 3: Edit plan loads the saved plan into the planning steps.
+describe("PlanDetailsPage edit", () => {
+  const question =
+    "Editing this plan replaces the plan you have not saved. Continue?"
+
+  function renderWithPeriod(firstDate = "2026-11-19") {
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, { firstDate, lastDate: "2026-11-25", maxDates: 7 }),
+    })
+    return renderAppWithLocation(`/plans/${id}`)
+  }
+
+  it("offers Edit plan first among the plan's actions", async () => {
+    renderWithPeriod()
+
+    const actions = await screen.findByRole("button", { name: "Edit plan" })
+
+    const buttons = within(actions.closest("p")!).getAllByRole("button")
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Edit plan",
+      "Duplicate",
+      "Delete",
+    ])
+  })
+
+  it("loads the plan into Plan Setup and Activity Selection and starts the edit", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithPeriod()
+
+    await user.click(await screen.findByRole("button", { name: "Edit plan" }))
+
+    expect(currentLocation()).toBe("/plan/setup")
+    expect(await screen.findByLabelText("Location")).toHaveValue(
+      "Kaunas, Kaunas County",
+    )
+    expect(screen.getByText("Sat 21 Nov 2026")).toBeInTheDocument()
+    expect(screen.getByText("Sun 22 Nov 2026")).toBeInTheDocument()
+    expect(screen.getByLabelText(/Maximum travel distance/)).toHaveValue("30")
+    expect(
+      screen.getByText(
+        "Editing 'Weekend in Kaunas'. Your saved plan is not changed until you save.",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      usePlanActivitiesStore.getState().activities.map((a) => a.name),
+    ).toEqual(["Cycling", "Museum"])
+    expect(usePlanEditStore.getState().edit).toEqual({
+      planId: id,
+      planName: "Weekend in Kaunas",
+      ownerEmail: "user@example.com",
+    })
+  })
+
+  it("shows a saved date that has passed as in the past", async () => {
+    const user = userEvent.setup()
+    renderWithPeriod("2026-11-22")
+
+    await user.click(await screen.findByRole("button", { name: "Edit plan" }))
+
+    expect(
+      await screen.findByText(/Dates cannot be in the past\./),
+    ).toBeInTheDocument()
+  })
+
+  it("asks before replacing a plan in progress, and Cancel keeps it", async () => {
+    const user = userEvent.setup()
+    usePlanSetupStore.getState().setLocationText("Vilnius")
+    usePlanSetupStore.getState().addDate("2026-11-24")
+    const { currentLocation } = renderWithPeriod()
+    const edit = await screen.findByRole("button", { name: "Edit plan" })
+
+    await user.click(edit)
+    const dialog = screen.getByRole("dialog", { name: question })
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }))
+
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(edit).toHaveFocus()
+    expect(currentLocation()).toBe(`/plans/${id}`)
+    expect(usePlanSetupStore.getState().dates).toEqual(["2026-11-24"])
+    expect(usePlanEditStore.getState().edit).toBeNull()
+  })
+
+  it("replaces the plan in progress after Continue", async () => {
+    const user = userEvent.setup()
+    usePlanSetupStore.getState().addDate("2026-11-24")
+    const { currentLocation } = renderWithPeriod()
+
+    await user.click(await screen.findByRole("button", { name: "Edit plan" }))
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Continue",
+      }),
+    )
+
+    expect(currentLocation()).toBe("/plan/setup")
+    expect(usePlanSetupStore.getState().dates).toEqual(plan.dates)
+  })
+
+  it("does not ask after the plan in progress was saved and left unchanged", async () => {
+    const user = userEvent.setup()
+    // A date first: adding one unchecks the setup, so the plan is checked after it, as after Continue.
+    usePlanSetupStore.getState().addDate("2026-11-14")
+    acceptMuseumPlan()
+    const { checked: setup } = usePlanSetupStore.getState()
+    const { checked: activities } = usePlanActivitiesStore.getState()
+    usePlanEditStore.getState().markSaved(setup!, activities!)
+    const { currentLocation } = renderWithPeriod()
+
+    await user.click(await screen.findByRole("button", { name: "Edit plan" }))
+
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(currentLocation()).toBe("/plan/setup")
   })
 })

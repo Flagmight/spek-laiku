@@ -73,7 +73,9 @@ public sealed class SavedPlanMappingTests : IDisposable
         Assert.Equal(plan.Id, response.Id);
         Assert.Equal("Weekend in Kaunas", response.Name);
         Assert.Equal(new DateTimeOffset(2026, 11, 18, 12, 5, 0, TimeSpan.Zero), response.SavedAt);
-        Assert.Equal(new SavedPlanLocationResponse("Kaunas", "Kaunas City Municipality", 54.90272, 23.90961), response.Location);
+        Assert.Equal(
+            new SavedPlanLocationResponse(598316, "Kaunas", "Kaunas City Municipality", 54.90272, 23.90961),
+            response.Location);
         Assert.Equal(plan.Snapshot.Setup.Dates, response.Dates);
         Assert.Equal(30, response.MaxTravelDistanceKm);
         Assert.Equal(["Cycling", "Museum"], response.Scheduled.Select(activity => activity.ActivityName));
@@ -92,14 +94,33 @@ public sealed class SavedPlanMappingTests : IDisposable
         Assert.Equal("10:00", response.Scheduled[0].StartTime);
     }
 
+    // Feature 011 research section 4: the owner's activities are sent so "Edit plan" can load them; this replaces
+    // the feature 010 assertion that the category ids and limits were not sent.
     [Fact]
-    public void SavedPlan_SendsNoOwnerActivityLimitsOrInternalKeys()
+    public void SavedPlan_MapsItsActivitiesWithTheirOwnValues()
+    {
+        var plan = CreatePlan();
+
+        var response = mapper.Map<SavedPlanResponse>(plan);
+
+        var cycling = plan.Snapshot.Activities[0];
+        Assert.Equal(
+            new CheckedPlanActivityResponse(cycling.CategoryId, "Cycling", "Outdoor", 2.5m, true, 10m, 1m, 5m, 32m),
+            response.Activities[0]);
+        var museum = plan.Snapshot.Activities[1];
+        Assert.Equal(
+            new CheckedPlanActivityResponse(museum.CategoryId, "Museum", "Indoor", 1.5m, false, null, null, null, null),
+            response.Activities[1]);
+    }
+
+    [Fact]
+    public void SavedPlan_SendsNoOwnerScheduleIdOrInternalKeys()
     {
         var json = JsonSerializer.Serialize(mapper.Map<SavedPlanResponse>(CreatePlan()), JsonSerializerOptions.Web);
 
-        foreach (var hidden in new[] { "categoryId", "\"key\"", "ownerId", "activities", "durationHours", "maxWindMs", "generatedScheduleId" })
+        foreach (var hidden in new[] { "\"key\"", "ownerId", "owner-1", "generatedScheduleId", "snapshot" })
         {
-            Assert.DoesNotContain(hidden, json);
+            Assert.DoesNotContain(hidden, json, StringComparison.OrdinalIgnoreCase);
         }
     }
 

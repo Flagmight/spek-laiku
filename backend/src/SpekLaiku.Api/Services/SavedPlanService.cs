@@ -51,14 +51,10 @@ public sealed class SavedPlanService(
             return errors.Count == 0 ? SavePlanResult.AlreadySaved(existing) : SavePlanResult.Invalid(errors);
         }
 
-        var snapshot = await generatedSchedules.FindAsync(scheduleId, cancellationToken);
-        if (snapshot is null)
+        var (snapshot, scheduleError) = await generatedSchedules.FindSavableAsync(scheduleId, cancellationToken);
+        if (scheduleError is { } savableError)
         {
-            errors.Add(Expired);
-        }
-        else if (snapshot.Schedule.Scheduled.Count == 0)
-        {
-            errors.Add(new(SavedPlanValidator.ScheduleKey, SavedPlanValidator.NothingToSaveMessage));
+            errors.Add(savableError);
         }
 
         if (errors.Count > 0)

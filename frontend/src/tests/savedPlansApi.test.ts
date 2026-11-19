@@ -5,6 +5,7 @@ import {
   duplicatePlan,
   getSavedPlan,
   getSavedPlans,
+  replacePlan,
   savePlan,
 } from "../api/savedPlansApi"
 import type { SavePlanRequest } from "../types/savedPlan"
@@ -252,5 +253,62 @@ describe("duplicatePlan", () => {
     routeFetch({ [route]: () => jsonResponse(500) })
 
     await expect(duplicatePlan(plan.id)).rejects.toEqual(new ApiError(500))
+  })
+})
+
+describe("replacePlan", () => {
+  const route = `PUT /api/plans/${plan.id}`
+
+  it("puts the id and name to the plan's address and returns the plan on 200", async () => {
+    const { requests } = routeFetch({ [route]: () => jsonResponse(200, plan) })
+
+    expect(await replacePlan(plan.id, request)).toEqual({
+      kind: "saved",
+      plan,
+    })
+    expect(requests).toEqual([
+      { method: "PUT", path: `/api/plans/${plan.id}`, body: request },
+    ])
+  })
+
+  it("returns the first message of each field on 400", async () => {
+    routeFetch({
+      [route]: () =>
+        jsonResponse(400, {
+          errors: {
+            name: ["Enter a plan name."],
+            generatedScheduleId: ["Generate the schedule again to save it."],
+          },
+        }),
+    })
+
+    expect(await replacePlan(plan.id, request)).toEqual({
+      kind: "invalid",
+      errors: {
+        name: "Enter a plan name.",
+        generatedScheduleId: "Generate the schedule again to save it.",
+      },
+    })
+  })
+
+  it("maps 404 to notFound, 403 to forbidden and 401 to unauthorized", async () => {
+    routeFetch({ [route]: () => jsonResponse(404, { status: 404 }) })
+    expect(await replacePlan(plan.id, request)).toEqual({ kind: "notFound" })
+
+    routeFetch({ [route]: () => jsonResponse(403, { status: 403 }) })
+    expect(await replacePlan(plan.id, request)).toEqual({ kind: "forbidden" })
+
+    routeFetch({ [route]: () => jsonResponse(401) })
+    expect(await replacePlan(plan.id, request)).toEqual({
+      kind: "unauthorized",
+    })
+  })
+
+  it("throws ApiError for 500", async () => {
+    routeFetch({ [route]: () => jsonResponse(500) })
+
+    await expect(replacePlan(plan.id, request)).rejects.toEqual(
+      new ApiError(500),
+    )
   })
 })

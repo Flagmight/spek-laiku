@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { usePlanActionsStore } from "../stores/usePlanActionsStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
 import type { PlanActionResult } from "../stores/usePlanActionsStore"
 import type { SavedPlanSummary } from "../types/savedPlan"
 import { ConfirmDialog } from "./confirmDialog"
@@ -47,6 +48,10 @@ export function PlanActions({
   function onDeleteResult(result: PlanActionResult) {
     setConfirming(false)
     if (result === "deleted") {
+      // An edit of the deleted plan can no longer be saved over it (spec Edge Cases).
+      if (usePlanEditStore.getState().edit?.planId === plan.id) {
+        usePlanEditStore.getState().clear()
+      }
       onDeleted(plan.id)
     } else {
       settle(result, deleteButton.current)

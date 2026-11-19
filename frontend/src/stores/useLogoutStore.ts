@@ -3,6 +3,7 @@ import { logout } from "../api/authApi"
 import { useCurrentUserStore } from "./useCurrentUserStore"
 import { useKeptScheduleStore } from "./useKeptScheduleStore"
 import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
+import { usePlanEditStore } from "./usePlanEditStore"
 import { usePlanSetupStore } from "./usePlanSetupStore"
 
 // After this long without an answer the request counts as a server error (FR-014).
@@ -60,6 +61,8 @@ export const useLogoutStore = create<LogoutState>()((set, get) => ({
       usePlanActivitiesStore.getState().clear()
       // And a schedule kept for saving after login (feature 010, spec FR-007).
       useKeptScheduleStore.getState().clear()
+      // And an edit of a saved plan with the saved marker (feature 011, spec FR-013).
+      usePlanEditStore.getState().clearAll()
     }
 
     set({ status: succeeded ? "idle" : "serverError", controller: null })

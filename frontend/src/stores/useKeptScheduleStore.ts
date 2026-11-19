@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
-import { checkedPlanRequest } from "../helpers/checkedPlanRequest"
+import { planKey } from "../helpers/planKey"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanSchedule } from "../types/planSchedule"
 import type { CheckedPlanSetup } from "../types/planSetup"
@@ -32,13 +32,6 @@ export interface KeptScheduleState {
     activities: CheckedPlanActivity[],
   ) => PlanSchedule | null
   clear: () => void
-}
-
-function planKey(
-  setup: CheckedPlanSetup,
-  activities: CheckedPlanActivity[],
-): string {
-  return JSON.stringify(checkedPlanRequest(setup, activities))
 }
 
 export const useKeptScheduleStore = create<KeptScheduleState>()(

@@ -90,6 +90,12 @@ The Technical Context had no open questions: the stack, the storage and the auth
 - **Alternatives considered**:
   - One service per operation. Rejected: four small classes that would repeat the ownership lookup.
   - Adding to `SavedPlanService`. Rejected by the line limit.
+- **Update during implementation (Phase 5)**: with duplicate, delete and replace in place, `SavedPlanChangeService` was 191 lines, and rename would have passed 200. It was split by responsibility:
+  - `SavedPlanChangeService` copies and deletes.
+  - `SavedPlanEditService` edits in place: `ReplaceAsync`, and `RenameAsync` in US4.
+  - The shared ownership check is the static `SavedPlanOwnership.FindOwnedAsync`, so it is still written once.
+  
+  The integration test factory registers both services with the test clock, as it does for `SavedPlanService`.
 
 ## 8. Ownership and authorization
 

@@ -1,3 +1,4 @@
+import type { CheckedPlanActivity } from "./planActivity"
 import type {
   ScheduledActivity,
   TravelSummary,
@@ -23,15 +24,26 @@ export interface SavePlanRequest {
 
 export type SavePlanFieldKey = "name" | "generatedScheduleId"
 
+// A saved activity with the values it was saved with; it has no browser id until it is loaded for editing.
+export type SavedPlanActivity = Omit<CheckedPlanActivity, "id">
+
 // One saved plan exactly as it was saved (GET /api/plans/{id}). The scheduled, unscheduled and travel parts
-// have the shapes of the schedule response (features 008 and 009).
+// have the shapes of the schedule response (features 008 and 009). The location id and the activities are what
+// "Edit plan" loads into the planning steps (feature 011 research section 4).
 export interface SavedPlan {
   id: string
   name: string
   savedAt: string
-  location: { name: string; area: string; latitude: number; longitude: number }
+  location: {
+    id: number
+    name: string
+    area: string
+    latitude: number
+    longitude: number
+  }
   dates: string[]
   maxTravelDistanceKm: number
+  activities: SavedPlanActivity[]
   scheduled: ScheduledActivity[]
   unscheduled: UnscheduledActivity[]
   travel: TravelSummary

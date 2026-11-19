@@ -1,8 +1,10 @@
 import { useEffect } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
+import { EditPlanButton } from "../components/editPlanButton"
 import { PlanActionMessages } from "../components/planActionMessages"
 import { PlanActions } from "../components/planActions"
 import { SavedPlanView } from "../components/savedPlanView"
+import { discardPlanInProgress } from "../helpers/discardPlanInProgress"
 import { usePageTitle } from "../hooks/usePageTitle"
 import {
   planDuplicatedMessage,
@@ -39,11 +41,16 @@ export function PlanDetailsPage() {
   useEffect(() => {
     const store = useSavedPlanStore.getState()
     void store.load(planId)
+    const arrival = location.state as NavigationState | null
     // A duplicate on the previous plan page brings the user to the copy with its notice (research section 12).
-    if (
-      (location.state as NavigationState | null)?.planNotice === "duplicated"
-    ) {
+    if (arrival?.planNotice === "duplicated") {
       usePlanActionsStore.getState().showNotice(planDuplicatedMessage)
+    }
+    // Cancel editing brings the user here; the changes are discarded now that no planning step is shown.
+    if (arrival?.discardPlanInProgress) {
+      discardPlanInProgress()
+    }
+    if (arrival?.planNotice || arrival?.discardPlanInProgress) {
       navigate(location.pathname, { replace: true, state: null })
     }
     return () => {
@@ -88,6 +95,7 @@ export function PlanDetailsPage() {
         actions={
           <>
             <p className="plan-actions">
+              <EditPlanButton plan={plan} />
               <PlanActions
                 plan={plan}
                 onDeleted={openMyPlansAfterDelete}

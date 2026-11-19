@@ -25,8 +25,8 @@ public sealed class SavedPlanMappingProfile : Profile
                 options => options.MapFrom(plan => AsUtc(plan.SavedAtUtc)));
 
         CreateMap<PlaceLocation, SavedPlanLocationResponse>();
-        // The setup and the schedule come from the stored snapshot; their items use the schedule maps in
-        // PlanScheduleMappingProfile.
+        // The setup, the activities and the schedule come from the stored snapshot; their items use the maps in
+        // PlanActivityMappingProfile and PlanScheduleMappingProfile.
         CreateMap<SavedPlan, SavedPlanResponse>()
             .ForCtorParam(
                 nameof(SavedPlanResponse.SavedAt),
@@ -40,6 +40,9 @@ public sealed class SavedPlanMappingProfile : Profile
             .ForCtorParam(
                 nameof(SavedPlanResponse.MaxTravelDistanceKm),
                 options => options.MapFrom(plan => plan.Snapshot.Setup.MaxTravelDistanceKm))
+            .ForCtorParam(
+                nameof(SavedPlanResponse.Activities),
+                options => options.MapFrom(plan => plan.Snapshot.Activities))
             .ForCtorParam(
                 nameof(SavedPlanResponse.Scheduled),
                 options => options.MapFrom(plan => plan.Snapshot.Schedule.Scheduled))

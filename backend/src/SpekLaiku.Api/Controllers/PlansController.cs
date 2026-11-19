@@ -21,6 +21,7 @@ namespace SpekLaiku.Api.Controllers;
 public sealed class PlansController(
     SavedPlanService savedPlanService,
     SavedPlanChangeService savedPlanChangeService,
+    SavedPlanEditService savedPlanEditService,
     UserManager<ApplicationUser> userManager,
     IMapper mapper) : ControllerBase
 {
@@ -86,6 +87,17 @@ public sealed class PlansController(
         ToActionResult(
             await savedPlanChangeService.DuplicateAsync(userManager.GetUserId(User)!, id, cancellationToken),
             copy => CreatedAtAction(nameof(Get), new { id = copy.Id }, mapper.Map<SavedPlanSummaryResponse>(copy)));
+
+    // Saves changes from an edit: replaces the plan with a schedule the server generated, keeping its address. The
+    // body is the same as for saving a new plan (feature 011 spec FR-010, FR-011).
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType<SavedPlanSummaryResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Replace(Guid id, SavePlanRequest request, CancellationToken cancellationToken) =>
+        ToActionResult(
+            await savedPlanEditService.ReplaceAsync(userManager.GetUserId(User)!, id, request, cancellationToken),
+            plan => Ok(mapper.Map<SavedPlanSummaryResponse>(plan)));
 
     // The HTTP answer for a change to a saved plan (feature 011 contracts/plans-api.md). Another user's plan gives
     // 403 through the cookie handler, with no plan data; onChanged builds the success answer from the plan.

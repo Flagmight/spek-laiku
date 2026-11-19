@@ -152,7 +152,9 @@ Only the owner can do any of this.
 - **Data**: `Data/SavedPlanConfiguration.cs` (changed): `CreatedAtUtc` required.
 - **Migrations**: `AddSavedPlanCreatedAt` (new). Generated with `dotnet ef migrations add AddSavedPlanCreatedAt --project src/SpekLaiku.Api`, with one `UPDATE` step added that fills existing rows from `SavedAtUtc`.
 - **Services**:
-  - `Services/SavedPlanChangeService.cs` (new): `RenameAsync`, `ReplaceAsync`, `DuplicateAsync`, `DeleteAsync`, and the private ownership lookup.
+  - `Services/SavedPlanChangeService.cs` (new): `DuplicateAsync` and `DeleteAsync`.
+  - `Services/SavedPlanEditService.cs` (new, split during Phase 5, research section 7): `ReplaceAsync` and `RenameAsync`.
+  - `Services/SavedPlanOwnership.cs` (new): the shared ownership check.
   - `Services/SavedPlanChange.cs` (new): the result record.
   - `Services/GeneratedScheduleService.cs` (changed): `FindSavableAsync`, with the remembered, expiry and nothing-scheduled checks moved here from `SavedPlanService`.
   - `Services/SavedPlanService.cs` (changed):

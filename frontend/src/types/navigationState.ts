@@ -9,4 +9,6 @@ export interface NavigationState {
   // Set after a delete or duplicate from the plan page; My plans or the copy's page shows "Plan deleted." or
   // "Plan duplicated." in its own status region (feature 011 research section 12).
   planNotice?: "deleted" | "duplicated"
+  // Set by Cancel editing: the plan page clears the plan in progress when it opens (feature 011 FR-008).
+  discardPlanInProgress?: boolean
 }

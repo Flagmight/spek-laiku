@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { logoutTimeoutMs, useLogoutStore } from "../stores/useLogoutStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
 import type { CurrentUser } from "../types/currentUser"
 import { jsonResponse, stubFetch } from "./renderApp"
 
@@ -98,6 +99,26 @@ describe("useLogoutStore", () => {
     })
 
     expect(useKeptScheduleStore.getState().kept).toBeNull()
+  })
+
+  it("clears an edit and the saved marker (feature 011 spec FR-013)", async () => {
+    stubFetch(() => new Response(null, { status: 204 }))
+    usePlanEditStore.setState({
+      edit: {
+        planId: "plan-1",
+        planName: "Weekend in Kaunas",
+        ownerEmail: signedInUser.email,
+      },
+      savedPlanKey: "saved",
+    })
+    const { result } = renderHook(() => useLogoutStore())
+
+    await act(async () => {
+      await result.current.submit()
+    })
+
+    expect(usePlanEditStore.getState().edit).toBeNull()
+    expect(usePlanEditStore.getState().savedPlanKey).toBeNull()
   })
 
   it("ignores a second submit while a request is pending", async () => {
