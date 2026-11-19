@@ -109,6 +109,18 @@ public sealed class SavedPlanValidatorTests
     }
 
     [Fact]
+    public void CopyName_RemovesASpaceLeftAtTheEndByTheCut()
+    {
+        // The name's 72nd character is a space, so a cut at 80 would end the copy's name with it.
+        var original = new string('a', 71) + " bbb";
+
+        var copy = SavedPlanValidator.CopyName(original);
+
+        Assert.Equal("Copy of " + new string('a', 71), copy);
+        Assert.Equal(copy.Trim(), copy);
+    }
+
+    [Fact]
     public void CopyName_OfACopy_AddsCopyOfAgain()
     {
         Assert.Equal("Copy of Copy of A", SavedPlanValidator.CopyName(SavedPlanValidator.CopyName("A")));

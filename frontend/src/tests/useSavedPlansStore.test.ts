@@ -99,7 +99,8 @@ describe("useSavedPlansStore", () => {
   })
 
   it("puts a copy directly above its original", async () => {
-    const other = { ...plan, id: "plan-other" }
+    // A plan saved later, so it is listed above the original.
+    const other = { ...plan, id: "plan-other", savedAt: "2026-11-19T09:00:00Z" }
     const copy = { ...plan, id: "plan-copy", name: "Copy of Weekend in Kaunas" }
     routeFetch({ "GET /api/plans": () => jsonResponse(200, [other, plan]) })
     await store().load()
@@ -109,6 +110,30 @@ describe("useSavedPlansStore", () => {
     expect(store().plans.map((item) => item.id)).toEqual([
       "plan-other",
       "plan-copy",
+      plan.id,
+    ])
+  })
+
+  it("puts a second copy above the first, as the server lists the newest created first", async () => {
+    const firstCopy = {
+      ...plan,
+      id: "copy-1",
+      name: "Copy of Weekend in Kaunas",
+    }
+    const secondCopy = {
+      ...plan,
+      id: "copy-2",
+      name: "Copy of Weekend in Kaunas",
+    }
+    routeFetch({ "GET /api/plans": () => jsonResponse(200, [plan]) })
+    await store().load()
+
+    store().insertAbove(firstCopy, plan.id)
+    store().insertAbove(secondCopy, plan.id)
+
+    expect(store().plans.map((item) => item.id)).toEqual([
+      "copy-2",
+      "copy-1",
       plan.id,
     ])
   })

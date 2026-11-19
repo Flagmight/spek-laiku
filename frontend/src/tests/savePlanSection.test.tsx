@@ -549,6 +549,23 @@ describe("SavePlanSection while editing a saved plan", () => {
     expect(saves(requests)).toHaveLength(1)
   })
 
+  it("does not send the change again when the form is submitted after the plan was deleted", async () => {
+    const { user, requests } = renderEditing(() => jsonResponse(404, {}))
+    const field = await openSaveChanges(user)
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+    await screen.findByText(
+      /This plan no longer exists. Save it as a new plan instead./,
+    )
+
+    await user.click(field)
+    await user.keyboard("{Enter}")
+
+    expect(screen.getByRole("form", { name: "Save plan" })).toBeInTheDocument()
+    expect(requests.filter((request) => request.method === "PUT")).toHaveLength(
+      1,
+    )
+  })
+
   it("offers nothing when no activity was scheduled", async () => {
     usePlanEditStore.getState().start({
       planId,

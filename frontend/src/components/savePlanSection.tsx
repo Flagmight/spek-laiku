@@ -158,12 +158,15 @@ export function SavePlanSection({
       busy={status === "saving"}
       onNameChange={store.setName}
       onSubmit={() =>
-        void store.submit({
-          generatedScheduleId: schedule.generatedScheduleId,
-          planId: editing ? edit.planId : undefined,
-          setup,
-          activities,
-        })
+        // The edited plan is gone, so submitting again would only get the same answer (feature 011 code review).
+        status === "planGone"
+          ? saveAsNew()
+          : void store.submit({
+              generatedScheduleId: schedule.generatedScheduleId,
+              planId: editing ? edit.planId : undefined,
+              setup,
+              activities,
+            })
       }
       onCancel={cancel}
     >

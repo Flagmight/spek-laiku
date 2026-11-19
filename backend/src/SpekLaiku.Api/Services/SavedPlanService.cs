@@ -17,11 +17,6 @@ public sealed class SavedPlanService(
     GeneratedScheduleService generatedSchedules,
     TimeProvider timeProvider)
 {
-    private const string GeneratedScheduleIndex = "IX_SavedPlans_GeneratedScheduleId";
-
-    private static readonly KeyValuePair<string, string> Expired =
-        new(SavedPlanValidator.ScheduleKey, SavedPlanValidator.ScheduleExpiredMessage);
-
     public async Task<SavePlanResult> SaveAsync(
         string ownerId,
         SavePlanRequest request,
@@ -36,7 +31,7 @@ public sealed class SavedPlanService(
 
         if (request.GeneratedScheduleId is not { } scheduleId)
         {
-            errors.Add(Expired);
+            errors.Add(SavedPlanValidator.ScheduleExpired);
             return SavePlanResult.Invalid(errors);
         }
 
@@ -45,7 +40,7 @@ public sealed class SavedPlanService(
         {
             if (existing.OwnerId != ownerId)
             {
-                errors.Add(Expired);
+                errors.Add(SavedPlanValidator.ScheduleExpired);
             }
 
             return errors.Count == 0 ? SavePlanResult.AlreadySaved(existing) : SavePlanResult.Invalid(errors);
@@ -128,7 +123,7 @@ public sealed class SavedPlanService(
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
         {
             SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: GeneratedScheduleIndex
+            ConstraintName: SavedPlanConfiguration.GeneratedScheduleIndexName
         })
         {
             // Another request saved this generated schedule after the check above.
@@ -136,7 +131,7 @@ public sealed class SavedPlanService(
             var winner = await FindSavedAsync(scheduleId, cancellationToken);
             return winner is not null && winner.OwnerId == ownerId
                 ? SavePlanResult.AlreadySaved(winner)
-                : SavePlanResult.Invalid([Expired]);
+                : SavePlanResult.Invalid([SavedPlanValidator.ScheduleExpired]);
         }
     }
 

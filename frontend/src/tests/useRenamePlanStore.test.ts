@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { planRequestTimeoutMs } from "../helpers/timedRequest"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { useRenamePlanStore } from "../stores/useRenamePlanStore"
 import { useSavedPlanStore } from "../stores/useSavedPlanStore"
 import { jsonResponse, routeFetch } from "./renderApp"
@@ -145,5 +146,32 @@ describe("useRenamePlanStore", () => {
     await store().submit(planId)
     expect(store().status).toBe("serverError")
     expect(refresh).toHaveBeenCalledTimes(1)
+  })
+})
+
+// Feature 011 code review: renaming a plan that is being edited keeps the new name in the edit, so Save changes
+// starts with it and does not undo the rename.
+describe("useRenamePlanStore while the plan is being edited", () => {
+  it("renames the edit of this plan and leaves an edit of another plan alone", async () => {
+    routeFetch({ [route]: () => jsonResponse(200, renamed("Vilnius trip")) })
+    usePlanEditStore.getState().start({
+      planId,
+      planName: "Weekend",
+      ownerEmail: "user@example.com",
+    })
+    store().open("Weekend")
+    store().setName("Vilnius trip")
+
+    await store().submit(planId)
+
+    expect(usePlanEditStore.getState().edit?.planName).toBe("Vilnius trip")
+
+    usePlanEditStore.getState().start({
+      planId: "another-plan",
+      planName: "Other",
+      ownerEmail: "user@example.com",
+    })
+    await store().submit(planId)
+    expect(usePlanEditStore.getState().edit?.planName).toBe("Other")
   })
 })

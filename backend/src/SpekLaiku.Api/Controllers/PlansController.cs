@@ -75,8 +75,7 @@ public sealed class PlansController(
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
         ToActionResult(
-            await savedPlanChangeService.DeleteAsync(userManager.GetUserId(User)!, id, cancellationToken),
-            _ => NoContent());
+            await savedPlanChangeService.DeleteAsync(userManager.GetUserId(User)!, id, cancellationToken));
 
     // Copies the plan under the signed-in user; there is no body, so no owner can be sent (feature 011 spec FR-004,
     // FR-016).
@@ -111,15 +110,15 @@ public sealed class PlansController(
 
     // The HTTP answer for a change to a saved plan (feature 011 contracts/plans-api.md). Another user's plan gives
     // 403 through the cookie handler, with no plan data; onChanged builds the success answer from the plan.
-    private ActionResult ToActionResult(SavedPlanChange change, Func<SavedPlan, ActionResult> onChanged) =>
+    private ActionResult ToActionResult(SavedPlanChange change, Func<SavedPlan, ActionResult>? onChanged = null) =>
         change.Outcome switch
         {
             SavedPlanChangeOutcome.Invalid => BadRequest(change.Errors.ToValidationProblem()),
             SavedPlanChangeOutcome.NotFound => PlanNotFound(),
             SavedPlanChangeOutcome.Forbidden => Forbid(),
             SavedPlanChangeOutcome.Deleted => NoContent(),
-            _ when change.HasPlan => onChanged(change.Plan),
-            _ => throw new InvalidOperationException("A changed plan result must carry the plan."),
+            _ when change.HasPlan && onChanged is not null => onChanged(change.Plan),
+            _ => throw new InvalidOperationException("A changed plan result needs the plan and a success answer."),
         };
 
     private NotFoundObjectResult PlanNotFound() =>

@@ -66,7 +66,7 @@ public sealed class GeneratedScheduleService(
         var snapshot = id is { } scheduleId ? await FindAsync(scheduleId, cancellationToken) : null;
         if (snapshot is null)
         {
-            return (null, new(SavedPlanValidator.ScheduleKey, SavedPlanValidator.ScheduleExpiredMessage));
+            return (null, SavedPlanValidator.ScheduleExpired);
         }
 
         return snapshot.Schedule.Scheduled.Count == 0

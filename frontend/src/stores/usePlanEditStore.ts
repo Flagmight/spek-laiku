@@ -21,6 +21,8 @@ export interface PlanEditState {
   // with this key is saved, so replacing it needs no confirmation.
   savedPlanKey: string | null
   start: (edit: PlanEdit) => void
+  // Follows a rename of the plan being edited; an edit of another plan is left alone.
+  rename: (planId: string, planName: string) => void
   // Ends the edit; the saved marker stays.
   clear: () => void
   markSaved: (
@@ -45,6 +47,12 @@ export const usePlanEditStore = create<PlanEditState>()(
     (set) => ({
       ...initialPlanEditState,
       start: (edit) => set({ edit }),
+      rename: (planId, planName) =>
+        set((state) =>
+          state.edit?.planId === planId
+            ? { edit: { ...state.edit, planName } }
+            : {},
+        ),
       clear: () => set({ edit: null }),
       markSaved: (setup, activities) =>
         set({ savedPlanKey: planKey(setup, activities) }),

@@ -17,6 +17,9 @@ public static class SavedPlanValidator
 
     public const string CopyPrefix = "Copy of ";
 
+    /// <summary>The generated schedule error for a missing, unknown, expired or already saved schedule.</summary>
+    public static readonly KeyValuePair<string, string> ScheduleExpired = new(ScheduleKey, ScheduleExpiredMessage);
+
     /// <summary>
     /// The trimmed name, or the error: required and not only spaces, then at most 80 characters after trimming.
     /// </summary>
@@ -34,8 +37,8 @@ public static class SavedPlanValidator
     /// <summary>
     /// The name of a copy: "Copy of " and the original name, cut to <see cref="MaxNameLength"/> characters (the
     /// unit <see cref="CheckName"/> counts). A cut that would keep only half of a character made of two UTF-16
-    /// units, such as an emoji, drops that half too, so the name is then 79 characters (feature 011 spec FR-005,
-    /// research section 6).
+    /// units, such as an emoji, drops that half too, and spaces left at the end by the cut are removed, so the name
+    /// stays trimmed like every other plan name (feature 011 spec FR-005, research section 6).
     /// </summary>
     public static string CopyName(string original)
     {
@@ -46,6 +49,6 @@ public static class SavedPlanValidator
         }
 
         var length = char.IsHighSurrogate(name[MaxNameLength - 1]) ? MaxNameLength - 1 : MaxNameLength;
-        return name[..length];
+        return name[..length].TrimEnd();
     }
 }

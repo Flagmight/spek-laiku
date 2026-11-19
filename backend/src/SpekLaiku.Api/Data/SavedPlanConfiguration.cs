@@ -6,6 +6,12 @@ namespace SpekLaiku.Api.Data;
 
 public class SavedPlanConfiguration : IEntityTypeConfiguration<SavedPlan>
 {
+    /// <summary>
+    /// The unique index that lets a generated schedule be saved in one plan only; saving and saving changes catch
+    /// its violation when two requests race.
+    /// </summary>
+    public const string GeneratedScheduleIndexName = "IX_SavedPlans_GeneratedScheduleId";
+
     public void Configure(EntityTypeBuilder<SavedPlan> builder)
     {
         builder.ToTable("SavedPlans");
@@ -34,6 +40,6 @@ public class SavedPlanConfiguration : IEntityTypeConfiguration<SavedPlan>
             .HasDatabaseName("IX_SavedPlans_OwnerId_SavedAtUtc");
         builder.HasIndex(plan => plan.GeneratedScheduleId)
             .IsUnique()
-            .HasDatabaseName("IX_SavedPlans_GeneratedScheduleId");
+            .HasDatabaseName(GeneratedScheduleIndexName);
     }
 }

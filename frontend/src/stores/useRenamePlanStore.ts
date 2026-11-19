@@ -3,6 +3,7 @@ import { renamePlan } from "../api/savedPlansApi"
 import type { RenamePlanAnswer } from "../api/savedPlansApi"
 import { startTimeout } from "../helpers/timedRequest"
 import { useCurrentUserStore } from "./useCurrentUserStore"
+import { usePlanEditStore } from "./usePlanEditStore"
 import { useSavedPlanStore } from "./useSavedPlanStore"
 import { nameRequiredMessage } from "./useSavePlanStore"
 
@@ -63,8 +64,10 @@ type Result = Pick<RenamePlanState, "status" | "nameError">
 function toResult(answer: RenamePlanAnswer | null): Result {
   switch (answer?.kind) {
     case "renamed":
-      // The heading, page title and breadcrumbs follow the loaded plan's name.
+      // The heading, page title and breadcrumbs follow the loaded plan's name, and an edit of this plan keeps
+      // the new name, so Save changes does not undo the rename (feature 011 code review).
       useSavedPlanStore.getState().rename(answer.plan.name)
+      usePlanEditStore.getState().rename(answer.plan.id, answer.plan.name)
       return { status: "renamed", nameError: null }
     case "invalid":
       return { status: "invalid", nameError: answer.errors.name ?? null }

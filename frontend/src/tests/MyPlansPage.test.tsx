@@ -507,3 +507,28 @@ describe("MyPlansPage delete while editing", () => {
     await waitFor(() => expect(usePlanEditStore.getState().edit).toBeNull())
   })
 })
+
+// Feature 011 code review: one plan action runs at a time on the page, so another plan's actions wait instead of
+// being ignored without a message.
+describe("MyPlansPage while an action is running", () => {
+  it("disables every plan's actions until the running one ends", async () => {
+    const user = userEvent.setup()
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      "GET /api/plans": () => jsonResponse(200, plans),
+      "POST /api/plans/plan-2/copies": () => new Promise<Response>(() => {}),
+    })
+    renderAppWithLocation("/plans")
+
+    await user.click(
+      await screen.findByRole("button", { name: "Duplicate Vilnius museums" }),
+    )
+
+    expect(
+      screen.getByRole("button", { name: "Delete Weekend in Kaunas" }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole("button", { name: "Duplicate Weekend in Kaunas" }),
+    ).toBeDisabled()
+  })
+})

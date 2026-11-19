@@ -36,8 +36,8 @@ must be explicitly justified.
 | Places and Forecast | Shows the places found for the chosen activities (name and location) and the hourly forecast with suitable and unsuitable hours. Lets the user remove or change an activity when no place is found, then generate the schedule. | Visitor, Registered User |
 | Schedule Overview | The generated plan in chronological order: start, end, activity, location, weather and travel distance. Includes the "Recalculate" action. | Visitor (session only), Registered User |
 | Plan Problems and Alternatives | Lists conflicts with the current plan (bad weather, overlap, too far) and suggests replacement activities or times. | Visitor, Registered User |
-| My Plans | Lists saved plans with open, duplicate and delete actions (feature 010 lists and opens; duplicate and delete come with feature 011). | Registered User (own plans only) |
-| Plan Details / Edit | Views and edits one saved plan (feature 010 shows it as saved; editing comes with feature 011 and recalculating with feature 012). | Plan owner |
+| My Plans | Lists saved plans with open, duplicate and delete actions (feature 010 lists and opens; feature 011 adds duplicate and delete). | Registered User (own plans only) |
+| Plan Details / Edit | Views and edits one saved plan (feature 010 shows it as saved; feature 011 adds edit, rename, duplicate and delete; recalculating comes with feature 012). | Plan owner |
 | Shared Plan and Voting | Opens a plan via link or invitation, view-only or vote (optional extension). | Registered User (invited) |
 | Profile | Edit profile and preferences, delete account. | Registered User |
 | Admin: Service Status | Shows Open-Meteo and Overpass availability and error logs. | Administrator |
@@ -398,6 +398,7 @@ area.
 |  | Success | "✓ Success: Plan saved." with a link to My Plans. |
 |  | Unauthorized | A visitor clicking save is sent to Log in, and the plan is kept. |
 |  | Server error | "Error: Plan could not be saved. Try again." and the plan stays in the session. |
+|  | Editing a saved plan | "Editing '<name>'. Your saved plan is not changed until you save." with **Cancel editing** on every step; **Save changes** instead of **Save plan**. Success: "✓ Success: Changes saved." with **Open plan**. Server error: "Error: Changes could not be saved. Try again." A deleted plan: "This plan no longer exists. Save it as a new plan instead." with **Save plan** (feature 011). |
 | Plan Problems and Alternatives | Loading | "Checking your plan against the latest forecast…" |
 |  | Empty | "✓ No problems found. Your plan fits the current forecast." |
 |  | No alternative | "No alternative found for this activity. Keep it or remove it." |
@@ -408,6 +409,10 @@ area.
 |  | Success | "Plan duplicated." / "Plan deleted." |
 |  | Confirmation | Delete asks "Delete 'Weekend in Kaunas'? This cannot be undone." with **Delete** and **Cancel**. |
 |  | Forbidden / not found | Opening another user's plan by URL gives 403. A deleted plan gives 404 ("This plan no longer exists."). |
+|  | Pending | "Deleting your plan…" / "Duplicating your plan…" (feature 011). |
+|  | Server error (actions) | "Error: Plan could not be deleted. Try again." / "Error: Plan could not be duplicated. Try again." with Retry (feature 011). |
+| Plan Details / Edit | Rename | "✓ Success: Plan renamed."; "Renaming your plan…" while saving; "Error: Plan could not be renamed. Try again." with Retry (feature 011). |
+|  | Confirmation | **Edit plan** with an unsaved plan in the tab asks "Editing this plan replaces the plan you have not saved. Continue?" with **Continue** and **Cancel** (feature 011). |
 | Admin: Activity Categories | Loading | "Loading activity categories…" |
 |  | Empty | "No categories yet. Create the first category." |
 |  | Server error | "Error: Activity categories could not be loaded." with Retry. |

@@ -16,11 +16,6 @@ public sealed class SavedPlanEditService(
     GeneratedScheduleService generatedSchedules,
     TimeProvider timeProvider)
 {
-    private const string GeneratedScheduleIndex = "IX_SavedPlans_GeneratedScheduleId";
-
-    private static readonly KeyValuePair<string, string> Expired =
-        new(SavedPlanValidator.ScheduleKey, SavedPlanValidator.ScheduleExpiredMessage);
-
     /// <summary>
     /// Replaces the plan with a schedule the server generated (research section 3). Only the generated schedule id
     /// and the name are taken from the request. A repeat with the id the plan already holds only applies the name;
@@ -56,7 +51,7 @@ public sealed class SavedPlanEditService(
         PlanSnapshot? snapshot = null;
         if (await IsSavedInAnotherPlanAsync(request.GeneratedScheduleId, id, cancellationToken))
         {
-            errors.Add(Expired);
+            errors.Add(SavedPlanValidator.ScheduleExpired);
         }
         else
         {
@@ -101,9 +96,7 @@ public sealed class SavedPlanEditService(
             return SavedPlanChange.Invalid([error]);
         }
 
-        plan!.Name = name!;
-        await context.SaveChangesAsync(cancellationToken);
-        return SavedPlanChange.Changed(plan);
+        return await SaveAsync(plan!, () => plan!.Name = name!, cancellationToken);
     }
 
     private void Replace(SavedPlan plan, string name, Guid? scheduleId, PlanSnapshot snapshot)
@@ -118,7 +111,9 @@ public sealed class SavedPlanEditService(
 
     /// <summary>
     /// Applies the change and saves. Another request that saved the same generated schedule first breaks the
-    /// unique index; that change is refused like an expired schedule, and the stored plan is left as it was.
+    /// unique index; that change is refused like an expired schedule, and the stored plan is left as it was. A plan
+    /// another request deleted after the ownership check counts as not found, as in
+    /// <see cref="SavedPlanChangeService.DeleteAsync"/>.
     /// </summary>
     private async Task<SavedPlanChange> SaveAsync(
         SavedPlan plan,
@@ -134,10 +129,14 @@ public sealed class SavedPlanEditService(
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
         {
             SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: GeneratedScheduleIndex
+            ConstraintName: SavedPlanConfiguration.GeneratedScheduleIndexName
         })
         {
-            return SavedPlanChange.Invalid([Expired]);
+            return SavedPlanChange.Invalid([SavedPlanValidator.ScheduleExpired]);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return SavedPlanChange.NotFound;
         }
     }
 

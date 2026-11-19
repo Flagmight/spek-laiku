@@ -678,16 +678,16 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Purpose**: Documentation, full verification, review. No new behaviour.
 
-- [ ] T069 [P] Update `README.md`:
+- [x] T069 [P] Update `README.md`:
   - **"Saved plans" section**: add Delete (with confirmation, permanent), Duplicate ("Copy of …", same Saved date, listed above the original), Rename, and Edit plan (regenerate, then Save changes replaces the plan; duplicate first to keep the original).
   - **Database or migrations part**: mention the migration `AddSavedPlanCreatedAt`.
-- [ ] T070 [P] In `docs/ux-design.md`:
+- [x] T070 [P] In `docs/ux-design.md`:
   - **My Plans row** in the screen table: change "(feature 010 lists and opens; duplicate and delete come with feature 011)" to say all actions are available.
   - **Plan Details / Edit row**: editing and renaming come with feature 011, and recalculating with feature 012.
   - **My Plans state table**: add the Rename success "✓ Success: Plan renamed." and the Save changes success "✓ Success: Changes saved." where they belong.
   
   Change nothing else. Check `docs/architecture.md` for statements that contradict the implementation, and correct only what is now wrong.
-- [ ] T071 Run all checks and confirm they pass:
+- [x] T071 Run all checks and confirm they pass:
   - from the repository root, `dotnet build SpekLaiku.slnx`, `dotnet test SpekLaiku.slnx` and `dotnet format SpekLaiku.slnx --verify-no-changes`;
   - from `frontend/`, `npm run lint`, `npm test` and `npm run build`.
   
@@ -699,14 +699,60 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - T027: the feature 010 `PlanDetailsPage.test.tsx` "no actions" test is narrowed to "no Save plan or Recalculate, nothing generated", and the `keyboard.test.tsx` My plans tab order includes each row's actions. Both change because feature 011 adds the actions on purpose (spec FR-019).
   
   List them in the PR description (constitution III).
+  - Result (2026-11-19):
+    - **Backend**: build with 0 warnings; 663 unit tests (baseline 654, +9) and 391 integration tests (baseline 330, +61); `dotnet format` clean.
+    - **Frontend**: lint and Prettier clean; 87 test files (baseline 81, +6) and 1236 tests (baseline 1108, +128); build clean.
+    - **Changed existing assertions**: only those listed above, plus one more. The Phase 5 test "offers Edit plan first among the plan's actions" gained Rename in Phase 6; it is a feature 011 test, so no feature 010 test is affected. No test was removed, and no assertion now checks less.
 - [ ] T072 Apply the migration to the local database (`dotnet ef database update --project src/SpekLaiku.Api` from `backend/`) and walk through `specs/011-plan-management/quickstart.md` Scenarios 1 to 6 in the running app. Record which passed, and any that could not be done (for example if Overpass is unavailable).
-- [ ] T073 Review `git diff main...HEAD` and confirm:
+  - Status (2026-11-19): migrations applied to the local database (`AddSavedPlans` and `AddSavedPlanCreatedAt`). The app was started as in the README, with the API in the Linux container `speklaiku-api-linux`. Places and forecast shows "Error: The map data service is unavailable. No places are shown." even there, so no schedule can be generated and Scenario 4 (Edit and Save changes) cannot be walked through yet. The other scenarios and the cause are still to be checked.
+- [x] T073 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus the README, docs and spec files, changed;
   - there is no debug code, commented-out code or temporary file;
   - every new or changed C# class is under 200 lines (`SavedPlanService`, `SavedPlanChangeService`, `PlansController`);
   - `savePlanSection.tsx`, `useSavePlanStore.ts`, `PlanDetailsPage.tsx` and `MyPlansPage.tsx` are each under about 200 lines;
   - the migration adds only `CreatedAtUtc` and the one `UPDATE`.
-- [ ] T074 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review` because this feature adds change and delete operations behind access control. Record the tool, the important findings, the changes made, and the findings not applied with a short reason, for the Pull Request description (constitution VII). Apply accepted fixes and re-run T071.
+  - Result (2026-11-19): 92 files changed against `main`.
+    - **Files**: the production files are those in plan.md "Source Code", plus the additions recorded in the phase results:
+      - `SavedPlanEditService.cs` and `SavedPlanOwnership.cs` (Phase 5 split);
+      - `planActionMessages.tsx`, `editPlanButton.tsx`, `savePlanStatus.tsx`, `planDetailsActions.tsx`;
+      - `savePlanResult.ts`, `discardPlanInProgress.ts`, `planKey.ts`.
+      
+      Also the README, `docs/ux-design.md` and the spec files.
+    - **Leftovers**: no `console.log`, `debugger`, `Console.Write`, TODO, FIXME, commented-out code or temporary file in the added lines.
+    - **C# sizes**: largest changed production classes are `Program.cs` 171, `SavedPlanEditService` 150, `SavedPlanService` 147 and `PlansController` 132 lines.
+    - **Frontend sizes**: `useSavePlanStore.ts` 181, `usePlanActionsStore.ts` 179, `savePlanSection.tsx` 178, `MyPlansPage.tsx` 138 and `PlanDetailsPage.tsx` 128 lines. The API module `api/savedPlansApi.ts` is 270 lines. It is not a page or component, and it has one responsibility (the `/api/plans` client, one function per endpoint), so it is kept as one file.
+    - **Migration**: `AddSavedPlanCreatedAt` adds only `CreatedAtUtc` and the one `UPDATE`, and `Down` drops only that column.
+- [x] T074 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review` because this feature adds change and delete operations behind access control. Record the tool, the important findings, the changes made, and the findings not applied with a short reason, for the Pull Request description (constitution VII). Apply accepted fixes and re-run T071.
+
+  **Result (2026-11-19)**:
+  - **`/security-review` (Claude Code)**: no HIGH or MEDIUM findings above the 80% confidence bar. Checked:
+    - the class-level `ActiveRegisteredUser` policy on all four new endpoints;
+    - the ownership check before every write (`SavedPlanOwnership`);
+    - 403 with no plan data;
+    - owner injection and mass assignment (the request DTOs hold only the name and the generated schedule id; a copy's owner is the signed-in user);
+    - replacing a plan with arbitrary or another user's content (only a server-remembered, unguessable generated schedule is accepted, and one already saved in another plan is refused, also on the race path);
+    - the details response now carrying the owner's own activity values;
+    - injection (EF LINQ only; the migration's one `UPDATE` is constant);
+    - XSS (names are React text nodes);
+    - CSRF (same `SameSite=Lax` cookie and JSON pattern as `POST /api/plans`);
+    - the edit store in `sessionStorage` (the server checks ownership).
+    
+    No changes were needed.
+  - **`/code-review` (Claude Code), 10 findings: 6 correctness bugs and 4 cleanups.**
+    - **Applied:**
+      1. Renaming a plan that was being edited left the old name in the edit, so **Save changes** opened with it and silently undid the rename. `usePlanEditStore.rename` now follows a rename of the edited plan. New test in `useRenamePlanStore.test.ts`.
+      2. Duplicating the same plan twice listed the copies as [first copy, second copy, original], but the server lists the newest created first, so the rows reordered on reload. `insertAbove` now puts a copy above every plan with its saved time, as the server orders them. New test in `useSavedPlansStore.test.ts`. The existing "directly above its original" test's other plan gets a later saved time, because it is meant to be a newer plan.
+      3. While an action on one plan was running, Delete on another plan closed its dialog and did nothing, with no message. All plan actions are now disabled while any one runs. New test in `MyPlansPage.test.tsx`.
+      4. Rename and Save changes gave 500 instead of 404 when another request deleted the plan between the ownership check and the save. `SavedPlanEditService.SaveAsync` now catches `DbUpdateConcurrencyException` as `DeleteAsync` does, and rename goes through it. New `SavedPlanEditServiceTests` (in-memory provider, with a save interceptor that deletes the plan first).
+      5. After "This plan no longer exists. Save it as a new plan instead.", pressing Enter or **Save changes** sent the same failing `PUT` again. The form now switches to the Save plan form instead. New test in `savePlanSection.test.tsx`.
+      6. A cut copy name could end with a space, unlike every other stored name. `CopyName` now removes spaces left at the end by the cut. New test in `SavedPlanValidatorTests`.
+      7. The "expired" error and the unique index name were written out in two services. They are now `SavedPlanValidator.ScheduleExpired` and `SavedPlanConfiguration.GeneratedScheduleIndexName`, used by `SavedPlanService`, `SavedPlanEditService`, `GeneratedScheduleService` and the index configuration.
+      8. The `_ => NoContent()` success handler in `Delete` was never called. `ToActionResult`'s success handler is now optional, and `Delete` passes none.
+    - **Not applied:**
+      9. "Edit plan on the plan already being edited asks for confirmation": kept. Starting the edit again reloads the saved plan and drops the unsaved changes, so asking first is the safer reading of spec FR-013. The comment in `hasPlanInProgress.ts`, which said "an edit of another plan", now says what the code does.
+      10. "Field changes not yet confirmed with Continue count as saved": not a bug. Every change to the location, dates, distance or activities sets the store's `checked` back to `null` (`usePlanSetupStore`, `usePlanActivitiesStore`), so the saved marker no longer matches. The existing `hasPlanInProgress` test "is true for a saved plan once an activity changes" covers this.
+    - The new tests for 1 to 6 were run against the old code (the fixed files temporarily replaced with the committed versions): each failed, and passes with the fix.
+  - **Re-run of T071 after the fixes**: backend build with 0 warnings; 666 unit (+3) and 391 integration tests; `dotnet format` clean. Frontend lint and Prettier clean; 87 files and 1240 tests (+4); build clean.
 - [ ] T075 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:
   - My plans with the actions;
   - the delete dialog;
@@ -717,7 +763,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - "✓ Success: Changes saved.".
   
   Keep the images outside the repository unless the README already stores screenshots.
-- [ ] T076 Prepare the Pull Request description for the user. Include:
+- [x] T076 Prepare the Pull Request description for the user. Include:
   - a link to `specs/011-plan-management/spec.md`;
   - a summary of the change;
   - the tests and checks run (T071, T072);
@@ -728,6 +774,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the AI review record from T074.
   
   The user opens and merges the Pull Request.
+  - Done 2026-11-19: the description was given to the user, with T072 marked as in progress (map data service unavailable locally) and the screenshots (T075) left for the user to add.
 
 **Checkpoint**: All checks green, docs current, review recorded, screenshots and PR description ready. Ready for commit and Pull Request on request.
 

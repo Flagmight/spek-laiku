@@ -7,8 +7,8 @@ import { ConfirmDialog } from "./confirmDialog"
 
 // Duplicate and Delete on one saved plan, on My plans rows and on the plan page (feature 011 spec FR-002,
 // FR-004, FR-019, FR-020). Duplicate needs no confirmation; Delete asks first, and Cancel or Escape returns
-// focus to the Delete button. Each button names its plan for screen readers, and both are disabled while an
-// action of this plan is running. The result handlers also run when Retry repeats an action.
+// focus to the Delete button. Each button names its plan for screen readers, and all are disabled while any
+// plan action is running. The result handlers also run when Retry repeats an action.
 export function PlanActions({
   plan,
   onDeleted,
@@ -26,7 +26,8 @@ export function PlanActions({
   const [confirming, setConfirming] = useState(false)
   const deleteButton = useRef<HTMLButtonElement>(null)
   const duplicateButton = useRef<HTMLButtonElement>(null)
-  const busy = pending?.planId === plan.id
+  // One action runs at a time on the page, so every plan's buttons wait for it (feature 011 code review).
+  const busy = pending !== null
 
   function cancel() {
     setConfirming(false)
