@@ -637,20 +637,38 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: At 320 px with a keyboard and screen reader, duplicate a plan on My plans, delete the copy through the dialog, then rename a plan with an empty name, fix it and save.
 
-- [ ] T065 [P] [US6] Update `frontend/src/styles.css`:
+- [x] T065 [P] [US6] Update `frontend/src/styles.css`:
   - **Dialog**: `.confirm-backdrop` covers the page with a semi-transparent background. The dialog is centred, with `max-width: min(28rem, calc(100vw - 2rem))` and wrapping text.
   - **Row actions**: Open, Duplicate and Delete wrap in the last table cell. In the 320 px card layout they sit below the card title as in feature 010, with at least 44 px tap targets.
   - **Notice and forms**: the editing notice and the rename form fit at 320 px.
   - **Contrast**: 4.5:1 for text and 3:1 for the backdrop edge and buttons (NFR-012). Use the existing colour variables.
-- [ ] T066 [P] [US6] Extend `frontend/src/tests/accessibility.test.tsx`:
+- [x] T066 [P] [US6] Extend `frontend/src/tests/accessibility.test.tsx`:
   - My plans and the plan page with the dialog open have no axe violations;
   - the plan page with the rename form open and an error has none;
   - Plan Setup with the editing notice has none.
-- [ ] T067 [P] [US6] Extend `frontend/src/tests/keyboard.test.tsx` with these flows, using only the keyboard (Tab, Shift+Tab, Enter, Escape):
+- [x] T067 [P] [US6] Extend `frontend/src/tests/keyboard.test.tsx` with these flows, using only the keyboard (Tab, Shift+Tab, Enter, Escape):
   - Duplicate, then Delete through the dialog, on My plans;
   - Rename with an error and a fix;
   - Edit plan, then Cancel editing.
-- [ ] T068 [P] [US6] Extend `frontend/src/tests/responsive.test.tsx`: at 320 px, My plans with actions, the plan page with its actions, the dialog and the rename form use the card and wrapping classes, and have no fixed widths wider than the viewport.
+- [x] T068 [P] [US6] Extend `frontend/src/tests/responsive.test.tsx`: at 320 px, My plans with actions, the plan page with its actions, the dialog and the rename form use the card and wrapping classes, and have no fixed widths wider than the viewport.
+  - Result (2026-11-19):
+    - **T065 (styles)**:
+      - **Plan page buttons**: wrap onto more lines (`.plan-actions`, flex with wrap). Edit plan is the main button; Rename, Duplicate and Delete are secondary.
+      - **My plans rows**: the actions sit after Open with spacing and wrap inside the card.
+      - **Dialog**: a fixed, dark backdrop and a framed dialog, `width: 100%` up to `28rem`, with wrapping text.
+      - **Editing notice**: reuses the framed "checked again" box.
+      - **Sizes and colours**: the 44 px minimum for buttons and links already comes from the base `button` rule (feature 001), so no new size rule was needed. Only the existing colours are used: dark text #1f2933 and blue #1d4ed8 on white, which meet the 4.5:1 and 3:1 contrast rules (NFR-012).
+    - **T066 (deviation)**: the project has no axe package, and adding one would need a plan change (constitution VIII). So the new accessibility tests follow the style of `accessibility.test.tsx`:
+      - row actions named after their plan;
+      - the delete dialog as a named modal dialog with focus inside;
+      - a status region present before any action;
+      - the Rename field's label, error description and focus;
+      - the plan page's action names;
+      - the editing notice in words, with a named Cancel editing;
+      - one `h1` on each page.
+    - **T067**: three keyboard flows, using only the keyboard: duplicate then delete through the dialog (Tab inside the dialog, focus to the next Open link afterwards), rename with an error and a fix, and Edit plan then Cancel editing.
+    - **T068**: the CSS rules checked in jsdom: row actions and dialog buttons 44 × 44 px; the backdrop fixed; the dialog at most `28rem` wide with wrapping text; the plan page's actions wrapping; the Rename field full width with 16 px text; Cancel editing 44 × 44 px. The real check at 320 px is quickstart Scenario 6 (T072).
+    - **Checks**: frontend lint and Prettier clean; 87 files and 1236 tests (+13); build clean. The backend was not changed in this phase.
 
 **Checkpoint**: Accessibility, keyboard and responsive tests are green for every new screen part.
 

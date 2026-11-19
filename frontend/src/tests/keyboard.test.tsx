@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { PlanCategory } from "../types/planActivity"
 import {
@@ -13,6 +14,8 @@ import {
 import { openCategories } from "./planCategories"
 import {
   acceptMuseumPlan,
+  longPlanName,
+  savedPlanId,
   savedPlanRoutes,
   savedPlanSummaries,
 } from "./savedPlansFixtures"
@@ -1100,5 +1103,88 @@ describe("keyboard use of saved plans", () => {
         screen.getByRole("button", { name: `Delete Plan ${index}` }),
       ).toHaveFocus()
     }
+  })
+})
+
+// Feature 011 User Story 6: plan management with the keyboard only.
+describe("keyboard use of plan management", () => {
+  it("duplicates, then deletes through the dialog, on My plans", async () => {
+    const plans = savedPlanSummaries(2)
+    const copy = { ...plans[0], id: "plan-copy", name: "Copy of Plan 1" }
+    routeFetch({
+      ...savedPlanRoutes(plans),
+      "POST /api/plans/plan-1/copies": () => jsonResponse(201, copy),
+      "DELETE /api/plans/plan-copy": () => jsonResponse(204),
+    })
+    const user = userEvent.setup()
+    renderApp("/plans")
+    const duplicate = await screen.findByRole("button", {
+      name: "Duplicate Plan 1",
+    })
+    duplicate.focus()
+
+    await user.keyboard("{Enter}")
+    expect(await screen.findByText("Plan duplicated.")).toBeInTheDocument()
+
+    screen.getByRole("button", { name: "Delete Copy of Plan 1" }).focus()
+    await user.keyboard("{Enter}")
+    const dialog = screen.getByRole("dialog")
+    await user.tab()
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toHaveFocus()
+    await user.tab()
+    expect(within(dialog).getByRole("button", { name: "Delete" })).toHaveFocus()
+    await user.keyboard("{Enter}")
+
+    expect(await screen.findByText("Plan deleted.")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: "Open Plan 1" })).toHaveFocus()
+  })
+
+  it("renames with an error and a fix", async () => {
+    routeFetch({
+      ...savedPlanRoutes(),
+      [`PUT /api/plans/${savedPlanId}/name`]: () =>
+        jsonResponse(200, { ...savedPlanSummaries(1)[0], name: "Kaunas trip" }),
+    })
+    const user = userEvent.setup()
+    renderApp(`/plans/${savedPlanId}`)
+    ;(await screen.findByRole("button", { name: "Rename" })).focus()
+
+    await user.keyboard("{Enter}")
+    const field = screen.getByLabelText("Plan name")
+    expect(field).toHaveFocus()
+    await user.keyboard("{Control>}a{/Control}{Backspace}{Enter}")
+    expect(screen.getByText(/Enter a plan name\./)).toBeInTheDocument()
+    expect(field).toHaveFocus()
+    await user.keyboard("Kaunas trip{Enter}")
+
+    expect(
+      await screen.findByText("✓ Success: Plan renamed."),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Rename" })).toHaveFocus()
+  })
+
+  it("starts editing and cancels it", async () => {
+    routeFetch({
+      ...savedPlanRoutes(),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, {
+          firstDate: "2026-11-14",
+          lastDate: "2026-11-20",
+          maxDates: 7,
+        }),
+    })
+    const user = userEvent.setup()
+    renderApp(`/plans/${savedPlanId}`)
+    ;(await screen.findByRole("button", { name: "Edit plan" })).focus()
+
+    await user.keyboard("{Enter}")
+    const cancel = await screen.findByRole("button", { name: "Cancel editing" })
+    cancel.focus()
+    await user.keyboard("{Enter}")
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: longPlanName }),
+    ).toBeInTheDocument()
+    expect(usePlanEditStore.getState().edit).toBeNull()
   })
 })
