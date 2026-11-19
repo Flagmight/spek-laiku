@@ -601,7 +601,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: As user B, send delete, duplicate, rename and save changes requests for user A's plan. Each gives 403, and A's plan is unchanged and has no copy. Repeat signed out (401), as an Administrator (403) and as a Suspended user (403).
 
-- [ ] T063 [US5] Add `backend/tests/SpekLaiku.IntegrationTests/PlanManagementAuthorizationTests.cs`, following `SavedPlansAuthorizationTests.cs`. Use a theory over the endpoints `"delete"`, `"duplicate"`, `"rename"` and `"replace"`, with a helper that sends each with a valid body. For `"replace"`, use a fresh `generatedScheduleId` from the caller where the caller can generate, and otherwise from A.
+- [x] T063 [US5] Add `backend/tests/SpekLaiku.IntegrationTests/PlanManagementAuthorizationTests.cs`, following `SavedPlansAuthorizationTests.cs`. Use a theory over the endpoints `"delete"`, `"duplicate"`, `"rename"` and `"replace"`, with a helper that sends each with a valid body. For `"replace"`, use a fresh `generatedScheduleId` from the caller where the caller can generate, and otherwise from A.
   - (a) Not signed in: 401 with an empty body.
   - (b) Administrator Active, Administrator Suspended and Registered User Suspended: 403.
   - (c) Another Active Registered User on A's plan: 403. The body contains neither A's plan name nor its location name. A's row is unchanged (name, `SavedAtUtc`, snapshot JSON), A still has exactly one plan, and B has no plans.
@@ -609,11 +609,23 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - (e) An id that is not a GUID: 404.
   
   Doc comment: spec FR-015, FR-016, SC-005, constitution III. (depends on T017, T031, T043, T057)
-- [ ] T064 [P] [US5] Confirm the frontend handles 403 and 401 on every new call:
+- [x] T064 [P] [US5] Confirm the frontend handles 403 and 401 on every new call:
   - a 403 refreshes the current user, so the guards show Account Suspended or Access Denied;
   - a 401 on rename and save changes goes to Log in with "Your session has expired. Log in again.".
   
   Add one test per store (`usePlanActionsStore`, `useRenamePlanStore`, `useSavePlanStore` with a plan id) where it is not already covered.
+  - Result (2026-11-19):
+    - **T063**: `PlanManagementAuthorizationTests`, 28 cases over the four endpoints. They cover a Visitor (401, empty body), Administrator Active and Suspended and a Suspended Registered User (403), another Active Registered User (403), an unknown GUID (404 "This plan no longer exists.") and an id that is not a GUID (404). Each case checks that the owner's plan is unchanged (name, saved time, generated schedule id, snapshot) and that the owner still has exactly one plan, so nothing was copied or deleted. The other-user case also checks that the other user has no plans and that the 403 body holds no plan data.
+    - **T064**: already covered before this phase:
+      - delete 401 and 403 (`usePlanActionsStore`);
+      - rename 401 and 403 (`useRenamePlanStore`);
+      - Save changes 401 through Log in and back (`savePlanSection.test.tsx`).
+      
+      Added:
+      - a duplicate 403 refreshes the current user;
+      - Save changes 403 refreshes the current user;
+      - a rename 401 opens Log in with "Your session has expired. Log in again." and returns to the plan (`PlanDetailsPage.test.tsx`).
+    - **Checks**: backend 663 unit and 391 integration tests (+28); `dotnet format` clean. Frontend lint and Prettier clean; 87 files and 1223 tests (+3); build clean.
 
 **Checkpoint**: Authorization is verified for all four new endpoints. Tests are green.
 

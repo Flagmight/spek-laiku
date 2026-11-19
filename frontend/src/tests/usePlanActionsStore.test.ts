@@ -238,3 +238,20 @@ describe("usePlanActionsStore: retry", () => {
     expect(onResult.mock.calls).toEqual([["failed"], [{ copy }]])
   })
 })
+
+// Feature 011 User Story 5: a refused account (for example one suspended meanwhile) is read again, so the
+// guards show Account Suspended or Access Denied.
+describe("usePlanActionsStore: refused account", () => {
+  it("refreshes the current user when a duplicate gets 403", async () => {
+    const refresh = vi
+      .spyOn(useCurrentUserStore.getState(), "refresh")
+      .mockResolvedValue()
+    routeFetch({
+      [`POST /api/plans/${planId}/copies`]: () => jsonResponse(403, {}),
+    })
+
+    expect(await store().duplicatePlan(planId)).toBe("failed")
+
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+})

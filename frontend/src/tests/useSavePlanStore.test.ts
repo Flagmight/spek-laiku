@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { planRequestTimeoutMs } from "../helpers/timedRequest"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { useSavePlanStore } from "../stores/useSavePlanStore"
 import type { CheckedPlanActivity } from "../types/planActivity"
@@ -278,5 +279,18 @@ describe("useSavePlanStore while editing", () => {
     usePlanEditStore.setState({ savedPlanKey: null })
     await store().submit(editing)
     expect(usePlanEditStore.getState().savedPlanKey).not.toBeNull()
+  })
+
+  it("refreshes the current user when saving changes gets 403", async () => {
+    const refresh = vi
+      .spyOn(useCurrentUserStore.getState(), "refresh")
+      .mockResolvedValue()
+    routeFetch({ [replaceRoute]: () => jsonResponse(403, {}) })
+    openWithName("Weekend")
+
+    await store().submit(editing)
+
+    expect(store().status).toBe("serverError")
+    expect(refresh).toHaveBeenCalledTimes(1)
   })
 })

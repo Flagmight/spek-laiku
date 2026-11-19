@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
@@ -641,6 +641,36 @@ describe("PlanDetailsPage rename", () => {
 
     expect(
       await screen.findByText("✓ Success: Plan renamed."),
+    ).toBeInTheDocument()
+  })
+})
+
+// Feature 011 User Story 5: an ended session during a rename logs in again and comes back to this plan.
+describe("PlanDetailsPage rename after the session ended", () => {
+  it("opens Log in with the expired message and this plan as the return-to page", async () => {
+    const user = userEvent.setup()
+    let sessionEnded = false
+    routeFetch({
+      "GET /api/auth/me": () =>
+        sessionEnded ? jsonResponse(401) : jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`PUT /api/plans/${id}/name`]: () => {
+        sessionEnded = true
+        return jsonResponse(401)
+      },
+    })
+    const { currentLocation } = renderAppWithLocation(`/plans/${id}`)
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() =>
+      expect(currentLocation()).toBe(
+        `/login?returnTo=${encodeURIComponent(`/plans/${id}`)}`,
+      ),
+    )
+    expect(
+      screen.getByText("Your session has expired. Log in again."),
     ).toBeInTheDocument()
   })
 })
