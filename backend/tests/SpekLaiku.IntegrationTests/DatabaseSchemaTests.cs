@@ -167,6 +167,7 @@ public class DatabaseSchemaTests(PostgreSqlApiFactory factory)
     [InlineData("SavedPlans", "Dates", "_date")]
     [InlineData("SavedPlans", "Name", "varchar")]
     [InlineData("SavedPlans", "OwnerId", "text")]
+    [InlineData("SavedPlans", "CreatedAtUtc", "timestamptz")]
     [InlineData("GeneratedSchedules", "Snapshot", "jsonb")]
     [InlineData("GeneratedSchedules", "ExpiresAtUtc", "timestamptz")]
     public async Task Migrations_CreateSavedPlanColumns(string table, string column, string type)
@@ -194,6 +195,20 @@ public class DatabaseSchemaTests(PostgreSqlApiFactory factory)
             .SingleAsync();
 
         Assert.Equal(80, length);
+    }
+
+    [Fact]
+    public async Task Migrations_MakeTheSavedPlanCreationTimeRequired()
+    {
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var nullable = await context.Database
+            .SqlQuery<string>(
+                $"SELECT is_nullable AS \"Value\" FROM information_schema.columns WHERE table_name = 'SavedPlans' AND column_name = 'CreatedAtUtc'")
+            .SingleAsync();
+
+        Assert.Equal("NO", nullable);
     }
 
     [Fact]

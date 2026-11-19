@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { EditingNotice } from "../components/editingNotice"
 import { PlanProgress } from "../components/planProgress"
 import { PlanSetupForm } from "../components/planSetupForm"
 import { RecheckNotice } from "../components/recheckNotice"
@@ -28,6 +29,7 @@ export function PlanSetupPage() {
     <>
       <h1>Plan setup</h1>
       <PlanProgress current={1} />
+      <EditingNotice />
       {recheckNotice && (
         <RecheckNotice>
           Your plan setup needs to be checked again. Select Continue.

@@ -86,4 +86,65 @@ describe("useSavedPlansStore", () => {
     expect(store().status).toBe("loading")
     expect(store().plans).toEqual([])
   })
+
+  it("removes one plan and keeps the others and the status", async () => {
+    const other = { ...plan, id: "5d2e9a7c-1b3f-4c8d-a6e2-9f0b1c2d3e4f" }
+    routeFetch({ "GET /api/plans": () => jsonResponse(200, [plan, other]) })
+    await store().load()
+
+    store().remove(plan.id)
+
+    expect(store().plans).toEqual([other])
+    expect(store().status).toBe("loaded")
+  })
+
+  it("puts a copy directly above its original", async () => {
+    // A plan saved later, so it is listed above the original.
+    const other = { ...plan, id: "plan-other", savedAt: "2026-11-19T09:00:00Z" }
+    const copy = { ...plan, id: "plan-copy", name: "Copy of Weekend in Kaunas" }
+    routeFetch({ "GET /api/plans": () => jsonResponse(200, [other, plan]) })
+    await store().load()
+
+    store().insertAbove(copy, plan.id)
+
+    expect(store().plans.map((item) => item.id)).toEqual([
+      "plan-other",
+      "plan-copy",
+      plan.id,
+    ])
+  })
+
+  it("puts a second copy above the first, as the server lists the newest created first", async () => {
+    const firstCopy = {
+      ...plan,
+      id: "copy-1",
+      name: "Copy of Weekend in Kaunas",
+    }
+    const secondCopy = {
+      ...plan,
+      id: "copy-2",
+      name: "Copy of Weekend in Kaunas",
+    }
+    routeFetch({ "GET /api/plans": () => jsonResponse(200, [plan]) })
+    await store().load()
+
+    store().insertAbove(firstCopy, plan.id)
+    store().insertAbove(secondCopy, plan.id)
+
+    expect(store().plans.map((item) => item.id)).toEqual([
+      "copy-2",
+      "copy-1",
+      plan.id,
+    ])
+  })
+
+  it("puts a copy first when its original is not in the list", async () => {
+    const copy = { ...plan, id: "plan-copy" }
+    routeFetch({ "GET /api/plans": () => jsonResponse(200, [plan]) })
+    await store().load()
+
+    store().insertAbove(copy, "missing")
+
+    expect(store().plans.map((item) => item.id)).toEqual(["plan-copy", plan.id])
+  })
 })

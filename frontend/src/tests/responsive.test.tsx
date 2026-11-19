@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import styles from "../styles.css?inline"
 import type { PlanCategory } from "../types/planActivity"
@@ -1113,5 +1114,90 @@ describe("Saved plans at 320 px", () => {
     expect(
       getComputedStyle(screen.getByText("Kaunas, Kaunas County")).overflowWrap,
     ).toBe("anywhere")
+  })
+})
+
+// Feature 011 User Story 6: plan management at 320 px. jsdom does no layout, so these check the CSS rules.
+describe("Plan management at 320 px", () => {
+  it("keeps My plans' row actions 44 × 44 px inside the cards", async () => {
+    routeFetch(savedPlanRoutes(savedPlanSummaries(2, () => longPlanName)))
+    renderApp("/plans")
+
+    const table = await screen.findByRole("table", { name: "Your saved plans" })
+    const buttons = within(table).getAllByRole("button")
+    expect(buttons).toHaveLength(4)
+    for (const button of buttons) {
+      expectTouchTarget(button)
+    }
+    expect(getComputedStyle(within(table).getAllByRole("row")[1]).display).toBe(
+      "block",
+    )
+  })
+
+  it("covers the page with the dialog and keeps it within the screen", async () => {
+    routeFetch(savedPlanRoutes(savedPlanSummaries(1, () => longPlanName)))
+    const user = userEvent.setup()
+    renderApp("/plans")
+    await user.click(
+      await screen.findByRole("button", { name: `Delete ${longPlanName}` }),
+    )
+
+    const dialog = screen.getByRole("dialog")
+    const backdrop = getComputedStyle(dialog.parentElement!)
+    expect(backdrop.position).toBe("fixed")
+    expect(getComputedStyle(dialog).maxWidth).toBe("28rem")
+    expect(getComputedStyle(dialog).width).toBe("100%")
+    expect(getComputedStyle(dialog).overflowWrap).toBe("anywhere")
+    for (const button of within(dialog).getAllByRole("button")) {
+      expectTouchTarget(button)
+    }
+  })
+
+  it("wraps the plan page's actions and keeps them 44 × 44 px", async () => {
+    routeFetch(savedPlanRoutes())
+    renderApp(`/plans/${savedPlanId}`)
+
+    const edit = await screen.findByRole("button", { name: "Edit plan" })
+    expect(getComputedStyle(edit.parentElement!).flexWrap).toBe("wrap")
+    for (const button of within(edit.parentElement!).getAllByRole("button")) {
+      expectTouchTarget(button)
+    }
+  })
+
+  it("makes the Rename field full width with 16 px text, and Save and Cancel 44 × 44 px", async () => {
+    routeFetch(savedPlanRoutes())
+    const user = userEvent.setup()
+    renderApp(`/plans/${savedPlanId}`)
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+
+    const style = getComputedStyle(screen.getByLabelText("Plan name"))
+    expect(style.width).toBe("100%")
+    expect(px(style.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
+    for (const name of ["Save", "Cancel"]) {
+      expectTouchTarget(screen.getByRole("button", { name }))
+    }
+  })
+
+  it("keeps Cancel editing 44 × 44 px in the editing notice", async () => {
+    acceptMuseumPlan()
+    usePlanEditStore.getState().start({
+      planId: savedPlanId,
+      planName: longPlanName,
+      ownerEmail: "user@example.com",
+    })
+    routeFetch({
+      ...savedPlanRoutes(),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, {
+          firstDate: "2026-11-14",
+          lastDate: "2026-11-20",
+          maxDates: 7,
+        }),
+    })
+    renderApp("/plan/setup")
+
+    expectTouchTarget(
+      await screen.findByRole("button", { name: "Cancel editing" }),
+    )
   })
 })

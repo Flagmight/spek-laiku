@@ -17,11 +17,6 @@ public sealed class SavedPlanService(
     GeneratedScheduleService generatedSchedules,
     TimeProvider timeProvider)
 {
-    private const string GeneratedScheduleIndex = "IX_SavedPlans_GeneratedScheduleId";
-
-    private static readonly KeyValuePair<string, string> Expired =
-        new(SavedPlanValidator.ScheduleKey, SavedPlanValidator.ScheduleExpiredMessage);
-
     public async Task<SavePlanResult> SaveAsync(
         string ownerId,
         SavePlanRequest request,
@@ -36,7 +31,7 @@ public sealed class SavedPlanService(
 
         if (request.GeneratedScheduleId is not { } scheduleId)
         {
-            errors.Add(Expired);
+            errors.Add(SavedPlanValidator.ScheduleExpired);
             return SavePlanResult.Invalid(errors);
         }
 
@@ -45,20 +40,16 @@ public sealed class SavedPlanService(
         {
             if (existing.OwnerId != ownerId)
             {
-                errors.Add(Expired);
+                errors.Add(SavedPlanValidator.ScheduleExpired);
             }
 
             return errors.Count == 0 ? SavePlanResult.AlreadySaved(existing) : SavePlanResult.Invalid(errors);
         }
 
-        var snapshot = await generatedSchedules.FindAsync(scheduleId, cancellationToken);
-        if (snapshot is null)
+        var (snapshot, scheduleError) = await generatedSchedules.FindSavableAsync(scheduleId, cancellationToken);
+        if (scheduleError is { } savableError)
         {
-            errors.Add(Expired);
-        }
-        else if (snapshot.Schedule.Scheduled.Count == 0)
-        {
-            errors.Add(new(SavedPlanValidator.ScheduleKey, SavedPlanValidator.NothingToSaveMessage));
+            errors.Add(savableError);
         }
 
         if (errors.Count > 0)
@@ -70,14 +61,16 @@ public sealed class SavedPlanService(
     }
 
     /// <summary>
-    /// The user's plans, newest saved first (ties by id, so the order is stable), without their stored schedules
-    /// (spec FR-009, research section 5).
+    /// The user's plans without their stored schedules (spec FR-009, research section 5): newest saved first, then
+    /// the most recently created, so a copy is listed directly above its original (feature 011 research section
+    /// 5), then by id, so the order is stable.
     /// </summary>
     public async Task<IReadOnlyList<SavedPlanSummary>> ListAsync(string ownerId, CancellationToken cancellationToken) =>
         await context.SavedPlans
             .AsNoTracking()
             .Where(plan => plan.OwnerId == ownerId)
             .OrderByDescending(plan => plan.SavedAtUtc)
+            .ThenByDescending(plan => plan.CreatedAtUtc)
             .ThenBy(plan => plan.Id)
             .Select(plan => new SavedPlanSummary(plan.Id, plan.Name, plan.LocationName, plan.Dates, plan.SavedAtUtc))
             .ToListAsync(cancellationToken);
@@ -107,12 +100,14 @@ public sealed class SavedPlanService(
         PlanSnapshot snapshot,
         CancellationToken cancellationToken)
     {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
         var plan = new SavedPlan
         {
             Id = Guid.NewGuid(),
             OwnerId = ownerId,
             Name = name,
-            SavedAtUtc = timeProvider.GetUtcNow().UtcDateTime,
+            SavedAtUtc = now,
+            CreatedAtUtc = now,
             LocationName = snapshot.Setup.Location.Name,
             Dates = snapshot.Setup.Dates.ToList(),
             GeneratedScheduleId = scheduleId,
@@ -128,7 +123,7 @@ public sealed class SavedPlanService(
         catch (DbUpdateException exception) when (exception.InnerException is PostgresException
         {
             SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: GeneratedScheduleIndex
+            ConstraintName: SavedPlanConfiguration.GeneratedScheduleIndexName
         })
         {
             // Another request saved this generated schedule after the check above.
@@ -136,7 +131,7 @@ public sealed class SavedPlanService(
             var winner = await FindSavedAsync(scheduleId, cancellationToken);
             return winner is not null && winner.OwnerId == ownerId
                 ? SavePlanResult.AlreadySaved(winner)
-                : SavePlanResult.Invalid([Expired]);
+                : SavePlanResult.Invalid([SavedPlanValidator.ScheduleExpired]);
         }
     }
 

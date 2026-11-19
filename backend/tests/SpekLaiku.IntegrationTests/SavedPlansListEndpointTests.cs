@@ -10,7 +10,7 @@ namespace SpekLaiku.IntegrationTests;
 
 /// <summary>
 /// <c>GET /api/plans</c> (feature 010 contracts/plans-api.md, spec FR-009, FR-012, SC-005): the caller's plans
-/// only, newest saved first, as summaries without the stored schedule.
+/// only, newest saved first (then newest created, feature 011), as summaries without the stored schedule.
 /// </summary>
 [Collection(PostgreSqlCollection.Name)]
 public class SavedPlansListEndpointTests(PostgreSqlApiFactory factory)
@@ -47,6 +47,35 @@ public class SavedPlansListEndpointTests(PostgreSqlApiFactory factory)
             plan.EnumerateObject().Select(property => property.Name)));
         Assert.Equal("Third", plans[0].GetProperty("name").GetString());
         Assert.Equal("2026-11-10T12:22:00+00:00", plans[0].GetProperty("savedAt").GetString());
+    }
+
+    [Fact]
+    public async Task PlansSavedAtTheSameTime_AreListedNewestCreatedFirst()
+    {
+        // Feature 011 research section 5: a copy keeps its original's saved time and is listed directly above it.
+        var account = await factory.CreateUserAsync();
+        using var client = factory.CreateHttpsClient();
+        await SignInAsync(client, account);
+        var older = await SaveAsync(client, "Created first", ScheduleScenario.Now);
+        var newer = await SaveAsync(client, "Created second", ScheduleScenario.Now.AddMinutes(1));
+        using (var scope = factory.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var plans = await context.SavedPlans.Where(plan => plan.OwnerId == account.Id).ToListAsync();
+            var savedAt = ScheduleScenario.Now.UtcDateTime;
+            foreach (var plan in plans)
+            {
+                plan.SavedAtUtc = savedAt;
+                plan.CreatedAtUtc = plan.Id == newer ? savedAt.AddMinutes(5) : savedAt;
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        using var response = await client.GetAsync(Path);
+
+        var ids = (await ReadAsync(response)).EnumerateArray().Select(plan => plan.GetProperty("id").GetGuid());
+        Assert.Equal([newer, older], ids);
     }
 
     [Fact]

@@ -2,7 +2,7 @@ using SpekLaiku.Api.Services;
 
 namespace SpekLaiku.UnitTests;
 
-/// <summary>The plan name rules (feature 010 spec FR-002, docs/ux-design.md Form 5).</summary>
+/// <summary>The plan name rules (feature 010 spec FR-002, docs/ux-design.md Form 5) and copy names (feature 011).</summary>
 public sealed class SavedPlanValidatorTests
 {
     [Theory]
@@ -64,5 +64,65 @@ public sealed class SavedPlanValidatorTests
 
         Assert.Equal("<script>", trimmed);
         Assert.Null(error);
+    }
+
+    // Feature 011 spec FR-005, research section 6: copies are named "Copy of <name>", at most 80 characters.
+    [Fact]
+    public void CopyName_PutsCopyOfBeforeTheName()
+    {
+        Assert.Equal("Copy of Weekend", SavedPlanValidator.CopyName("Weekend"));
+    }
+
+    [Fact]
+    public void CopyName_KeepsANameThatEndsExactlyAt80Characters()
+    {
+        var original = new string('a', 72);
+
+        var copy = SavedPlanValidator.CopyName(original);
+
+        Assert.Equal(80, copy.Length);
+        Assert.Equal("Copy of " + original, copy);
+    }
+
+    [Fact]
+    public void CopyName_CutsTheEndOfALongName()
+    {
+        var original = new string('a', 72) + new string('b', 8);
+
+        var copy = SavedPlanValidator.CopyName(original);
+
+        Assert.Equal(80, copy.Length);
+        Assert.Equal("Copy of " + new string('a', 72), copy);
+    }
+
+    [Fact]
+    public void CopyName_DoesNotSplitACharacterMadeOfTwoUnits()
+    {
+        // The emoji is the name's 72nd and 73rd UTF-16 units, so a cut at 80 would keep only its first half.
+        var original = new string('a', 71) + "🚲" + "bbb";
+
+        var copy = SavedPlanValidator.CopyName(original);
+
+        Assert.Equal(79, copy.Length);
+        Assert.Equal("Copy of " + new string('a', 71), copy);
+        Assert.DoesNotContain(copy, char.IsSurrogate);
+    }
+
+    [Fact]
+    public void CopyName_RemovesASpaceLeftAtTheEndByTheCut()
+    {
+        // The name's 72nd character is a space, so a cut at 80 would end the copy's name with it.
+        var original = new string('a', 71) + " bbb";
+
+        var copy = SavedPlanValidator.CopyName(original);
+
+        Assert.Equal("Copy of " + new string('a', 71), copy);
+        Assert.Equal(copy.Trim(), copy);
+    }
+
+    [Fact]
+    public void CopyName_OfACopy_AddsCopyOfAgain()
+    {
+        Assert.Equal("Copy of Copy of A", SavedPlanValidator.CopyName(SavedPlanValidator.CopyName("A")));
     }
 }

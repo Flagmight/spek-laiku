@@ -53,6 +53,27 @@ public sealed class GeneratedScheduleService(
         }
     }
 
+    /// <summary>
+    /// The remembered snapshot when it can be saved as a plan, or the <c>generatedScheduleId</c> error: "Generate
+    /// the schedule again to save it." for a missing, unknown or expired id, and "There is nothing to save in this
+    /// schedule." when nothing was scheduled. Shared by saving a new plan and saving changes to one (feature 011
+    /// research section 3).
+    /// </summary>
+    public async Task<(PlanSnapshot? Snapshot, KeyValuePair<string, string>? Error)> FindSavableAsync(
+        Guid? id,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = id is { } scheduleId ? await FindAsync(scheduleId, cancellationToken) : null;
+        if (snapshot is null)
+        {
+            return (null, SavedPlanValidator.ScheduleExpired);
+        }
+
+        return snapshot.Schedule.Scheduled.Count == 0
+            ? (null, new(SavedPlanValidator.ScheduleKey, SavedPlanValidator.NothingToSaveMessage))
+            : (snapshot, null);
+    }
+
     /// <summary>The remembered snapshot, or <c>null</c> when the id is unknown or its 30 minutes have passed.</summary>
     public async Task<PlanSnapshot?> FindAsync(Guid id, CancellationToken cancellationToken)
     {

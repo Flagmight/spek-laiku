@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { Link, Navigate } from "react-router-dom"
+import { EditingNotice } from "../components/editingNotice"
 import { PlanProgress } from "../components/planProgress"
 import { SavePlanSection } from "../components/savePlanSection"
 import { ScheduleView } from "../components/scheduleView"
@@ -74,6 +75,7 @@ export function ScheduleOverviewPage() {
     <>
       <h1>Schedule overview</h1>
       <PlanProgress current={4} />
+      <EditingNotice />
       <ScheduleBody status={status} schedule={schedule} onRetry={retry} />
       {status === "loaded" && schedule && setup && activities && (
         <SavePlanSection

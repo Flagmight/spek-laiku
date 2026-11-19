@@ -17,6 +17,8 @@ export interface SavedPlanState {
   // Aborts any earlier request and loads this plan.
   load: (id: string) => Promise<void>
   retry: () => Promise<void>
+  // Shows a new name after a rename, without loading the plan again (feature 011 spec FR-014).
+  rename: (name: string) => void
   // Aborts a pending request, for example when the page closes.
   reset: () => void
 }
@@ -74,6 +76,8 @@ export const useSavedPlanStore = create<SavedPlanState>()((set, get) => ({
       await load(planId)
     }
   },
+  rename: (name) =>
+    set((state) => (state.plan ? { plan: { ...state.plan, name } } : {})),
   reset: () => {
     get().controller?.abort()
     set(initialSavedPlanState)

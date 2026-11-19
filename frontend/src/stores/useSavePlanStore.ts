@@ -1,12 +1,20 @@
 import { create } from "zustand"
-import { savePlan } from "../api/savedPlansApi"
-import type { SavePlanAnswer } from "../api/savedPlansApi"
+import { replacePlan, savePlan } from "../api/savedPlansApi"
+import type { ReplacePlanAnswer } from "../api/savedPlansApi"
+import { savePlanResult } from "../helpers/savePlanResult"
 import { startTimeout } from "../helpers/timedRequest"
-import type { SavePlanRequest, SavedPlanSummary } from "../types/savedPlan"
-import { useCurrentUserStore } from "./useCurrentUserStore"
+import type { CheckedPlanActivity } from "../types/planActivity"
+import type { CheckedPlanSetup } from "../types/planSetup"
+import type { SavedPlanSummary } from "../types/savedPlan"
+import { usePlanEditStore } from "./usePlanEditStore"
 
 // The same message the server gives; checked here first so an empty name needs no request (spec FR-002).
 export const nameRequiredMessage = "Enter a plan name."
+export const changesSavedMessage = "✓ Success: Changes saved."
+export const changesFailedMessage =
+  "Error: Changes could not be saved. Try again."
+export const planGoneSaveAsNewMessage =
+  "This plan no longer exists. Save it as a new plan instead."
 
 export type SavePlanStatus =
   | "closed"
@@ -16,12 +24,24 @@ export type SavePlanStatus =
   | "invalid"
   // The remembered schedule is unknown or older than 30 minutes (spec FR-004).
   | "expired"
+  // The plan being edited no longer exists (feature 011 spec FR-012).
+  | "planGone"
   // The session ended; the page keeps the schedule and sends the user to Log in.
   | "sessionExpired"
   | "serverError"
 
-// The Save plan form on the Schedule Overview (feature 010 spec User Story 1). The name lives here, not in
-// the form, so it survives "Generate again", which replaces the schedule under the form.
+// What Save sends, with the plan it was generated from: a plan id saves changes to that plan (feature 011), and
+// the setup and activities become the saved marker once the save succeeds (feature 011 research section 10).
+export interface SaveSubmission {
+  generatedScheduleId: string | null
+  planId?: string
+  setup: CheckedPlanSetup
+  activities: CheckedPlanActivity[]
+}
+
+// The Save plan and Save changes form on the Schedule Overview (feature 010 spec User Story 1, feature 011 User
+// Story 3). The name lives here, not in the form, so it survives "Generate again", which replaces the schedule
+// under the form.
 export interface SavePlanState {
   status: SavePlanStatus
   name: string
@@ -30,17 +50,20 @@ export interface SavePlanState {
   // is shown a second time (spec User Story 7).
   nameRefusals: number
   savedPlan: SavedPlanSummary | null
-  lastRequest: SavePlanRequest | null
+  // The last submission with the name it sent, so Retry sends exactly the same request.
+  lastSubmission: (SaveSubmission & { name: string }) | null
   controller: AbortController | null
   open: () => void
   cancel: () => void
   setName: (name: string) => void
   // No-op while saving.
-  submit: (generatedScheduleId: string | null) => Promise<void>
-  // Sends the last request again.
+  submit: (submission: SaveSubmission) => Promise<void>
+  // Sends the last submission again, to the same address.
   retry: () => Promise<void>
   // Keeps the name and the open form for the schedule generated after "Generate again".
   reopen: () => void
+  // After the edited plan turned out to be gone: keeps the name and opens the form to save a new plan.
+  saveAsNew: () => void
   // Aborts a pending save and closes the form, for example when the page closes.
   reset: () => void
 }
@@ -52,7 +75,7 @@ export const initialSavePlanState: Pick<
   | "nameError"
   | "nameRefusals"
   | "savedPlan"
-  | "lastRequest"
+  | "lastSubmission"
   | "controller"
 > = {
   status: "closed",
@@ -60,48 +83,31 @@ export const initialSavePlanState: Pick<
   nameError: null,
   nameRefusals: 0,
   savedPlan: null,
-  lastRequest: null,
+  lastSubmission: null,
   controller: null,
 }
 
-type Result = Pick<SavePlanState, "status" | "nameError" | "savedPlan">
-
-function toResult(answer: SavePlanAnswer | null): Result {
-  switch (answer?.kind) {
-    case "saved":
-      return { status: "saved", nameError: null, savedPlan: answer.plan }
-    case "invalid":
-      return {
-        status: answer.errors.generatedScheduleId ? "expired" : "invalid",
-        nameError: answer.errors.name ?? null,
-        savedPlan: null,
-      }
-    case "unauthorized":
-      return { status: "sessionExpired", nameError: null, savedPlan: null }
-    case "forbidden":
-      // The account changed (for example suspended); the guards show the right page after the refresh.
-      void useCurrentUserStore.getState().refresh()
-      return { status: "serverError", nameError: null, savedPlan: null }
-    default:
-      return { status: "serverError", nameError: null, savedPlan: null }
-  }
-}
-
 export const useSavePlanStore = create<SavePlanState>()((set, get) => {
-  async function send(request: SavePlanRequest) {
+  async function send(submission: SaveSubmission & { name: string }) {
     const abort = new AbortController()
     // An earlier refusal no longer applies while the corrected name is being saved; keeping it would also pull
     // focus back to the field.
     set({
       status: "saving",
       nameError: null,
-      lastRequest: request,
+      lastSubmission: submission,
       controller: abort,
     })
     const clearTimer = startTimeout(abort)
-    let answer: SavePlanAnswer | null = null
+    const request = {
+      generatedScheduleId: submission.generatedScheduleId,
+      name: submission.name,
+    }
+    let answer: ReplacePlanAnswer | null = null
     try {
-      answer = await savePlan(request, abort.signal)
+      answer = submission.planId
+        ? await replacePlan(submission.planId, request, abort.signal)
+        : await savePlan(request, abort.signal)
     } catch {
       // A 5xx, a network error, the timeout or an abort: answer stays null, which is a server error.
     } finally {
@@ -113,7 +119,12 @@ export const useSavePlanStore = create<SavePlanState>()((set, get) => {
       return
     }
 
-    const result = toResult(answer)
+    const result = savePlanResult(answer)
+    if (result.status === "saved") {
+      usePlanEditStore
+        .getState()
+        .markSaved(submission.setup, submission.activities)
+    }
     set({
       ...result,
       controller: null,
@@ -129,7 +140,7 @@ export const useSavePlanStore = create<SavePlanState>()((set, get) => {
       set({ status: "closed", nameError: null, controller: null })
     },
     setName: (name) => set({ name }),
-    submit: async (generatedScheduleId) => {
+    submit: async (submission) => {
       if (get().status === "saving") {
         return
       }
@@ -144,12 +155,12 @@ export const useSavePlanStore = create<SavePlanState>()((set, get) => {
         return
       }
 
-      await send({ generatedScheduleId, name })
+      await send({ ...submission, name })
     },
     retry: async () => {
-      const { lastRequest, status } = get()
-      if (lastRequest && status !== "saving") {
-        await send(lastRequest)
+      const { lastSubmission, status } = get()
+      if (lastSubmission && status !== "saving") {
+        await send(lastSubmission)
       }
     },
     reopen: () => {
@@ -161,6 +172,7 @@ export const useSavePlanStore = create<SavePlanState>()((set, get) => {
         controller: null,
       })
     },
+    saveAsNew: () => set({ status: "open", nameError: null, savedPlan: null }),
     reset: () => {
       get().controller?.abort()
       set(initialSavePlanState)

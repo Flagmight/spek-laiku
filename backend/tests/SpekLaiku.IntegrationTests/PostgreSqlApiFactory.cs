@@ -188,6 +188,17 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
                 provider.GetRequiredService<ApplicationDbContext>(),
                 provider.GetRequiredService<GeneratedScheduleService>(),
                 Clock));
+            // A copy's creation time and an edit's saved time come from the same clock (feature 011), so the copy
+            // order and save changes tests can control them.
+            services.RemoveAll<SavedPlanChangeService>();
+            services.AddScoped(provider => new SavedPlanChangeService(
+                provider.GetRequiredService<ApplicationDbContext>(),
+                Clock));
+            services.RemoveAll<SavedPlanEditService>();
+            services.AddScoped(provider => new SavedPlanEditService(
+                provider.GetRequiredService<ApplicationDbContext>(),
+                provider.GetRequiredService<GeneratedScheduleService>(),
+                Clock));
         });
     }
 }

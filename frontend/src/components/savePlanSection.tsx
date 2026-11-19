@@ -1,17 +1,20 @@
 import { useEffect, useRef } from "react"
-import type { KeyboardEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { canViewSavedPlans } from "../helpers/canViewSavedPlans"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
-import { useSavePlanStore } from "../stores/useSavePlanStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
+import {
+  changesSavedMessage,
+  useSavePlanStore,
+} from "../stores/useSavePlanStore"
 import type { NavigationState } from "../types/navigationState"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanSchedule } from "../types/planSchedule"
 import type { CheckedPlanSetup } from "../types/planSetup"
-import { TextField } from "./textField"
+import { PlanNameForm } from "./planNameForm"
+import { SavePlanStatus } from "./savePlanStatus"
 
-const nameFieldId = "plan-name"
 const visitorHintId = "save-plan-hint"
 const logInToSave = "/login?returnTo=" + encodeURIComponent("/plan/schedule")
 
@@ -19,7 +22,8 @@ const logInToSave = "/login?returnTo=" + encodeURIComponent("/plan/schedule")
 // Active Registered User names and saves the schedule; only its remembered id and the name are sent. A Visitor,
 // or a user whose session ended while saving, is sent to Log in with the schedule kept, and comes back to it.
 // Nothing is offered when no activity was scheduled. onGenerateAgain replaces an expired schedule, keeping the
-// form and the name.
+// form and the name. While a saved plan is being edited, the same form is "Save changes" and replaces that plan
+// (feature 011 spec FR-009 to FR-012).
 export function SavePlanSection({
   setup,
   activities,
@@ -38,16 +42,14 @@ export function SavePlanSection({
   const name = useSavePlanStore((state) => state.name)
   const nameError = useSavePlanStore((state) => state.nameError)
   const nameRefusals = useSavePlanStore((state) => state.nameRefusals)
+  // The plan the last submission saved changes to; it is kept after the edit ends, for the success message.
+  const changedPlanId = useSavePlanStore(
+    (state) => state.lastSubmission?.planId,
+  )
+  const edit = usePlanEditStore((state) => state.edit)
+  const editing = edit !== null && edit.ownerEmail === user?.email
   const saveButton = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef(false)
-
-  // Focus goes to the name field when the form opens and every time the name is refused, even with the same
-  // message as before (spec User Story 7).
-  useEffect(() => {
-    if (status === "open" || nameError) {
-      document.getElementById(nameFieldId)?.focus()
-    }
-  }, [nameError, nameRefusals, status])
 
   useEffect(() => {
     if (status === "closed" && returnFocus.current) {
@@ -55,6 +57,16 @@ export function SavePlanSection({
       saveButton.current?.focus()
     }
   }, [status])
+
+  // Saving changes ends the edit; the setup and activities stay as the plan in progress (feature 011 FR-010).
+  useEffect(() => {
+    if (status === "saved" && changedPlanId) {
+      const planEdit = usePlanEditStore.getState()
+      if (planEdit.edit?.planId === changedPlanId) {
+        planEdit.clear()
+      }
+    }
+  }, [status, changedPlanId])
 
   // The session ended while saving: keep the schedule and log in again (spec Edge Cases). The user is marked
   // signed out first, so the Log in page opens instead of sending a still "signed-in" user home.
@@ -94,17 +106,29 @@ export function SavePlanSection({
   const store = useSavePlanStore.getState()
 
   if (status === "closed" || status === "sessionExpired") {
+    // Save changes starts with the plan's current name (feature 011 FR-009).
+    const open = () => {
+      if (editing) {
+        store.setName(edit.planName)
+      }
+      store.open()
+    }
     return (
       <p>
-        <button type="button" ref={saveButton} onClick={store.open}>
-          Save plan
+        <button type="button" ref={saveButton} onClick={open}>
+          {editing ? "Save changes" : "Save plan"}
         </button>
       </p>
     )
   }
 
   if (status === "saved") {
-    return (
+    return changedPlanId ? (
+      <p role="status">
+        {changesSavedMessage}{" "}
+        <Link to={`/plans/${changedPlanId}`}>Open plan</Link>
+      </p>
+    ) : (
       <p role="status">
         ✓ Success: Plan saved. <Link to="/plans">Go to My plans</Link>
       </p>
@@ -116,80 +140,42 @@ export function SavePlanSection({
     store.cancel()
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLFormElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault()
-      cancel()
-    }
+  // The edited plan is gone: keep the new schedule by saving it as a new plan, with the name kept.
+  function saveAsNew() {
+    usePlanEditStore.getState().clear()
+    store.saveAsNew()
   }
 
+  const label = editing ? "Save changes" : "Save plan"
   return (
-    <form
-      aria-label="Save plan"
-      noValidate
-      onKeyDown={onKeyDown}
-      onSubmit={(event) => {
-        event.preventDefault()
-        void store.submit(schedule.generatedScheduleId)
-      }}
+    <PlanNameForm
+      formLabel={label}
+      submitLabel={editing ? "Save changes" : "Save"}
+      name={name}
+      nameError={nameError}
+      nameRefusals={nameRefusals}
+      opened={status === "open"}
+      busy={status === "saving"}
+      onNameChange={store.setName}
+      onSubmit={() =>
+        // The edited plan is gone, so submitting again would only get the same answer (feature 011 code review).
+        status === "planGone"
+          ? saveAsNew()
+          : void store.submit({
+              generatedScheduleId: schedule.generatedScheduleId,
+              planId: editing ? edit.planId : undefined,
+              setup,
+              activities,
+            })
+      }
+      onCancel={cancel}
     >
-      <TextField
-        id={nameFieldId}
-        label="Plan name"
-        type="text"
-        autoComplete="off"
-        value={name}
-        error={nameError ?? undefined}
-        onChange={store.setName}
+      <SavePlanStatus
+        status={status}
+        savingChanges={editing}
+        onGenerateAgain={onGenerateAgain}
+        onSaveAsNew={saveAsNew}
       />
-      <SaveStatus status={status} onGenerateAgain={onGenerateAgain} />
-      <p>
-        <button type="submit" disabled={status === "saving"}>
-          Save
-        </button>{" "}
-        <button type="button" onClick={cancel}>
-          Cancel
-        </button>
-      </p>
-    </form>
+    </PlanNameForm>
   )
-}
-
-function SaveStatus({
-  status,
-  onGenerateAgain,
-}: {
-  status: ReturnType<typeof useSavePlanStore.getState>["status"]
-  onGenerateAgain: () => void
-}) {
-  if (status === "saving") {
-    return <p role="status">Saving your plan…</p>
-  }
-
-  if (status === "expired") {
-    return (
-      <p role="alert">
-        Generate the schedule again to save it.{" "}
-        <button type="button" onClick={onGenerateAgain}>
-          Generate again
-        </button>
-      </p>
-    )
-  }
-
-  if (status === "serverError") {
-    return (
-      <p role="alert">
-        Error: Plan could not be saved. Try again.{" "}
-        <button
-          type="button"
-          onClick={() => void useSavePlanStore.getState().retry()}
-        >
-          Retry
-        </button>
-      </p>
-    )
-  }
-
-  return null
 }

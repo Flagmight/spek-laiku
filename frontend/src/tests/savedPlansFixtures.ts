@@ -87,6 +87,7 @@ export const savedPlan: SavedPlan = {
   name: longPlanName,
   savedAt: "2026-11-18T12:05:00Z",
   location: {
+    id: 598316,
     name: "Kaunas",
     area: "Kaunas County",
     latitude: 54.90156,
@@ -94,6 +95,32 @@ export const savedPlan: SavedPlan = {
   },
   dates: ["2026-11-14"],
   maxTravelDistanceKm: 30,
+  // One outdoor activity with limits and one indoor activity without, for loading a plan into editing
+  // (feature 011 research section 4).
+  activities: [
+    {
+      categoryId: "c1d2e3f4-0000-4000-8000-000000000001",
+      name: "Cycling",
+      type: "Outdoor",
+      durationHours: 2.5,
+      requiresDaylight: true,
+      maxWindMs: 10,
+      maxRainMmPerHour: 1,
+      minTemperatureC: 5,
+      maxTemperatureC: 32,
+    },
+    {
+      categoryId: "c1d2e3f4-0000-4000-8000-000000000002",
+      name: "Museum",
+      type: "Indoor",
+      durationHours: 2,
+      requiresDaylight: false,
+      maxWindMs: null,
+      maxRainMmPerHour: null,
+      minTemperatureC: null,
+      maxTemperatureC: null,
+    },
+  ],
   scheduled: museumSchedule.scheduled,
   unscheduled: [],
   travel: museumSchedule.travel,

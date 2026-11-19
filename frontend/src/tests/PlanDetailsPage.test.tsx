@@ -1,6 +1,9 @@
-import { screen, within } from "@testing-library/react"
+import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
+import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
+import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { SavedPlan } from "../types/savedPlan"
 import type { RecordedRequest } from "./renderApp"
 import {
@@ -9,6 +12,7 @@ import {
   routeFetch,
   signedInUser,
 } from "./renderApp"
+import { acceptMuseumPlan, savedPlan } from "./savedPlansFixtures"
 
 const id = "0b8f4c1e-7d2a-4f3b-9e6c-5a1d2c3b4e5f"
 
@@ -17,6 +21,7 @@ const plan: SavedPlan = {
   name: "Weekend in Kaunas",
   savedAt: "2026-11-18T12:05:00Z",
   location: {
+    id: 598316,
     name: "Kaunas",
     area: "Kaunas County",
     latitude: 54.90156,
@@ -24,6 +29,7 @@ const plan: SavedPlan = {
   },
   dates: ["2026-11-21", "2026-11-22"],
   maxTravelDistanceKm: 30,
+  activities: savedPlan.activities,
   scheduled: [
     {
       activityName: "Cycling",
@@ -138,14 +144,14 @@ describe("PlanDetailsPage", () => {
     ).toBeInTheDocument()
   })
 
-  it("offers no save, edit, recalculate, duplicate or delete actions and generates nothing", async () => {
+  // Feature 011 adds the plan's actions; saving and recalculating are still not offered (feature 012).
+  it("offers no save or recalculate action and generates nothing", async () => {
     const { requests } = render(() => jsonResponse(200, plan))
 
     await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
 
-    expect(screen.queryAllByRole("button")).toEqual(
-      screen.queryAllByRole("button", { name: "Log out" }),
-    )
+    expect(screen.queryByRole("button", { name: /save plan/i })).toBeNull()
+    expect(screen.queryByRole("button", { name: /recalculate/i })).toBeNull()
     expect(requests.map((request) => request.path)).not.toContain(
       "/api/plan-schedule",
     )
@@ -241,5 +247,430 @@ describe("PlanDetailsPage", () => {
       }),
     ).toBeInTheDocument()
     expect(currentLocation()).toBe(`/plans/${id}`)
+  })
+})
+
+// Feature 011 User Story 1: deleting a plan from its page.
+describe("PlanDetailsPage delete", () => {
+  function renderWithDelete(
+    answer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    const routes = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`DELETE /api/plans/${id}`]: answer,
+      "GET /api/plans": () => jsonResponse(200, []),
+    })
+    return { ...routes, ...renderAppWithLocation(`/plans/${id}`) }
+  }
+
+  it("opens My plans with 'Plan deleted.' after confirming", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithDelete(() => jsonResponse(204))
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Weekend in Kaunas" }),
+    )
+
+    await user.click(
+      within(
+        screen.getByRole("dialog", {
+          name: "Delete 'Weekend in Kaunas'? This cannot be undone.",
+        }),
+      ).getByRole("button", { name: "Delete" }),
+    )
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "My plans" }),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe("/plans")
+    expect(await screen.findByText("Plan deleted.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+  })
+
+  it("stays on the page and says a plan deleted elsewhere no longer exists", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithDelete(() =>
+      jsonResponse(404, { detail: "This plan no longer exists." }),
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Weekend in Kaunas" }),
+    )
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    )
+
+    expect(
+      await screen.findByText("This plan no longer exists."),
+    ).toHaveAttribute("role", "alert")
+    expect(currentLocation()).toBe(`/plans/${id}`)
+  })
+})
+
+// Feature 011 User Story 2: duplicating a plan from its page.
+describe("PlanDetailsPage duplicate", () => {
+  const copyId = "5d2e9a7c-1b3f-4c8d-a6e2-9f0b1c2d3e4f"
+  const copy: SavedPlan = {
+    ...plan,
+    id: copyId,
+    name: "Copy of Weekend in Kaunas",
+  }
+
+  function renderWithCopy(
+    answer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`GET /api/plans/${copyId}`]: () => jsonResponse(200, copy),
+      [`POST /api/plans/${id}/copies`]: answer,
+    })
+    return renderAppWithLocation(`/plans/${id}`)
+  }
+
+  it("opens the copy's page with 'Plan duplicated.'", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithCopy(() =>
+      jsonResponse(201, {
+        id: copyId,
+        name: copy.name,
+        locationName: "Kaunas",
+        dates: copy.dates,
+        savedAt: copy.savedAt,
+      }),
+    )
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Duplicate Weekend in Kaunas",
+      }),
+    )
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Copy of Weekend in Kaunas",
+      }),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe(`/plans/${copyId}`)
+    expect(screen.getByText("Plan duplicated.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+  })
+
+  it("stays on the page and says a plan deleted elsewhere no longer exists", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithCopy(() => jsonResponse(404, {}))
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Duplicate Weekend in Kaunas",
+      }),
+    )
+
+    expect(
+      await screen.findByText("This plan no longer exists."),
+    ).toHaveAttribute("role", "alert")
+    expect(currentLocation()).toBe(`/plans/${id}`)
+  })
+})
+
+// Feature 011 User Story 3: Edit plan loads the saved plan into the planning steps.
+describe("PlanDetailsPage edit", () => {
+  const question =
+    "Editing this plan replaces the plan you have not saved. Continue?"
+
+  function renderWithPeriod(firstDate = "2026-11-19") {
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, { firstDate, lastDate: "2026-11-25", maxDates: 7 }),
+    })
+    return renderAppWithLocation(`/plans/${id}`)
+  }
+
+  it("offers Edit plan first among the plan's actions", async () => {
+    renderWithPeriod()
+
+    const actions = await screen.findByRole("button", { name: "Edit plan" })
+
+    const buttons = within(actions.closest("p")!).getAllByRole("button")
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Edit plan",
+      "Rename",
+      "Duplicate",
+      "Delete",
+    ])
+  })
+
+  it("loads the plan into Plan Setup and Activity Selection and starts the edit", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithPeriod()
+
+    await user.click(await screen.findByRole("button", { name: "Edit plan" }))
+
+    expect(currentLocation()).toBe("/plan/setup")
+    expect(await screen.findByLabelText("Location")).toHaveValue(
+      "Kaunas, Kaunas County",
+    )
+    expect(screen.getByText("Sat 21 Nov 2026")).toBeInTheDocument()
+    expect(screen.getByText("Sun 22 Nov 2026")).toBeInTheDocument()
+    expect(screen.getByLabelText(/Maximum travel distance/)).toHaveValue("30")
+    expect(
+      screen.getByText(
+        "Editing 'Weekend in Kaunas'. Your saved plan is not changed until you save.",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      usePlanActivitiesStore.getState().activities.map((a) => a.name),
+    ).toEqual(["Cycling", "Museum"])
+    expect(usePlanEditStore.getState().edit).toEqual({
+      planId: id,
+      planName: "Weekend in Kaunas",
+      ownerEmail: "user@example.com",
+    })
+  })
+
+  it("shows a saved date that has passed as in the past", async () => {
+    const user = userEvent.setup()
+    renderWithPeriod("2026-11-22")
+
+    await user.click(await screen.findByRole("button", { name: "Edit plan" }))
+
+    expect(
+      await screen.findByText(/Dates cannot be in the past\./),
+    ).toBeInTheDocument()
+  })
+
+  it("asks before replacing a plan in progress, and Cancel keeps it", async () => {
+    const user = userEvent.setup()
+    usePlanSetupStore.getState().setLocationText("Vilnius")
+    usePlanSetupStore.getState().addDate("2026-11-24")
+    const { currentLocation } = renderWithPeriod()
+    const edit = await screen.findByRole("button", { name: "Edit plan" })
+
+    await user.click(edit)
+    const dialog = screen.getByRole("dialog", { name: question })
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }))
+
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(edit).toHaveFocus()
+    expect(currentLocation()).toBe(`/plans/${id}`)
+    expect(usePlanSetupStore.getState().dates).toEqual(["2026-11-24"])
+    expect(usePlanEditStore.getState().edit).toBeNull()
+  })
+
+  it("replaces the plan in progress after Continue", async () => {
+    const user = userEvent.setup()
+    usePlanSetupStore.getState().addDate("2026-11-24")
+    const { currentLocation } = renderWithPeriod()
+
+    await user.click(await screen.findByRole("button", { name: "Edit plan" }))
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Continue",
+      }),
+    )
+
+    expect(currentLocation()).toBe("/plan/setup")
+    expect(usePlanSetupStore.getState().dates).toEqual(plan.dates)
+  })
+
+  it("does not ask after the plan in progress was saved and left unchanged", async () => {
+    const user = userEvent.setup()
+    // A date first: adding one unchecks the setup, so the plan is checked after it, as after Continue.
+    usePlanSetupStore.getState().addDate("2026-11-14")
+    acceptMuseumPlan()
+    const { checked: setup } = usePlanSetupStore.getState()
+    const { checked: activities } = usePlanActivitiesStore.getState()
+    usePlanEditStore.getState().markSaved(setup!, activities!)
+    const { currentLocation } = renderWithPeriod()
+
+    await user.click(await screen.findByRole("button", { name: "Edit plan" }))
+
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(currentLocation()).toBe("/plan/setup")
+  })
+})
+
+// Feature 011 User Story 4: renaming a plan on its page.
+describe("PlanDetailsPage rename", () => {
+  function renderWithRename(
+    answer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    const routes = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`PUT /api/plans/${id}/name`]: answer,
+    })
+    renderAppWithLocation(`/plans/${id}`)
+    return routes
+  }
+
+  function renamedTo(name: string) {
+    return jsonResponse(200, {
+      id,
+      name,
+      locationName: "Kaunas",
+      dates: plan.dates,
+      savedAt: plan.savedAt,
+    })
+  }
+
+  it("opens the form with the current name and focus in the field", async () => {
+    const user = userEvent.setup()
+    renderWithRename(() => renamedTo("Kaunas trip"))
+
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+
+    expect(
+      screen.getByRole("form", { name: "Rename plan" }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Plan name")).toHaveValue("Weekend in Kaunas")
+    expect(screen.getByLabelText("Plan name")).toHaveFocus()
+  })
+
+  it("refuses an empty name next to the field, with focus on it each time", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderWithRename(() => renamedTo("x"))
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    const field = screen.getByLabelText("Plan name")
+    await user.clear(field)
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+    expect(screen.getByText(/Enter a plan name\./)).toBeInTheDocument()
+    expect(field).toHaveAttribute("aria-invalid", "true")
+    expect(field).toHaveFocus()
+
+    screen.getByRole("button", { name: "Save" }).focus()
+    await user.click(screen.getByRole("button", { name: "Save" }))
+    expect(field).toHaveFocus()
+    expect(requests.filter((request) => request.method === "PUT")).toEqual([])
+  })
+
+  it("renames the plan and updates the heading, title and breadcrumbs", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderWithRename(() => renamedTo("Kaunas trip"))
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    const field = screen.getByLabelText("Plan name")
+    await user.clear(field)
+    await user.type(field, "Kaunas trip")
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(await screen.findByText("✓ Success: Plan renamed.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Kaunas trip" }),
+    ).toBeInTheDocument()
+    expect(document.title).toBe("Kaunas trip - Spėk laiku")
+    expect(
+      within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText(
+        "Kaunas trip",
+      ),
+    ).toHaveAttribute("aria-current", "page")
+    expect(
+      screen.getByText("Saved on Wed 18 Nov 2026 at 14:05"),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Rename" })).toHaveFocus()
+    expect(requests.filter((request) => request.method === "PUT")).toEqual([
+      {
+        method: "PUT",
+        path: `/api/plans/${id}/name`,
+        body: { name: "Kaunas trip" },
+      },
+    ])
+  })
+
+  it("shows the pending text while renaming", async () => {
+    const user = userEvent.setup()
+    renderWithRename(() => new Promise<Response>(() => {}))
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(await screen.findByText("Renaming your plan…")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
+  })
+
+  it("closes with Escape and returns focus to Rename, keeping the name", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderWithRename(() => renamedTo("x"))
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    await user.type(screen.getByLabelText("Plan name"), " changed")
+
+    await user.keyboard("{Escape}")
+
+    expect(screen.queryByRole("form", { name: "Rename plan" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Rename" })).toHaveFocus()
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Weekend in Kaunas" }),
+    ).toBeInTheDocument()
+    expect(requests.filter((request) => request.method === "PUT")).toEqual([])
+  })
+
+  it("shows the error with Retry and keeps the entered name", async () => {
+    let calls = 0
+    const user = userEvent.setup()
+    renderWithRename(() =>
+      ++calls === 1 ? jsonResponse(500) : renamedTo("Kaunas trip"),
+    )
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    const field = screen.getByLabelText("Plan name")
+    await user.clear(field)
+    await user.type(field, "Kaunas trip")
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(
+      await screen.findByText(/Error: Plan could not be renamed\. Try again\./),
+    ).toHaveAttribute("role", "alert")
+    expect(screen.getByLabelText("Plan name")).toHaveValue("Kaunas trip")
+
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(
+      await screen.findByText("✓ Success: Plan renamed."),
+    ).toBeInTheDocument()
+  })
+})
+
+// Feature 011 User Story 5: an ended session during a rename logs in again and comes back to this plan.
+describe("PlanDetailsPage rename after the session ended", () => {
+  it("opens Log in with the expired message and this plan as the return-to page", async () => {
+    const user = userEvent.setup()
+    let sessionEnded = false
+    routeFetch({
+      "GET /api/auth/me": () =>
+        sessionEnded ? jsonResponse(401) : jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`PUT /api/plans/${id}/name`]: () => {
+        sessionEnded = true
+        return jsonResponse(401)
+      },
+    })
+    const { currentLocation } = renderAppWithLocation(`/plans/${id}`)
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() =>
+      expect(currentLocation()).toBe(
+        `/login?returnTo=${encodeURIComponent(`/plans/${id}`)}`,
+      ),
+    )
+    expect(
+      screen.getByText("Your session has expired. Log in again."),
+    ).toBeInTheDocument()
   })
 })

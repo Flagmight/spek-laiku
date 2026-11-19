@@ -11,7 +11,12 @@ import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { useLoginStore } from "../stores/useLoginStore"
 import { useLocationSearchStore } from "../stores/useLocationSearchStore"
 import { useLogoutStore } from "../stores/useLogoutStore"
+import { usePlanActionsStore } from "../stores/usePlanActionsStore"
 import { usePlanActivitiesCheckStore } from "../stores/usePlanActivitiesCheckStore"
+import {
+  initialPlanEditState,
+  usePlanEditStore,
+} from "../stores/usePlanEditStore"
 import {
   initialPlanActivitiesState,
   usePlanActivitiesStore,
@@ -24,6 +29,7 @@ import { usePlanScheduleStore } from "../stores/usePlanScheduleStore"
 import { usePlanSetupCheckStore } from "../stores/usePlanSetupCheckStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import { useRegistrationStore } from "../stores/useRegistrationStore"
+import { useRenamePlanStore } from "../stores/useRenamePlanStore"
 import { useSavePlanStore } from "../stores/useSavePlanStore"
 import { useSavedPlanStore } from "../stores/useSavedPlanStore"
 import { useSavedPlansStore } from "../stores/useSavedPlansStore"
@@ -51,6 +57,9 @@ afterEach(() => {
   useKeptScheduleStore.getState().clear()
   useSavedPlansStore.getState().reset()
   useSavedPlanStore.getState().reset()
+  usePlanActionsStore.getState().reset()
+  usePlanEditStore.setState(initialPlanEditState)
+  useRenamePlanStore.getState().reset()
   // The plan setup store saves itself to sessionStorage; nothing may carry over to the next test.
   sessionStorage.clear()
   vi.restoreAllMocks()

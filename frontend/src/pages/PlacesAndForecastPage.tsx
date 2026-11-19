@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom"
 import { PlacesAndForecastStatus } from "../components/placesAndForecastStatus"
 import { PlanActivitiesSummary } from "../components/planActivitiesSummary"
 import { PlanOverview } from "../components/planOverview"
+import { EditingNotice } from "../components/editingNotice"
 import { PlanProgress } from "../components/planProgress"
 import { PlanSetupSummary } from "../components/planSetupSummary"
 import { isFirstLoad } from "../helpers/isFirstLoad"
@@ -68,6 +69,7 @@ export function PlacesAndForecastPage() {
     <>
       <h1>Places and forecast</h1>
       <PlanProgress current={3} />
+      <EditingNotice />
       <PlanSetupSummary setup={setup} />
       <PlacesAndForecastStatus />
       {!firstLoad && (

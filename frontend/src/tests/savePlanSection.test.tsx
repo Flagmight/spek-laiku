@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CheckedPlanActivity } from "../types/planActivity"
 import type { PlanSchedule } from "../types/planSchedule"
@@ -414,6 +415,214 @@ describe("SavePlanSection for a signed-in Registered User", () => {
     )
     expect(
       await screen.findByText("Your session has expired. Log in again."),
+    ).toBeInTheDocument()
+  })
+})
+
+// Feature 011 User Story 3: while a saved plan is being edited, the form is Save changes and replaces that plan.
+describe("SavePlanSection while editing a saved plan", () => {
+  const planId = savedPlan.id
+  const replaceRoute = `PUT /api/plans/${planId}`
+
+  function renderEditing(
+    replace: Handler,
+    extraRoutes: Record<string, Handler> = {},
+  ) {
+    usePlanEditStore.getState().start({
+      planId,
+      planName: "Weekend in Kaunas",
+      ownerEmail: "user@example.com",
+    })
+    return render(() => jsonResponse(201, savedPlan), undefined, {
+      [replaceRoute]: replace,
+      ...extraRoutes,
+    })
+  }
+
+  async function openSaveChanges(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(
+      await screen.findByRole("button", { name: "Save changes" }),
+    )
+    return screen.getByLabelText("Plan name")
+  }
+
+  it("offers Save changes with the plan's name filled in", async () => {
+    const { user } = renderEditing(() => jsonResponse(200, savedPlan))
+
+    const field = await openSaveChanges(user)
+
+    expect(field).toHaveValue("Weekend in Kaunas")
+    expect(field).toHaveFocus()
+    expect(
+      screen.getByRole("form", { name: "Save changes" }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Save plan" })).toBeNull()
+  })
+
+  it("replaces the plan, says so with Open plan and ends the edit", async () => {
+    const { user, requests } = renderEditing(() => jsonResponse(200, savedPlan))
+    await openSaveChanges(user)
+
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+
+    const success = await screen.findByText(/✓ Success: Changes saved\./)
+    expect(success).toHaveAttribute("role", "status")
+    expect(screen.getByRole("link", { name: "Open plan" })).toHaveAttribute(
+      "href",
+      `/plans/${planId}`,
+    )
+    expect(requests.filter((request) => request.method === "PUT")).toEqual([
+      {
+        method: "PUT",
+        path: `/api/plans/${planId}`,
+        body: { generatedScheduleId: firstId, name: "Weekend in Kaunas" },
+      },
+    ])
+    expect(saves(requests)).toEqual([])
+    expect(usePlanEditStore.getState().edit).toBeNull()
+    expect(screen.queryByText(/Editing 'Weekend in Kaunas'/)).toBeNull()
+  })
+
+  it("shows the error with Retry, which sends the same PUT", async () => {
+    let calls = 0
+    const { user, requests } = renderEditing(() =>
+      ++calls === 1 ? jsonResponse(500) : jsonResponse(200, savedPlan),
+    )
+    await openSaveChanges(user)
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+
+    expect(
+      await screen.findByText(
+        /Error: Changes could not be saved\. Try again\./,
+      ),
+    ).toHaveAttribute("role", "alert")
+    expect(screen.getByLabelText("Plan name")).toHaveValue("Weekend in Kaunas")
+
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(
+      await screen.findByText(/✓ Success: Changes saved\./),
+    ).toBeInTheDocument()
+    expect(requests.filter((request) => request.method === "PUT")).toHaveLength(
+      2,
+    )
+  })
+
+  it("offers Generate again for an expired schedule", async () => {
+    const { user } = renderEditing(() =>
+      jsonResponse(400, {
+        errors: {
+          generatedScheduleId: ["Generate the schedule again to save it."],
+        },
+      }),
+    )
+    await openSaveChanges(user)
+
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+
+    expect(
+      await screen.findByRole("button", { name: "Generate again" }),
+    ).toBeInTheDocument()
+  })
+
+  it("offers to save as a new plan when the edited plan was deleted", async () => {
+    const { user, requests } = renderEditing(() => jsonResponse(404, {}))
+    await openSaveChanges(user)
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+
+    expect(
+      await screen.findByText(
+        /This plan no longer exists\. Save it as a new plan instead\./,
+      ),
+    ).toHaveAttribute("role", "alert")
+    await user.click(screen.getByRole("button", { name: "Save plan" }))
+
+    expect(screen.getByRole("form", { name: "Save plan" })).toBeInTheDocument()
+    expect(screen.getByLabelText("Plan name")).toHaveValue("Weekend in Kaunas")
+    expect(usePlanEditStore.getState().edit).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(
+      await screen.findByText(/✓ Success: Plan saved\./),
+    ).toBeInTheDocument()
+    expect(saves(requests)).toHaveLength(1)
+  })
+
+  it("does not send the change again when the form is submitted after the plan was deleted", async () => {
+    const { user, requests } = renderEditing(() => jsonResponse(404, {}))
+    const field = await openSaveChanges(user)
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+    await screen.findByText(
+      /This plan no longer exists. Save it as a new plan instead./,
+    )
+
+    await user.click(field)
+    await user.keyboard("{Enter}")
+
+    expect(screen.getByRole("form", { name: "Save plan" })).toBeInTheDocument()
+    expect(requests.filter((request) => request.method === "PUT")).toHaveLength(
+      1,
+    )
+  })
+
+  it("offers nothing when no activity was scheduled", async () => {
+    usePlanEditStore.getState().start({
+      planId,
+      planName: "Weekend in Kaunas",
+      ownerEmail: "user@example.com",
+    })
+    render(
+      () => jsonResponse(201, savedPlan),
+      () =>
+        jsonResponse(200, {
+          ...schedule(null),
+          scheduled: [],
+          unscheduled: [{ activityName: "Museum", reason: "noPlaceFound" }],
+        }),
+    )
+
+    await screen.findByText(/No suitable time found for any activity/)
+
+    expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull()
+  })
+
+  it("comes back to Save changes after the session ended and the same user logged in", async () => {
+    let sessionEnded = false
+    const { user, currentLocation } = renderEditing(
+      () => {
+        sessionEnded = true
+        return jsonResponse(401)
+      },
+      {
+        "GET /api/auth/me": () =>
+          sessionEnded ? jsonResponse(401) : jsonResponse(200, signedInUser()),
+        "POST /api/auth/login": () => {
+          sessionEnded = false
+          return jsonResponse(200, signedInUser())
+        },
+      },
+    )
+    await openSaveChanges(user)
+    await user.click(screen.getByRole("button", { name: "Save changes" }))
+
+    await waitFor(() =>
+      expect(currentLocation()).toBe("/login?returnTo=%2Fplan%2Fschedule"),
+    )
+    expect(
+      screen.getByText("Your session has expired. Log in again."),
+    ).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText("Email"), "user@example.com")
+    await user.type(screen.getByLabelText("Password"), "Password123!")
+    await user.click(screen.getByRole("button", { name: "Log in" }))
+
+    await waitFor(() => expect(currentLocation()).toBe("/plan/schedule"))
+    expect(
+      await screen.findByText(/Editing 'Weekend in Kaunas'/),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole("button", { name: "Save changes" }),
     ).toBeInTheDocument()
   })
 })

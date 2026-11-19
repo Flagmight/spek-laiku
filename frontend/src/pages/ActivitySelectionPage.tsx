@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { Link, Navigate, useLocation } from "react-router-dom"
 import { PlanActivitiesForm } from "../components/planActivitiesForm"
 import { PlanCategoryList } from "../components/planCategoryList"
+import { EditingNotice } from "../components/editingNotice"
 import { PlanProgress } from "../components/planProgress"
 import { PlanSetupSummary } from "../components/planSetupSummary"
 import { RecheckNotice } from "../components/recheckNotice"
@@ -50,6 +51,7 @@ export function ActivitySelectionPage() {
     <>
       <h1>Activity selection</h1>
       <PlanProgress current={2} />
+      <EditingNotice />
       {recheckNotice && (
         <RecheckNotice>
           Your activities need to be checked again. Select Continue.

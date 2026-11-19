@@ -16,6 +16,12 @@ export interface SavedPlansState {
   // Aborts any earlier request and loads again.
   load: () => Promise<void>
   retry: () => Promise<void>
+  // Takes a deleted plan out of the list without loading it again (feature 011 research section 12).
+  remove: (id: string) => void
+  // Puts a new copy where the server lists it (feature 011 research section 5): plans with the same saved time are
+  // listed newest created first, and a copy keeps its original's saved time, so the copy goes above its original
+  // and above earlier copies of it. First when no such plan is in the list.
+  insertAbove: (copy: SavedPlanSummary, originalId: string) => void
   // Aborts a pending request, for example when the page closes.
   reset: () => void
 }
@@ -58,6 +64,23 @@ export const useSavedPlansStore = create<SavedPlansState>()((set, get) => ({
     set({ status: "serverError", plans: [], controller: null })
   },
   retry: () => get().load(),
+  remove: (id) =>
+    set((state) => ({ plans: state.plans.filter((plan) => plan.id !== id) })),
+  insertAbove: (copy, originalId) =>
+    set((state) => {
+      const sameSavedTime = state.plans.findIndex(
+        (plan) => plan.savedAt === copy.savedAt,
+      )
+      const original = state.plans.findIndex((plan) => plan.id === originalId)
+      const index = Math.max(sameSavedTime >= 0 ? sameSavedTime : original, 0)
+      return {
+        plans: [
+          ...state.plans.slice(0, index),
+          copy,
+          ...state.plans.slice(index),
+        ],
+      }
+    }),
   reset: () => {
     get().controller?.abort()
     set(initialSavedPlansState)

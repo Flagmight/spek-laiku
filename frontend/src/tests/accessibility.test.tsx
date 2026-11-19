@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { PlanCategory } from "../types/planActivity"
 import {
@@ -1382,5 +1383,108 @@ describe("Saved plans accessibility", () => {
         await screen.findByText(/Error: Saved plans could not be loaded/)
       ).closest('[role="alert"]'),
     ).not.toBeNull()
+  })
+})
+
+// Feature 011 User Story 6, FR-019, FR-020: plan management on My plans, the plan page and the planning steps.
+describe("Plan management accessibility", () => {
+  it("names every row action after its plan and makes the delete confirmation a named modal dialog", async () => {
+    routeFetch(savedPlanRoutes(savedPlanSummaries(2)))
+    const user = userEvent.setup()
+    renderApp("/plans")
+    const table = await screen.findByRole("table", { name: "Your saved plans" })
+
+    expect(
+      within(table)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual([
+      "Duplicate Plan 1",
+      "Delete Plan 1",
+      "Duplicate Plan 2",
+      "Delete Plan 2",
+    ])
+
+    await user.click(screen.getByRole("button", { name: "Delete Plan 1" }))
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Delete 'Plan 1'? This cannot be undone.",
+    })
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(within(dialog).getByRole("button", { name: "Delete" })).toHaveFocus()
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+  })
+
+  it("keeps a status region for the action messages before anything happens", async () => {
+    routeFetch(savedPlanRoutes(savedPlanSummaries(1)))
+    renderApp("/plans")
+
+    await screen.findByRole("table", { name: "Your saved plans" })
+
+    expect(screen.getAllByRole("status")).not.toHaveLength(0)
+  })
+
+  it("labels the Rename form and ties its error to the field", async () => {
+    routeFetch(savedPlanRoutes())
+    const user = userEvent.setup()
+    renderApp(`/plans/${savedPlanId}`)
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    const field = screen.getByLabelText("Plan name")
+    await user.clear(field)
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(
+      screen.getByRole("form", { name: "Rename plan" }),
+    ).toBeInTheDocument()
+    expect(field).toHaveAttribute("aria-invalid", "true")
+    expect(field).toHaveAccessibleDescription("Error: Enter a plan name.")
+    expect(field).toHaveFocus()
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+  })
+
+  it("names the plan page's actions by what they do", async () => {
+    routeFetch(savedPlanRoutes())
+    renderApp(`/plans/${savedPlanId}`)
+
+    await screen.findByRole("heading", { level: 1, name: longPlanName })
+
+    for (const name of [
+      "Edit plan",
+      "Rename",
+      `Duplicate ${longPlanName}`,
+      `Delete ${longPlanName}`,
+    ]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument()
+    }
+  })
+
+  it("shows the editing notice in words with a named Cancel editing button", async () => {
+    acceptMuseumPlan()
+    usePlanEditStore.getState().start({
+      planId: savedPlanId,
+      planName: "Weekend in Kaunas",
+      ownerEmail: "user@example.com",
+    })
+    routeFetch({
+      ...savedPlanRoutes(),
+      "GET /api/plan-setup/period": () =>
+        jsonResponse(200, {
+          firstDate: "2026-11-14",
+          lastDate: "2026-11-20",
+          maxDates: 7,
+        }),
+    })
+    renderApp("/plan/setup")
+
+    expect(
+      await screen.findByText(
+        "Editing 'Weekend in Kaunas'. Your saved plan is not changed until you save.",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Cancel editing" }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
   })
 })

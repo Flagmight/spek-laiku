@@ -319,6 +319,9 @@ namespace SpekLaiku.Api.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.PrimitiveCollection<List<DateOnly>>("Dates")
                         .IsRequired()
                         .HasColumnType("date[]");

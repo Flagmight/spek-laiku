@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Link } from "react-router-dom"
 import { formatPlanDates, formatSavedAt } from "../helpers/formatSavedAt"
 import type { SavedPlanSummary } from "../types/savedPlan"
@@ -5,12 +6,15 @@ import type { SavedPlanSummary } from "../types/savedPlan"
 // Saved plans as one table, used by My plans and the Home block (feature 010 spec US3 scenario 6, US6). On
 // wide screens it is a table with Open in the last column; on phones each row is a card titled with the plan
 // name, with each value labelled and Open below, as the step 3 plan overview. Names are plain text (FR-017).
+// My plans adds Duplicate and Delete after Open through actions (feature 011 FR-019); Home shows only Open.
 export function SavedPlanList({
   plans,
   caption,
+  actions,
 }: {
   plans: SavedPlanSummary[]
   caption: string
+  actions?: (plan: SavedPlanSummary) => ReactNode
 }) {
   return (
     <table className="saved-plans">
@@ -43,6 +47,7 @@ export function SavedPlanList({
               <Link to={`/plans/${plan.id}`} aria-label={`Open ${plan.name}`}>
                 Open
               </Link>
+              {actions?.(plan)}
             </td>
           </tr>
         ))}

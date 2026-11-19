@@ -115,6 +115,14 @@ describe("HomePage saved plans block", () => {
     )
   })
 
+  it("offers only Open, without Duplicate or Delete (feature 011 FR-019)", async () => {
+    await render(() => jsonResponse(200, plans))
+
+    await block().findByRole("table")
+    expect(block().queryByRole("button", { name: /^Delete/ })).toBeNull()
+    expect(block().queryByRole("button", { name: /^Duplicate/ })).toBeNull()
+  })
+
   it("shows the loading state inside the block only", async () => {
     await render(() => new Promise<Response>(() => {}))
 
