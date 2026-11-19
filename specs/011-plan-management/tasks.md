@@ -270,19 +270,19 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Backend for User Story 2
 
-- [ ] T028 [P] [US2] Add `public const string CopyPrefix = "Copy of ";` and `public static string CopyName(string original)` to `backend/src/SpekLaiku.Api/Services/SavedPlanValidator.cs`:
+- [x] T028 [P] [US2] Add `public const string CopyPrefix = "Copy of ";` and `public static string CopyName(string original)` to `backend/src/SpekLaiku.Api/Services/SavedPlanValidator.cs`:
   1. Build `CopyPrefix + original`.
   2. If it is longer than `MaxNameLength` (80), cut it to 80.
   3. If the last kept character is a high surrogate (`char.IsHighSurrogate`), cut one more.
   
   Doc comment: spec FR-005, research section 6.
-- [ ] T029 [P] [US2] Extend `backend/tests/SpekLaiku.UnitTests/SavedPlanValidatorTests.cs` with `CopyName` tests:
+- [x] T029 [P] [US2] Extend `backend/tests/SpekLaiku.UnitTests/SavedPlanValidatorTests.cs` with `CopyName` tests:
   - `"Weekend"` → `"Copy of Weekend"`;
   - a 72-character name → 80 characters, unchanged;
   - an 80-character name → 80 characters ending with the first 72 characters of the name;
   - a name whose 72nd and 73rd characters are an emoji (a surrogate pair) → 79 characters with no lone surrogate;
   - `CopyName(CopyName("A"))` → `"Copy of Copy of A"`.
-- [ ] T030 [US2] Add `Task<SavedPlanChange> DuplicateAsync(string ownerId, Guid id, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`:
+- [x] T030 [US2] Add `Task<SavedPlanChange> DuplicateAsync(string ownerId, Guid id, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`:
   1. Call `FindOwnedAsync`, and return its refusal if there is one.
   2. Add a new `SavedPlan` with:
      - `Id = Guid.NewGuid()`, `OwnerId = ownerId` (never from the request);
@@ -294,8 +294,8 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   3. `SaveChangesAsync`, then return `Changed(copy)`.
   
   Doc comment: spec FR-004 to FR-006, FR-016, clarification Q3. (depends on T008, T028)
-- [ ] T031 [US2] Add `[HttpPost("{id:guid}/copies")] Duplicate(Guid id, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`, with no body parameter. It returns `ToActionResult(change, plan => CreatedAtAction(nameof(Get), new { id = plan.Id }, mapper.Map<SavedPlanSummaryResponse>(plan)))`, with `[ProducesResponseType]` for 201 and 404. (depends on T030)
-- [ ] T032 [US2] Add `backend/tests/SpekLaiku.IntegrationTests/DuplicatePlanEndpointTests.cs`:
+- [x] T031 [US2] Add `[HttpPost("{id:guid}/copies")] Duplicate(Guid id, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`, with no body parameter. It returns `ToActionResult(change, plan => CreatedAtAction(nameof(Get), new { id = plan.Id }, mapper.Map<SavedPlanSummaryResponse>(plan)))`, with `[ProducesResponseType]` for 201 and 404. (depends on T030)
+- [x] T032 [US2] Add `backend/tests/SpekLaiku.IntegrationTests/DuplicatePlanEndpointTests.cs`:
   - (a) 201, a `Location` header `/api/plans/{copyId}`, the body keys exactly `id, name, locationName, dates, savedAt`, the name "Copy of <name>", and `savedAt` equal to the original's;
   - (b) `GET /api/plans/{copyId}` equals the original's details except `id` and `name`;
   - (c) with three plans saved at different times (move `factory.Clock` between saves, restore in `finally`), duplicating the middle one lists the copy directly above it, and the order is the same on a second `GET`;
@@ -310,13 +310,13 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Frontend for User Story 2
 
-- [ ] T033 [P] [US2] Add `duplicatePlan(id, signal)` to `frontend/src/api/savedPlansApi.ts`. It returns `{ kind: "duplicated"; plan: SavedPlanSummary } | notFound | forbidden | unauthorized`, for 201, 404, 403 and 401, and sends `POST /api/plans/{id}/copies` with no body. Add the tests to `frontend/src/tests/savedPlansApi.test.ts`.
-- [ ] T034 [P] [US2] Add `insertAbove(copy: SavedPlanSummary, originalId: string)` to `frontend/src/stores/useSavedPlansStore.ts`. It inserts the copy directly before the original, or at the start when the original is not in the list. Add the tests to `frontend/src/tests/useSavedPlansStore.test.ts`.
-- [ ] T035 [US2] Add `duplicatePlan(planId)` to `frontend/src/stores/usePlanActionsStore.ts`, with the same pending, timeout, retry and refresh rules as delete, and the constants `planDuplicatedMessage = "Plan duplicated."`, `duplicateFailedMessage = "Error: Plan could not be duplicated. Try again."` and `duplicatingMessage = "Duplicating your plan…"` (the pending text). On success it sets the notice and returns `{ kind: "duplicated", copy }`. On 404 it returns `"gone"` with `planGoneMessage`. Extend `frontend/src/tests/usePlanActionsStore.test.ts` in the same way as T022. (depends on T033)
-- [ ] T036 [US2] Add the **Duplicate** button to `frontend/src/components/planActions.tsx`, before Delete: `aria-label={`Duplicate ${plan.name}`}`, no confirmation, and disabled while any action of this plan is pending. Add the prop `onDuplicated(copy)`, called on success. A `"gone"` result calls a new optional prop `onGone(plan.id)`.
+- [x] T033 [P] [US2] Add `duplicatePlan(id, signal)` to `frontend/src/api/savedPlansApi.ts`. It returns `{ kind: "duplicated"; plan: SavedPlanSummary } | notFound | forbidden | unauthorized`, for 201, 404, 403 and 401, and sends `POST /api/plans/{id}/copies` with no body. Add the tests to `frontend/src/tests/savedPlansApi.test.ts`.
+- [x] T034 [P] [US2] Add `insertAbove(copy: SavedPlanSummary, originalId: string)` to `frontend/src/stores/useSavedPlansStore.ts`. It inserts the copy directly before the original, or at the start when the original is not in the list. Add the tests to `frontend/src/tests/useSavedPlansStore.test.ts`.
+- [x] T035 [US2] Add `duplicatePlan(planId)` to `frontend/src/stores/usePlanActionsStore.ts`, with the same pending, timeout, retry and refresh rules as delete, and the constants `planDuplicatedMessage = "Plan duplicated."`, `duplicateFailedMessage = "Error: Plan could not be duplicated. Try again."` and `duplicatingMessage = "Duplicating your plan…"` (the pending text). On success it sets the notice and returns `{ kind: "duplicated", copy }`. On 404 it returns `"gone"` with `planGoneMessage`. Extend `frontend/src/tests/usePlanActionsStore.test.ts` in the same way as T022. (depends on T033)
+- [x] T036 [US2] Add the **Duplicate** button to `frontend/src/components/planActions.tsx`, before Delete: `aria-label={`Duplicate ${plan.name}`}`, no confirmation, and disabled while any action of this plan is pending. Add the prop `onDuplicated(copy)`, called on success. A `"gone"` result calls a new optional prop `onGone(plan.id)`.
   - My plans passes the same function as `onDeleted`, so the row is removed and "This plan no longer exists." is shown (spec Edge Cases).
   - The plan page passes nothing, so the store's error "This plan no longer exists." is shown on the page and nothing navigates. (depends on T035)
-- [ ] T037 [US2] Wire Duplicate into both pages:
+- [x] T037 [US2] Wire Duplicate into both pages:
   - **`frontend/src/pages/MyPlansPage.tsx`**: `onDuplicated={(copy) => useSavedPlansStore.getState().insertAbove(copy, plan.id)}`. Focus stays on the Duplicate button. A `planNotice === "duplicated"` from navigation is not used here.
   - **`frontend/src/pages/PlanDetailsPage.tsx`**:
     - `onDuplicated={(copy) => navigate(`/plans/${copy.id}`, { state: { planNotice: "duplicated" } })}`.
@@ -324,7 +324,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - The page loads the new `planId`, because the existing effect depends on `planId`.
   
   (depends on T034, T036)
-- [ ] T038 [US2] Extend the page tests:
+- [x] T038 [US2] Extend the page tests:
   - **`frontend/src/tests/MyPlansPage.test.tsx`**:
     - "Duplicate <name>" sends `POST /api/plans/{id}/copies` with no body;
     - the copy row appears directly above the original;
@@ -335,6 +335,11 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - **`frontend/src/tests/PlanDetailsPage.test.tsx`**: Duplicate opens `/plans/{copyId}`, shows the copy's name as the heading, and shows "Plan duplicated.". A duplicate that gets 404 shows "This plan no longer exists." on the same page and does not navigate.
   
   (depends on T037)
+  - Result (2026-11-19):
+    - **Fix to Phase 3**: Retry from the status region repeated the request but not the page's follow-up, so a delete that succeeded on Retry said "Plan deleted." and left the row. The store now takes a result handler with each action (`deletePlan(planId, onResult)`, `duplicatePlan(planId, onResult)`) and keeps it with `lastAction`, and `retry()` calls it again. `removeAndFocus` on My plans reads the list from the store, because Retry can finish later. New tests: the store passes a retried delete and a retried duplicate to the same handler; on My plans, a delete that succeeds on Retry removes the row, and a duplicate that succeeds on Retry lists the copy.
+    - **Implementation note (T037)**: on the copy's page, "Plan duplicated." is shown through `usePlanActionsStore.showNotice` in the shared status region, as "Plan deleted." is on My plans, not through `SavedPlanView`'s `notice` prop.
+    - **Changed test**: `keyboard.test.tsx` My plans tab order now expects Open, Duplicate and Delete for each row (already listed in T071 under T027).
+    - **Checks**: backend build with 0 warnings; 659 unit (+5) and 347 integration tests (+9); `dotnet format` clean. Frontend lint and Prettier clean; 83 files and 1158 tests (+17); build clean.
 
 **Checkpoint**: Duplicate works from both pages. The copy order holds after a reload. Tests are green.
 

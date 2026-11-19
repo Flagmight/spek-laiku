@@ -52,9 +52,11 @@ export function MyPlansPage() {
     }
   }, [focusTarget])
 
+  // Reads the list from the store, not from this render, because Retry can finish a delete later.
   function removeAndFocus(planId: string) {
-    const index = plans.findIndex((plan) => plan.id === planId)
-    const next = plans[index + 1]
+    const current = useSavedPlansStore.getState().plans
+    const index = current.findIndex((plan) => plan.id === planId)
+    const next = index >= 0 ? current[index + 1] : undefined
     useSavedPlansStore.getState().remove(planId)
     setFocusTarget(next ? { planId: next.id } : "heading")
   }
@@ -72,6 +74,9 @@ export function MyPlansPage() {
           <PlanActions
             plan={plan}
             onDeleted={removeAndFocus}
+            onDuplicated={(copy) =>
+              useSavedPlansStore.getState().insertAbove(copy, plan.id)
+            }
             onGone={removeAndFocus}
           />
         )}

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { ApiError } from "../api/apiClient"
 import {
   deletePlan,
+  duplicatePlan,
   getSavedPlan,
   getSavedPlans,
   savePlan,
@@ -211,5 +212,45 @@ describe("deletePlan", () => {
     routeFetch({ [route]: () => jsonResponse(500) })
 
     await expect(deletePlan(plan.id)).rejects.toEqual(new ApiError(500))
+  })
+})
+
+describe("duplicatePlan", () => {
+  const route = `POST /api/plans/${plan.id}/copies`
+  const copy = { ...plan, id: "5d2e9a7c", name: "Copy of Weekend in Kaunas" }
+
+  it("posts with no body and returns the copy on 201", async () => {
+    const { requests } = routeFetch({
+      [route]: () => jsonResponse(201, copy),
+    })
+
+    expect(await duplicatePlan(plan.id)).toEqual({
+      kind: "duplicated",
+      plan: copy,
+    })
+    expect(requests).toEqual([
+      {
+        method: "POST",
+        path: `/api/plans/${plan.id}/copies`,
+        body: undefined,
+      },
+    ])
+  })
+
+  it("maps 404 to notFound, 403 to forbidden and 401 to unauthorized", async () => {
+    routeFetch({ [route]: () => jsonResponse(404, { status: 404 }) })
+    expect(await duplicatePlan(plan.id)).toEqual({ kind: "notFound" })
+
+    routeFetch({ [route]: () => jsonResponse(403, { status: 403 }) })
+    expect(await duplicatePlan(plan.id)).toEqual({ kind: "forbidden" })
+
+    routeFetch({ [route]: () => jsonResponse(401) })
+    expect(await duplicatePlan(plan.id)).toEqual({ kind: "unauthorized" })
+  })
+
+  it("throws ApiError for 500", async () => {
+    routeFetch({ [route]: () => jsonResponse(500) })
+
+    await expect(duplicatePlan(plan.id)).rejects.toEqual(new ApiError(500))
   })
 })

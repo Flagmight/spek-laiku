@@ -4,8 +4,11 @@ import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import {
   deleteFailedMessage,
   deletingMessage,
+  duplicateFailedMessage,
+  duplicatingMessage,
   pendingMessage,
   planDeletedMessage,
+  planDuplicatedMessage,
   planGoneMessage,
   usePlanActionsStore,
 } from "../stores/usePlanActionsStore"
@@ -139,5 +142,99 @@ describe("usePlanActionsStore: delete", () => {
 
     expect(await deleting).toBe("ignored")
     expect(store().notice).toBeNull()
+  })
+})
+
+// Duplicating a saved plan (feature 011 spec FR-004 to FR-006, research section 12).
+describe("usePlanActionsStore: duplicate", () => {
+  const copyRoute = `POST /api/plans/${planId}/copies`
+  const copy = {
+    id: "5d2e9a7c-1b3f-4c8d-a6e2-9f0b1c2d3e4f",
+    name: "Copy of Weekend in Kaunas",
+    locationName: "Kaunas",
+    dates: ["2026-11-21"],
+    savedAt: "2026-11-18T12:05:00Z",
+  }
+
+  it("copies the plan, returns the copy and shows 'Plan duplicated.'", async () => {
+    routeFetch({ [copyRoute]: () => jsonResponse(201, copy) })
+
+    expect(await store().duplicatePlan(planId)).toEqual({ copy })
+
+    expect(store().notice).toBe(planDuplicatedMessage)
+  })
+
+  it("shows its own pending text and sends one request for a double click", async () => {
+    let answer: (response: Response) => void = () => {}
+    const { requests } = routeFetch({
+      [copyRoute]: () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve
+        }),
+    })
+
+    const first = store().duplicatePlan(planId)
+    expect(pendingMessage(store().pending)).toBe(duplicatingMessage)
+    expect(await store().duplicatePlan(planId)).toBe("ignored")
+    answer(jsonResponse(201, copy))
+
+    expect(await first).toEqual({ copy })
+    expect(requests).toHaveLength(1)
+  })
+
+  it("reports a plan that no longer exists", async () => {
+    routeFetch({ [copyRoute]: () => jsonResponse(404, {}) })
+
+    expect(await store().duplicatePlan(planId)).toBe("gone")
+    expect(store().error?.message).toBe(planGoneMessage)
+  })
+
+  it("reports a server error with its own message", async () => {
+    routeFetch({ [copyRoute]: () => jsonResponse(500) })
+
+    expect(await store().duplicatePlan(planId)).toBe("failed")
+    expect(store().error).toEqual({
+      kind: "duplicate",
+      planId,
+      message: duplicateFailedMessage,
+    })
+  })
+})
+
+// Retry repeats the action with the same result handler, so the page finishes the action however it succeeded.
+describe("usePlanActionsStore: retry", () => {
+  it("passes a delete that succeeds on retry to the same handler", async () => {
+    let calls = 0
+    routeFetch({
+      [deleteRoute]: () =>
+        ++calls === 1 ? jsonResponse(500) : jsonResponse(204),
+    })
+    const onResult = vi.fn()
+
+    await store().deletePlan(planId, onResult)
+    await store().retry()
+
+    expect(onResult.mock.calls).toEqual([["failed"], ["deleted"]])
+  })
+
+  it("passes a duplicate that succeeds on retry to the same handler", async () => {
+    let calls = 0
+    const copy = {
+      id: "copy",
+      name: "Copy of A",
+      locationName: "Kaunas",
+      dates: [],
+      savedAt: "2026-11-18T12:05:00Z",
+    }
+    routeFetch({
+      [`POST /api/plans/${planId}/copies`]: () =>
+        ++calls === 1 ? jsonResponse(500) : jsonResponse(201, copy),
+    })
+    const onResult = vi.fn()
+
+    await store().duplicatePlan(planId, onResult)
+    await store().retry()
+
+    expect(onResult.mock.calls).toEqual([["failed"], [{ copy }]])
   })
 })

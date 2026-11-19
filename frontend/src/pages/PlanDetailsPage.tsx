@@ -1,13 +1,17 @@
 import { useEffect } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { PlanActionMessages } from "../components/planActionMessages"
 import { PlanActions } from "../components/planActions"
 import { SavedPlanView } from "../components/savedPlanView"
 import { usePageTitle } from "../hooks/usePageTitle"
-import { usePlanActionsStore } from "../stores/usePlanActionsStore"
+import {
+  planDuplicatedMessage,
+  usePlanActionsStore,
+} from "../stores/usePlanActionsStore"
 import { useSavedPlanStore } from "../stores/useSavedPlanStore"
 import type { SavedPlanStatus } from "../stores/useSavedPlanStore"
 import type { NavigationState } from "../types/navigationState"
+import type { SavedPlanSummary } from "../types/savedPlan"
 import { AccessDeniedPage } from "./AccessDeniedPage"
 
 // The tab title until the plan's own name is known.
@@ -20,11 +24,13 @@ const titles: Record<SavedPlanStatus, string> = {
 }
 
 // One saved plan, exactly as it was saved, in the Schedule Overview's layout (feature 010 spec User Story 4,
-// FR-010), with its actions (feature 011 spec FR-019). Deleting it opens My plans with "Plan deleted.".
+// FR-010), with its actions (feature 011 spec FR-019). Deleting it opens My plans with "Plan deleted.", and
+// duplicating it opens the copy with "Plan duplicated.".
 // Recalculating comes with feature 012. Opening it never generates a schedule or calls the weather or map data
 // services.
 export function PlanDetailsPage() {
   const { planId = "" } = useParams()
+  const location = useLocation()
   const navigate = useNavigate()
   const status = useSavedPlanStore((state) => state.status)
   const plan = useSavedPlanStore((state) => state.plan)
@@ -33,15 +39,27 @@ export function PlanDetailsPage() {
   useEffect(() => {
     const store = useSavedPlanStore.getState()
     void store.load(planId)
+    // A duplicate on the previous plan page brings the user to the copy with its notice (research section 12).
+    if (
+      (location.state as NavigationState | null)?.planNotice === "duplicated"
+    ) {
+      usePlanActionsStore.getState().showNotice(planDuplicatedMessage)
+      navigate(location.pathname, { replace: true, state: null })
+    }
     return () => {
       store.reset()
       usePlanActionsStore.getState().reset()
     }
-  }, [planId])
+  }, [planId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function openMyPlansAfterDelete() {
     const state: NavigationState = { planNotice: "deleted" }
     navigate("/plans", { state })
+  }
+
+  function openCopy(copy: SavedPlanSummary) {
+    const state: NavigationState = { planNotice: "duplicated" }
+    navigate(`/plans/${copy.id}`, { state })
   }
 
   if (status === "forbidden") {
@@ -70,7 +88,11 @@ export function PlanDetailsPage() {
         actions={
           <>
             <p className="plan-actions">
-              <PlanActions plan={plan} onDeleted={openMyPlansAfterDelete} />
+              <PlanActions
+                plan={plan}
+                onDeleted={openMyPlansAfterDelete}
+                onDuplicated={openCopy}
+              />
             </p>
             <PlanActionMessages />
           </>

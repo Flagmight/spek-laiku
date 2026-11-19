@@ -77,6 +77,16 @@ public sealed class PlansController(
             await savedPlanChangeService.DeleteAsync(userManager.GetUserId(User)!, id, cancellationToken),
             _ => NoContent());
 
+    // Copies the plan under the signed-in user; there is no body, so no owner can be sent (feature 011 spec FR-004,
+    // FR-016).
+    [HttpPost("{id:guid}/copies")]
+    [ProducesResponseType<SavedPlanSummaryResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Duplicate(Guid id, CancellationToken cancellationToken) =>
+        ToActionResult(
+            await savedPlanChangeService.DuplicateAsync(userManager.GetUserId(User)!, id, cancellationToken),
+            copy => CreatedAtAction(nameof(Get), new { id = copy.Id }, mapper.Map<SavedPlanSummaryResponse>(copy)));
+
     // The HTTP answer for a change to a saved plan (feature 011 contracts/plans-api.md). Another user's plan gives
     // 403 through the cookie handler, with no plan data; onChanged builds the success answer from the plan.
     private ActionResult ToActionResult(SavedPlanChange change, Func<SavedPlan, ActionResult> onChanged) =>

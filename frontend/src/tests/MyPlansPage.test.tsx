@@ -328,6 +328,9 @@ describe("MyPlansPage delete", () => {
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
     expect(await screen.findByText("Plan deleted.")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("rowheader", { name: "Weekend in Kaunas" }),
+    ).toBeNull()
     expect(calls).toBe(2)
   })
 
@@ -353,5 +356,112 @@ describe("MyPlansPage delete", () => {
       screen.queryByRole("rowheader", { name: "Weekend in Kaunas" }),
     ).toBeNull()
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
+  })
+})
+
+// Feature 011 User Story 2: duplicating a plan from My plans.
+describe("MyPlansPage duplicate", () => {
+  const copy: SavedPlanSummary = {
+    ...plans[1],
+    id: "plan-copy",
+    name: "Copy of Vilnius museums",
+  }
+
+  function renderWithCopy(
+    answer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    const routes = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      "GET /api/plans": () => jsonResponse(200, plans),
+      "POST /api/plans/plan-2/copies": answer,
+    })
+    renderAppWithLocation("/plans")
+    return routes
+  }
+
+  function rowNames() {
+    return within(screen.getByRole("table", { name: "Your saved plans" }))
+      .getAllByRole("rowheader")
+      .map((header) => header.textContent)
+  }
+
+  it("copies the plan without a body and lists the copy directly above its original", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderWithCopy(() => jsonResponse(201, copy))
+
+    await user.click(
+      await screen.findByRole("button", { name: "Duplicate Vilnius museums" }),
+    )
+
+    expect(await screen.findByText("Plan duplicated.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(rowNames()).toEqual([
+      "Weekend in Kaunas",
+      "Copy of Vilnius museums",
+      "Vilnius museums",
+      "<script>alert(1)</script>",
+    ])
+    expect(requests.filter((request) => request.method === "POST")).toEqual([
+      { method: "POST", path: "/api/plans/plan-2/copies", body: undefined },
+    ])
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it("sends one request for a double click and shows the pending text", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderWithCopy(() => new Promise<Response>(() => {}))
+    const duplicate = await screen.findByRole("button", {
+      name: "Duplicate Vilnius museums",
+    })
+
+    await user.dblClick(duplicate)
+
+    expect(await screen.findByText("Duplicating your plan…")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(duplicate).toBeDisabled()
+    expect(
+      requests.filter((request) => request.method === "POST"),
+    ).toHaveLength(1)
+  })
+
+  it("shows the error with Retry, which lists the copy once it succeeds", async () => {
+    let calls = 0
+    const user = userEvent.setup()
+    renderWithCopy(() =>
+      ++calls === 1 ? jsonResponse(500) : jsonResponse(201, copy),
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Duplicate Vilnius museums" }),
+    )
+
+    expect(
+      await screen.findByText(
+        /Error: Plan could not be duplicated\. Try again\./,
+      ),
+    ).toHaveAttribute("role", "alert")
+    expect(rowNames()).not.toContain("Copy of Vilnius museums")
+
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(await screen.findByText("Plan duplicated.")).toBeInTheDocument()
+    expect(rowNames()).toContain("Copy of Vilnius museums")
+  })
+
+  it("removes a plan that was deleted elsewhere and says it no longer exists", async () => {
+    const user = userEvent.setup()
+    renderWithCopy(() => jsonResponse(404, {}))
+
+    await user.click(
+      await screen.findByRole("button", { name: "Duplicate Vilnius museums" }),
+    )
+
+    expect(
+      await screen.findByText("This plan no longer exists."),
+    ).toHaveAttribute("role", "alert")
+    expect(rowNames()).not.toContain("Vilnius museums")
   })
 })

@@ -304,3 +304,72 @@ describe("PlanDetailsPage delete", () => {
     expect(currentLocation()).toBe(`/plans/${id}`)
   })
 })
+
+// Feature 011 User Story 2: duplicating a plan from its page.
+describe("PlanDetailsPage duplicate", () => {
+  const copyId = "5d2e9a7c-1b3f-4c8d-a6e2-9f0b1c2d3e4f"
+  const copy: SavedPlan = {
+    ...plan,
+    id: copyId,
+    name: "Copy of Weekend in Kaunas",
+  }
+
+  function renderWithCopy(
+    answer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`GET /api/plans/${copyId}`]: () => jsonResponse(200, copy),
+      [`POST /api/plans/${id}/copies`]: answer,
+    })
+    return renderAppWithLocation(`/plans/${id}`)
+  }
+
+  it("opens the copy's page with 'Plan duplicated.'", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithCopy(() =>
+      jsonResponse(201, {
+        id: copyId,
+        name: copy.name,
+        locationName: "Kaunas",
+        dates: copy.dates,
+        savedAt: copy.savedAt,
+      }),
+    )
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Duplicate Weekend in Kaunas",
+      }),
+    )
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Copy of Weekend in Kaunas",
+      }),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe(`/plans/${copyId}`)
+    expect(screen.getByText("Plan duplicated.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+  })
+
+  it("stays on the page and says a plan deleted elsewhere no longer exists", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithCopy(() => jsonResponse(404, {}))
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Duplicate Weekend in Kaunas",
+      }),
+    )
+
+    expect(
+      await screen.findByText("This plan no longer exists."),
+    ).toHaveAttribute("role", "alert")
+    expect(currentLocation()).toBe(`/plans/${id}`)
+  })
+})

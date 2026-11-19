@@ -1093,6 +1093,10 @@ describe("keyboard use of saved plans", () => {
       ).toHaveFocus()
       await user.tab()
       expect(
+        screen.getByRole("button", { name: `Duplicate Plan ${index}` }),
+      ).toHaveFocus()
+      await user.tab()
+      expect(
         screen.getByRole("button", { name: `Delete Plan ${index}` }),
       ).toHaveFocus()
     }

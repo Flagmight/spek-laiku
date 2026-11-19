@@ -97,4 +97,29 @@ describe("useSavedPlansStore", () => {
     expect(store().plans).toEqual([other])
     expect(store().status).toBe("loaded")
   })
+
+  it("puts a copy directly above its original", async () => {
+    const other = { ...plan, id: "plan-other" }
+    const copy = { ...plan, id: "plan-copy", name: "Copy of Weekend in Kaunas" }
+    routeFetch({ "GET /api/plans": () => jsonResponse(200, [other, plan]) })
+    await store().load()
+
+    store().insertAbove(copy, plan.id)
+
+    expect(store().plans.map((item) => item.id)).toEqual([
+      "plan-other",
+      "plan-copy",
+      plan.id,
+    ])
+  })
+
+  it("puts a copy first when its original is not in the list", async () => {
+    const copy = { ...plan, id: "plan-copy" }
+    routeFetch({ "GET /api/plans": () => jsonResponse(200, [plan]) })
+    await store().load()
+
+    store().insertAbove(copy, "missing")
+
+    expect(store().plans.map((item) => item.id)).toEqual(["plan-copy", plan.id])
+  })
 })

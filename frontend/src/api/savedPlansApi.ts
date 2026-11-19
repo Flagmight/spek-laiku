@@ -135,6 +135,41 @@ export async function deletePlan(
   throw new ApiError(response.status)
 }
 
+export type DuplicatePlanAnswer =
+  | { kind: "duplicated"; plan: SavedPlanSummary }
+  | { kind: "notFound" }
+  | { kind: "forbidden" }
+  | { kind: "unauthorized" }
+
+// Copies one of the signed-in user's plans and returns the copy's summary (feature 011 contracts/plans-api.md).
+// No body is sent: the copy always belongs to the signed-in user. Anything else throws ApiError. Network and
+// abort errors pass through.
+export async function duplicatePlan(
+  id: string,
+  signal?: AbortSignal,
+): Promise<DuplicatePlanAnswer> {
+  const response = await apiFetch(`${path}/${encodeURIComponent(id)}/copies`, {
+    method: "POST",
+    signal,
+  })
+
+  switch (response.status) {
+    case 201:
+      return {
+        kind: "duplicated",
+        plan: (await response.json()) as SavedPlanSummary,
+      }
+    case 401:
+      return { kind: "unauthorized" }
+    case 403:
+      return { kind: "forbidden" }
+    case 404:
+      return { kind: "notFound" }
+  }
+
+  throw new ApiError(response.status)
+}
+
 async function fieldErrors(
   response: Response,
 ): Promise<Partial<Record<SavePlanFieldKey, string>>> {
