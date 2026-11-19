@@ -103,6 +103,38 @@ export async function getSavedPlan(
   throw new ApiError(response.status)
 }
 
+export type DeletePlanAnswer =
+  | { kind: "deleted" }
+  | { kind: "notFound" }
+  | { kind: "forbidden" }
+  | { kind: "unauthorized" }
+
+// Deletes one of the signed-in user's plans permanently (feature 011 contracts/plans-api.md). A plan that does
+// not exist, for example one already deleted, is 404; another user's plan is 403. Anything else throws ApiError.
+// Network and abort errors pass through.
+export async function deletePlan(
+  id: string,
+  signal?: AbortSignal,
+): Promise<DeletePlanAnswer> {
+  const response = await apiFetch(`${path}/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    signal,
+  })
+
+  switch (response.status) {
+    case 204:
+      return { kind: "deleted" }
+    case 401:
+      return { kind: "unauthorized" }
+    case 403:
+      return { kind: "forbidden" }
+    case 404:
+      return { kind: "notFound" }
+  }
+
+  throw new ApiError(response.status)
+}
+
 async function fieldErrors(
   response: Response,
 ): Promise<Partial<Record<SavePlanFieldKey, string>>> {

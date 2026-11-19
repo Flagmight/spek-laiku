@@ -1077,7 +1077,8 @@ describe("keyboard use of saved plans", () => {
     )
   })
 
-  it("reaches each Open link on My plans in order", async () => {
+  // Each row's actions follow its Open link (feature 011 FR-019).
+  it("reaches each plan's Open link and actions on My plans in order", async () => {
     routeFetch(savedPlanRoutes(savedPlanSummaries(3)))
     const user = userEvent.setup()
     renderApp("/plans")
@@ -1085,9 +1086,15 @@ describe("keyboard use of saved plans", () => {
     // Log out is the last stop before the page content.
     screen.getByRole("button", { name: "Log out" }).focus()
 
-    for (const name of ["Open Plan 1", "Open Plan 2", "Open Plan 3"]) {
+    for (const index of [1, 2, 3]) {
       await user.tab()
-      expect(screen.getByRole("link", { name })).toHaveFocus()
+      expect(
+        screen.getByRole("link", { name: `Open Plan ${index}` }),
+      ).toHaveFocus()
+      await user.tab()
+      expect(
+        screen.getByRole("button", { name: `Delete Plan ${index}` }),
+      ).toHaveFocus()
     }
   })
 })

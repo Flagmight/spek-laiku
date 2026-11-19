@@ -20,6 +20,7 @@ namespace SpekLaiku.Api.Controllers;
 [ProducesResponseType(StatusCodes.Status403Forbidden)]
 public sealed class PlansController(
     SavedPlanService savedPlanService,
+    SavedPlanChangeService savedPlanChangeService,
     UserManager<ApplicationUser> userManager,
     IMapper mapper) : ControllerBase
 {
@@ -66,6 +67,15 @@ public sealed class PlansController(
             ? CreatedAtAction(nameof(Get), new { id = result.Plan.Id }, summary)
             : Ok(summary);
     }
+
+    // Deletes the plan permanently; the browser asks for confirmation first (feature 011 spec FR-001, FR-002).
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Delete(Guid id, CancellationToken cancellationToken) =>
+        ToActionResult(
+            await savedPlanChangeService.DeleteAsync(userManager.GetUserId(User)!, id, cancellationToken),
+            _ => NoContent());
 
     // The HTTP answer for a change to a saved plan (feature 011 contracts/plans-api.md). Another user's plan gives
     // 403 through the cookie handler, with no plan data; onChanged builds the success answer from the plan.

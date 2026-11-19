@@ -86,4 +86,15 @@ describe("useSavedPlansStore", () => {
     expect(store().status).toBe("loading")
     expect(store().plans).toEqual([])
   })
+
+  it("removes one plan and keeps the others and the status", async () => {
+    const other = { ...plan, id: "5d2e9a7c-1b3f-4c8d-a6e2-9f0b1c2d3e4f" }
+    routeFetch({ "GET /api/plans": () => jsonResponse(200, [plan, other]) })
+    await store().load()
+
+    store().remove(plan.id)
+
+    expect(store().plans).toEqual([other])
+    expect(store().status).toBe("loaded")
+  })
 })

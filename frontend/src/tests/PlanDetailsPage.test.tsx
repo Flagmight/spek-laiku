@@ -138,14 +138,14 @@ describe("PlanDetailsPage", () => {
     ).toBeInTheDocument()
   })
 
-  it("offers no save, edit, recalculate, duplicate or delete actions and generates nothing", async () => {
+  // Feature 011 adds the plan's actions; saving and recalculating are still not offered (feature 012).
+  it("offers no save or recalculate action and generates nothing", async () => {
     const { requests } = render(() => jsonResponse(200, plan))
 
     await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
 
-    expect(screen.queryAllByRole("button")).toEqual(
-      screen.queryAllByRole("button", { name: "Log out" }),
-    )
+    expect(screen.queryByRole("button", { name: /save plan/i })).toBeNull()
+    expect(screen.queryByRole("button", { name: /recalculate/i })).toBeNull()
     expect(requests.map((request) => request.path)).not.toContain(
       "/api/plan-schedule",
     )
@@ -240,6 +240,67 @@ describe("PlanDetailsPage", () => {
         name: "Weekend in Kaunas",
       }),
     ).toBeInTheDocument()
+    expect(currentLocation()).toBe(`/plans/${id}`)
+  })
+})
+
+// Feature 011 User Story 1: deleting a plan from its page.
+describe("PlanDetailsPage delete", () => {
+  function renderWithDelete(
+    answer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    const routes = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`DELETE /api/plans/${id}`]: answer,
+      "GET /api/plans": () => jsonResponse(200, []),
+    })
+    return { ...routes, ...renderAppWithLocation(`/plans/${id}`) }
+  }
+
+  it("opens My plans with 'Plan deleted.' after confirming", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithDelete(() => jsonResponse(204))
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Weekend in Kaunas" }),
+    )
+
+    await user.click(
+      within(
+        screen.getByRole("dialog", {
+          name: "Delete 'Weekend in Kaunas'? This cannot be undone.",
+        }),
+      ).getByRole("button", { name: "Delete" }),
+    )
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "My plans" }),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe("/plans")
+    expect(await screen.findByText("Plan deleted.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+  })
+
+  it("stays on the page and says a plan deleted elsewhere no longer exists", async () => {
+    const user = userEvent.setup()
+    const { currentLocation } = renderWithDelete(() =>
+      jsonResponse(404, { detail: "This plan no longer exists." }),
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Weekend in Kaunas" }),
+    )
+
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete",
+      }),
+    )
+
+    expect(
+      await screen.findByText("This plan no longer exists."),
+    ).toHaveAttribute("role", "alert")
     expect(currentLocation()).toBe(`/plans/${id}`)
   })
 })

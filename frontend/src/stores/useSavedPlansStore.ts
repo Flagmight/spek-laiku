@@ -16,6 +16,8 @@ export interface SavedPlansState {
   // Aborts any earlier request and loads again.
   load: () => Promise<void>
   retry: () => Promise<void>
+  // Takes a deleted plan out of the list without loading it again (feature 011 research section 12).
+  remove: (id: string) => void
   // Aborts a pending request, for example when the page closes.
   reset: () => void
 }
@@ -58,6 +60,8 @@ export const useSavedPlansStore = create<SavedPlansState>()((set, get) => ({
     set({ status: "serverError", plans: [], controller: null })
   },
   retry: () => get().load(),
+  remove: (id) =>
+    set((state) => ({ plans: state.plans.filter((plan) => plan.id !== id) })),
   reset: () => {
     get().controller?.abort()
     set(initialSavedPlansState)

@@ -11,6 +11,29 @@ namespace SpekLaiku.Api.Services;
 public sealed class SavedPlanChangeService(ApplicationDbContext context)
 {
     /// <summary>
+    /// Deletes the plan permanently (spec FR-001). A plan another request deleted first counts as not found.
+    /// </summary>
+    public async Task<SavedPlanChange> DeleteAsync(string ownerId, Guid id, CancellationToken cancellationToken)
+    {
+        var (plan, refusal) = await FindOwnedAsync(ownerId, id, cancellationToken);
+        if (refusal is not null)
+        {
+            return refusal;
+        }
+
+        context.SavedPlans.Remove(plan!);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+            return SavedPlanChange.Deleted;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return SavedPlanChange.NotFound;
+        }
+    }
+
+    /// <summary>
     /// The plan, tracked so it can be changed, when it exists and belongs to the caller; otherwise the refusal:
     /// not found, or forbidden for another user's plan.
     /// </summary>

@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
 import { ApiError } from "../api/apiClient"
-import { getSavedPlan, getSavedPlans, savePlan } from "../api/savedPlansApi"
+import {
+  deletePlan,
+  getSavedPlan,
+  getSavedPlans,
+  savePlan,
+} from "../api/savedPlansApi"
 import type { SavePlanRequest } from "../types/savedPlan"
 import { jsonResponse, routeFetch } from "./renderApp"
 
@@ -170,5 +175,41 @@ describe("getSavedPlan", () => {
     routeFetch({ [`GET /api/plans/${plan.id}`]: () => jsonResponse(500) })
 
     await expect(getSavedPlan(plan.id)).rejects.toEqual(new ApiError(500))
+  })
+})
+
+describe("deletePlan", () => {
+  const route = `DELETE /api/plans/${plan.id}`
+
+  it("sends DELETE to the plan's address and returns deleted on 204", async () => {
+    const { requests } = routeFetch({ [route]: () => jsonResponse(204) })
+
+    expect(await deletePlan(plan.id)).toEqual({ kind: "deleted" })
+    expect(requests).toEqual([
+      { method: "DELETE", path: `/api/plans/${plan.id}`, body: undefined },
+    ])
+  })
+
+  it("maps 404 to notFound, 403 to forbidden and 401 to unauthorized", async () => {
+    routeFetch({
+      [route]: () =>
+        jsonResponse(404, {
+          status: 404,
+          detail: "This plan no longer exists.",
+        }),
+    })
+    expect(await deletePlan(plan.id)).toEqual({ kind: "notFound" })
+
+    routeFetch({ [route]: () => jsonResponse(403, { status: 403 }) })
+    expect(await deletePlan(plan.id)).toEqual({ kind: "forbidden" })
+
+    routeFetch({ [route]: () => jsonResponse(401) })
+    expect(await deletePlan(plan.id)).toEqual({ kind: "unauthorized" })
+  })
+
+  it("throws ApiError for 500", async () => {
+    routeFetch({ [route]: () => jsonResponse(500) })
+
+    await expect(deletePlan(plan.id)).rejects.toEqual(new ApiError(500))
   })
 })

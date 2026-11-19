@@ -161,14 +161,14 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Backend for User Story 1
 
-- [ ] T016 [US1] Add `Task<SavedPlanChange> DeleteAsync(string ownerId, Guid id, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`:
+- [x] T016 [US1] Add `Task<SavedPlanChange> DeleteAsync(string ownerId, Guid id, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanChangeService.cs`:
   1. Call `FindOwnedAsync`, and return its refusal if there is one.
   2. Otherwise `context.SavedPlans.Remove(plan)`, `SaveChangesAsync`, and return `SavedPlanChange.Deleted`.
   3. If `SaveChangesAsync` throws `DbUpdateConcurrencyException` (another request deleted it first), return `SavedPlanChange.NotFound`.
   
   Doc comment: spec FR-001.
-- [ ] T017 [US1] Add `[HttpDelete("{id:guid}")] Delete(Guid id, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`, returning `ToActionResult(await savedPlanChangeService.DeleteAsync(userId, id, ct), _ => NoContent())`, with `[ProducesResponseType]` for 204 and 404. (depends on T016)
-- [ ] T018 [US1] Add `backend/tests/SpekLaiku.IntegrationTests/DeletePlanEndpointTests.cs` (signed-in Active Registered User):
+- [x] T017 [US1] Add `[HttpDelete("{id:guid}")] Delete(Guid id, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`, returning `ToActionResult(await savedPlanChangeService.DeleteAsync(userId, id, ct), _ => NoContent())`, with `[ProducesResponseType]` for 204 and 404. (depends on T016)
+- [x] T018 [US1] Add `backend/tests/SpekLaiku.IntegrationTests/DeletePlanEndpointTests.cs` (signed-in Active Registered User):
   - (a) delete one of two plans: 204 with an empty body. `GET /api/plans` lists only the other plan, and `GET /api/plans/{id}` gives 404 with detail "This plan no longer exists.";
   - (b) deleting it again gives 404 with the same detail;
   - (c) the other plan's row is unchanged (name, `SavedAtUtc`, snapshot);
@@ -179,9 +179,9 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Frontend for User Story 1
 
-- [ ] T019 [P] [US1] Add `deletePlan(id, signal)` to `frontend/src/api/savedPlansApi.ts`. It returns `DeletePlanAnswer = { kind: "deleted" } | { kind: "notFound" } | { kind: "forbidden" } | { kind: "unauthorized" }`, for 204, 404, 403 and 401. Anything else throws `ApiError`. It sends `DELETE /api/plans/{encodeURIComponent(id)}`. Add the cases to `frontend/src/tests/savedPlansApi.test.ts`: each status, the method and the path, and a 500 that throws.
-- [ ] T020 [P] [US1] Add `remove(id: string)` to `frontend/src/stores/useSavedPlansStore.ts`, which filters the plan out of `plans` and leaves `status` unchanged. Add a test in `frontend/src/tests/useSavedPlansStore.test.ts`.
-- [ ] T021 [US1] Add `frontend/src/stores/usePlanActionsStore.ts` (not persisted), with these messages as exported constants:
+- [x] T019 [P] [US1] Add `deletePlan(id, signal)` to `frontend/src/api/savedPlansApi.ts`. It returns `DeletePlanAnswer = { kind: "deleted" } | { kind: "notFound" } | { kind: "forbidden" } | { kind: "unauthorized" }`, for 204, 404, 403 and 401. Anything else throws `ApiError`. It sends `DELETE /api/plans/{encodeURIComponent(id)}`. Add the cases to `frontend/src/tests/savedPlansApi.test.ts`: each status, the method and the path, and a 500 that throws.
+- [x] T020 [P] [US1] Add `remove(id: string)` to `frontend/src/stores/useSavedPlansStore.ts`, which filters the plan out of `plans` and leaves `status` unchanged. Add a test in `frontend/src/tests/useSavedPlansStore.test.ts`.
+- [x] T021 [US1] Add `frontend/src/stores/usePlanActionsStore.ts` (not persisted), with these messages as exported constants:
   - `planDeletedMessage = "Plan deleted."`;
   - `deleteFailedMessage = "Error: Plan could not be deleted. Try again."`;
   - `planGoneMessage = "This plan no longer exists."`;
@@ -207,7 +207,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `reset()` aborts and starts again.
   
   Doc comment: spec FR-001 to FR-003, research section 12. (depends on T019)
-- [ ] T022 [P] [US1] Add `frontend/src/tests/usePlanActionsStore.test.ts` for delete:
+- [x] T022 [P] [US1] Add `frontend/src/tests/usePlanActionsStore.test.ts` for delete:
   - success sets the notice;
   - a second call while pending sends no request;
   - 404 sets "This plan no longer exists.";
@@ -216,15 +216,15 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - 401 refreshes the current user.
   
   (depends on T021)
-- [ ] T023 [US1] Give `frontend/src/components/savedPlanList.tsx` an optional prop `actions?: (plan: SavedPlanSummary) => ReactNode`. When it is set, it is rendered after the Open link in the last cell. Home's `SavedPlansBlock` does not pass it.
-- [ ] T024 [US1] Add `frontend/src/components/planActions.tsx`: `PlanActions({ plan, onDeleted })`, where `plan` is `{ id, name }`, for now with only the **Delete** button.
+- [x] T023 [US1] Give `frontend/src/components/savedPlanList.tsx` an optional prop `actions?: (plan: SavedPlanSummary) => ReactNode`. When it is set, it is rendered after the Open link in the last cell. Home's `SavedPlansBlock` does not pass it.
+- [x] T024 [US1] Add `frontend/src/components/planActions.tsx`: `PlanActions({ plan, onDeleted })`, where `plan` is `{ id, name }`, for now with only the **Delete** button.
   - **Button**: `aria-label={`Delete ${plan.name}`}`, disabled while `usePlanActionsStore` has `pending` for this plan.
   - **Dialog**: clicking **Delete** opens `ConfirmDialog` with the question `` `Delete '${plan.name}'? This cannot be undone.` `` and `confirmLabel="Delete"`.
   - **Cancel and Escape**: close the dialog and return focus to the Delete button (a ref).
   - **Confirm**: calls `deletePlan(plan.id)`. On `"deleted"` or `"gone"` it calls `onDeleted(plan.id)`. On `"failed"` it closes the dialog.
   
   Doc comment: spec FR-002, FR-019, FR-020. (depends on T010, T021)
-- [ ] T025 [US1] Update `frontend/src/pages/MyPlansPage.tsx`:
+- [x] T025 [US1] Update `frontend/src/pages/MyPlansPage.tsx`:
   - Pass `actions={(plan) => <PlanActions plan={plan} onDeleted={removeAndFocus} />}` to `SavedPlanList`.
   - `removeAndFocus(id)`:
     1. Find the index of the row.
@@ -237,8 +237,8 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - When the last plan is deleted, the existing empty state shows.
   
   Update the file's comment ("Read-only in this feature" no longer applies). (depends on T020, T023, T024)
-- [ ] T026 [US1] Update `frontend/src/pages/PlanDetailsPage.tsx`: pass `SavedPlanView` an `actions` element with `<PlanActions plan={plan} onDeleted={() => navigate("/plans", { state: { planNotice: "deleted" } })} />`. Update the file's comment. (depends on T013, T024, T025)
-- [ ] T027 [US1] Extend `frontend/src/tests/MyPlansPage.test.tsx`:
+- [x] T026 [US1] Update `frontend/src/pages/PlanDetailsPage.tsx`: pass `SavedPlanView` an `actions` element with `<PlanActions plan={plan} onDeleted={() => navigate("/plans", { state: { planNotice: "deleted" } })} />`. Update the file's comment. (depends on T013, T024, T025)
+- [x] T027 [US1] Extend `frontend/src/tests/MyPlansPage.test.tsx`:
   - each row has a "Delete <name>" button;
   - clicking it shows the dialog text exactly;
   - Cancel and Escape send no request and return focus to that button;
@@ -249,6 +249,14 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the button is disabled while pending, and "Deleting your plan…" is shown in a status region while the request is pending.
   
   Extend `frontend/src/tests/PlanDetailsPage.test.tsx`: confirming Delete opens My plans with "Plan deleted.". Extend `frontend/src/tests/HomePage.test.tsx`: the Home block shows no Delete button. (depends on T025, T026)
+  - Result (2026-11-19):
+    - **Implementation notes**:
+      - The status region (pending text, notice, and error with Retry) is a shared component, `frontend/src/components/planActionMessages.tsx`, used by My plans and the plan page.
+      - `PlanActions` got the optional `onGone` prop already here, not in T036, because a delete that gets 404 has the same problem as F2: on the plan page it must show "This plan no longer exists." in place, not open My plans with "Plan deleted.". My plans passes `onGone`; the plan page does not, and a test covers it.
+    - **Changed feature 010 tests** (added to T071's list):
+      - `PlanDetailsPage.test.tsx` "offers no save, edit, recalculate, duplicate or delete actions" now checks only that no Save plan or Recalculate is offered and nothing is generated.
+      - `keyboard.test.tsx` "reaches each Open link on My plans in order" now expects each row's Open link followed by its Delete button.
+    - **Checks**: backend build with 0 warnings; 654 unit and 338 integration tests (+5); `dotnet format` clean. Frontend lint and Prettier clean; 83 files and 1141 tests; build clean.
 
 **Checkpoint**: Delete works from both pages with confirmation, focus and error handling. Backend and frontend tests are green.
 
@@ -635,6 +643,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - T045: the `savedPlan` fixture gains fields.
   - T005 and T006: the list-order tie-break.
   - T048: `planKey` moves to a helper, and `useKeptScheduleStore.test.ts` is unchanged.
+  - T027: the feature 010 `PlanDetailsPage.test.tsx` "no actions" test is narrowed to "no Save plan or Recalculate, nothing generated", and the `keyboard.test.tsx` My plans tab order includes each row's actions. Both change because feature 011 adds the actions on purpose (spec FR-019).
   
   List them in the PR description (constitution III).
 - [ ] T072 Apply the migration to the local database (`dotnet ef database update --project src/SpekLaiku.Api` from `backend/`) and walk through `specs/011-plan-management/quickstart.md` Scenarios 1 to 6 in the running app. Record which passed, and any that could not be done (for example if Overpass is unavailable).
