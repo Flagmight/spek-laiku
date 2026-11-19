@@ -7,9 +7,9 @@ using SpekLaiku.Api.Entities;
 namespace SpekLaiku.Api.Services;
 
 /// <summary>
-/// Editing an existing saved plan in place, only by its owner (feature 011 spec FR-010, FR-011, FR-015): saving
-/// changes from an edit. The plan keeps its id, owner and creation time. Every operation checks ownership first
-/// through <see cref="SavedPlanOwnership"/>.
+/// Editing an existing saved plan in place, only by its owner (feature 011 spec FR-010, FR-011, FR-014, FR-015):
+/// saving changes from an edit, and renaming. The plan keeps its id, owner and creation time. Every operation
+/// checks ownership first through <see cref="SavedPlanOwnership"/>.
 /// </summary>
 public sealed class SavedPlanEditService(
     ApplicationDbContext context,
@@ -77,6 +77,33 @@ public sealed class SavedPlanEditService(
             plan!,
             () => Replace(plan!, name!, request.GeneratedScheduleId, snapshot!),
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Changes only the plan's name; the schedule and the saved time stay as they are (spec FR-014). Ownership is
+    /// checked before the name, so another user's or a missing plan is refused even with an invalid name.
+    /// </summary>
+    public async Task<SavedPlanChange> RenameAsync(
+        string ownerId,
+        Guid id,
+        RenamePlanRequest request,
+        CancellationToken cancellationToken)
+    {
+        var (plan, refusal) = await SavedPlanOwnership.FindOwnedAsync(context, ownerId, id, cancellationToken);
+        if (refusal is not null)
+        {
+            return refusal;
+        }
+
+        var (name, nameError) = SavedPlanValidator.CheckName(request.Name);
+        if (nameError is { } error)
+        {
+            return SavedPlanChange.Invalid([error]);
+        }
+
+        plan!.Name = name!;
+        await context.SaveChangesAsync(cancellationToken);
+        return SavedPlanChange.Changed(plan);
     }
 
     private void Replace(SavedPlan plan, string name, Guid? scheduleId, PlanSnapshot snapshot)

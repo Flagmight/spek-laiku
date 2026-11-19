@@ -403,6 +403,7 @@ describe("PlanDetailsPage edit", () => {
     const buttons = within(actions.closest("p")!).getAllByRole("button")
     expect(buttons.map((button) => button.textContent)).toEqual([
       "Edit plan",
+      "Rename",
       "Duplicate",
       "Delete",
     ])
@@ -495,5 +496,151 @@ describe("PlanDetailsPage edit", () => {
 
     expect(screen.queryByRole("dialog")).toBeNull()
     expect(currentLocation()).toBe("/plan/setup")
+  })
+})
+
+// Feature 011 User Story 4: renaming a plan on its page.
+describe("PlanDetailsPage rename", () => {
+  function renderWithRename(
+    answer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    const routes = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`PUT /api/plans/${id}/name`]: answer,
+    })
+    renderAppWithLocation(`/plans/${id}`)
+    return routes
+  }
+
+  function renamedTo(name: string) {
+    return jsonResponse(200, {
+      id,
+      name,
+      locationName: "Kaunas",
+      dates: plan.dates,
+      savedAt: plan.savedAt,
+    })
+  }
+
+  it("opens the form with the current name and focus in the field", async () => {
+    const user = userEvent.setup()
+    renderWithRename(() => renamedTo("Kaunas trip"))
+
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+
+    expect(
+      screen.getByRole("form", { name: "Rename plan" }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Plan name")).toHaveValue("Weekend in Kaunas")
+    expect(screen.getByLabelText("Plan name")).toHaveFocus()
+  })
+
+  it("refuses an empty name next to the field, with focus on it each time", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderWithRename(() => renamedTo("x"))
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    const field = screen.getByLabelText("Plan name")
+    await user.clear(field)
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+    expect(screen.getByText(/Enter a plan name\./)).toBeInTheDocument()
+    expect(field).toHaveAttribute("aria-invalid", "true")
+    expect(field).toHaveFocus()
+
+    screen.getByRole("button", { name: "Save" }).focus()
+    await user.click(screen.getByRole("button", { name: "Save" }))
+    expect(field).toHaveFocus()
+    expect(requests.filter((request) => request.method === "PUT")).toEqual([])
+  })
+
+  it("renames the plan and updates the heading, title and breadcrumbs", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderWithRename(() => renamedTo("Kaunas trip"))
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    const field = screen.getByLabelText("Plan name")
+    await user.clear(field)
+    await user.type(field, "Kaunas trip")
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(await screen.findByText("✓ Success: Plan renamed.")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Kaunas trip" }),
+    ).toBeInTheDocument()
+    expect(document.title).toBe("Kaunas trip - Spėk laiku")
+    expect(
+      within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByText(
+        "Kaunas trip",
+      ),
+    ).toHaveAttribute("aria-current", "page")
+    expect(
+      screen.getByText("Saved on Wed 18 Nov 2026 at 14:05"),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Rename" })).toHaveFocus()
+    expect(requests.filter((request) => request.method === "PUT")).toEqual([
+      {
+        method: "PUT",
+        path: `/api/plans/${id}/name`,
+        body: { name: "Kaunas trip" },
+      },
+    ])
+  })
+
+  it("shows the pending text while renaming", async () => {
+    const user = userEvent.setup()
+    renderWithRename(() => new Promise<Response>(() => {}))
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(await screen.findByText("Renaming your plan…")).toHaveAttribute(
+      "role",
+      "status",
+    )
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
+  })
+
+  it("closes with Escape and returns focus to Rename, keeping the name", async () => {
+    const user = userEvent.setup()
+    const { requests } = renderWithRename(() => renamedTo("x"))
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    await user.type(screen.getByLabelText("Plan name"), " changed")
+
+    await user.keyboard("{Escape}")
+
+    expect(screen.queryByRole("form", { name: "Rename plan" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Rename" })).toHaveFocus()
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Weekend in Kaunas" }),
+    ).toBeInTheDocument()
+    expect(requests.filter((request) => request.method === "PUT")).toEqual([])
+  })
+
+  it("shows the error with Retry and keeps the entered name", async () => {
+    let calls = 0
+    const user = userEvent.setup()
+    renderWithRename(() =>
+      ++calls === 1 ? jsonResponse(500) : renamedTo("Kaunas trip"),
+    )
+    await user.click(await screen.findByRole("button", { name: "Rename" }))
+    const field = screen.getByLabelText("Plan name")
+    await user.clear(field)
+    await user.type(field, "Kaunas trip")
+    await user.click(screen.getByRole("button", { name: "Save" }))
+
+    expect(
+      await screen.findByText(/Error: Plan could not be renamed\. Try again\./),
+    ).toHaveAttribute("role", "alert")
+    expect(screen.getByLabelText("Plan name")).toHaveValue("Kaunas trip")
+
+    await user.click(screen.getByRole("button", { name: "Retry" }))
+
+    expect(
+      await screen.findByText("✓ Success: Plan renamed."),
+    ).toBeInTheDocument()
   })
 })

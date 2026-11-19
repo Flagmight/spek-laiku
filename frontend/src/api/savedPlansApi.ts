@@ -1,4 +1,5 @@
 import type {
+  RenamePlanRequest,
   SavePlanFieldKey,
   SavePlanRequest,
   SavedPlan,
@@ -68,6 +69,47 @@ export async function replacePlan(
     case 200:
       return {
         kind: "saved",
+        plan: (await response.json()) as SavedPlanSummary,
+      }
+    case 400:
+      return { kind: "invalid", errors: await fieldErrors(response) }
+    case 401:
+      return { kind: "unauthorized" }
+    case 403:
+      return { kind: "forbidden" }
+    case 404:
+      return { kind: "notFound" }
+  }
+
+  throw new ApiError(response.status)
+}
+
+export type RenamePlanAnswer =
+  | { kind: "renamed"; plan: SavedPlanSummary }
+  | { kind: "invalid"; errors: Partial<Record<SavePlanFieldKey, string>> }
+  | { kind: "notFound" }
+  | { kind: "forbidden" }
+  | { kind: "unauthorized" }
+
+// Changes only a plan's name (feature 011 contracts/plans-api.md). A 400 names the refused name; another user's
+// plan is 403 and a plan that does not exist 404. Anything else throws ApiError. Network and abort errors pass
+// through.
+export async function renamePlan(
+  id: string,
+  request: RenamePlanRequest,
+  signal?: AbortSignal,
+): Promise<RenamePlanAnswer> {
+  const response = await apiFetch(`${path}/${encodeURIComponent(id)}/name`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  })
+
+  switch (response.status) {
+    case 200:
+      return {
+        kind: "renamed",
         plan: (await response.json()) as SavedPlanSummary,
       }
     case 400:

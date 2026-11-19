@@ -99,6 +99,16 @@ public sealed class PlansController(
             await savedPlanEditService.ReplaceAsync(userManager.GetUserId(User)!, id, request, cancellationToken),
             plan => Ok(mapper.Map<SavedPlanSummaryResponse>(plan)));
 
+    // Renames the plan; the schedule and the saved time are not changed (feature 011 spec FR-014).
+    [HttpPut("{id:guid}/name")]
+    [ProducesResponseType<SavedPlanSummaryResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> Rename(Guid id, RenamePlanRequest request, CancellationToken cancellationToken) =>
+        ToActionResult(
+            await savedPlanEditService.RenameAsync(userManager.GetUserId(User)!, id, request, cancellationToken),
+            plan => Ok(mapper.Map<SavedPlanSummaryResponse>(plan)));
+
     // The HTTP answer for a change to a saved plan (feature 011 contracts/plans-api.md). Another user's plan gives
     // 403 through the cookie handler, with no plan data; onChanged builds the success answer from the plan.
     private ActionResult ToActionResult(SavedPlanChange change, Func<SavedPlan, ActionResult> onChanged) =>

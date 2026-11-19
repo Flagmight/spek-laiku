@@ -24,6 +24,11 @@ export interface SavePlanRequest {
 
 export type SavePlanFieldKey = "name" | "generatedScheduleId"
 
+// Renaming sends only the new name (feature 011 spec FR-014).
+export interface RenamePlanRequest {
+  name: string
+}
+
 // A saved activity with the values it was saved with; it has no browser id until it is loaded for editing.
 export type SavedPlanActivity = Omit<CheckedPlanActivity, "id">
 

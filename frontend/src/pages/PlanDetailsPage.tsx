@@ -1,8 +1,6 @@
 import { useEffect } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
-import { EditPlanButton } from "../components/editPlanButton"
-import { PlanActionMessages } from "../components/planActionMessages"
-import { PlanActions } from "../components/planActions"
+import { PlanDetailsActions } from "../components/planDetailsActions"
 import { SavedPlanView } from "../components/savedPlanView"
 import { discardPlanInProgress } from "../helpers/discardPlanInProgress"
 import { usePageTitle } from "../hooks/usePageTitle"
@@ -10,6 +8,10 @@ import {
   planDuplicatedMessage,
   usePlanActionsStore,
 } from "../stores/usePlanActionsStore"
+import {
+  planRenamedMessage,
+  useRenamePlanStore,
+} from "../stores/useRenamePlanStore"
 import { useSavedPlanStore } from "../stores/useSavedPlanStore"
 import type { SavedPlanStatus } from "../stores/useSavedPlanStore"
 import type { NavigationState } from "../types/navigationState"
@@ -26,16 +28,17 @@ const titles: Record<SavedPlanStatus, string> = {
 }
 
 // One saved plan, exactly as it was saved, in the Schedule Overview's layout (feature 010 spec User Story 4,
-// FR-010), with its actions (feature 011 spec FR-019). Deleting it opens My plans with "Plan deleted.", and
-// duplicating it opens the copy with "Plan duplicated.".
-// Recalculating comes with feature 012. Opening it never generates a schedule or calls the weather or map data
-// services.
+// FR-010), with its actions (feature 011 spec FR-019). Renaming shows "✓ Success: Plan renamed.", deleting it
+// opens My plans with "Plan deleted.", and duplicating it opens the copy with "Plan duplicated.". Recalculating
+// comes with feature 012. Opening it never generates a schedule or calls the weather or map data services.
 export function PlanDetailsPage() {
   const { planId = "" } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
   const status = useSavedPlanStore((state) => state.status)
   const plan = useSavedPlanStore((state) => state.plan)
+  const renameStatus = useRenamePlanStore((state) => state.status)
+  // The title follows a rename, because it reads the loaded plan's name (feature 011 FR-014).
   usePageTitle(status === "loaded" && plan ? plan.name : titles[status])
 
   useEffect(() => {
@@ -92,18 +95,13 @@ export function PlanDetailsPage() {
     return (
       <SavedPlanView
         plan={plan}
+        notice={renameStatus === "renamed" ? planRenamedMessage : null}
         actions={
-          <>
-            <p className="plan-actions">
-              <EditPlanButton plan={plan} />
-              <PlanActions
-                plan={plan}
-                onDeleted={openMyPlansAfterDelete}
-                onDuplicated={openCopy}
-              />
-            </p>
-            <PlanActionMessages />
-          </>
+          <PlanDetailsActions
+            plan={plan}
+            onDeleted={openMyPlansAfterDelete}
+            onDuplicated={openCopy}
+          />
         }
       />
     )

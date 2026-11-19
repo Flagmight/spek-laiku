@@ -538,15 +538,15 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Backend for User Story 4
 
-- [ ] T055 [P] [US4] Add `backend/src/SpekLaiku.Api/DTOs/Requests/RenamePlanRequest.cs`: `public sealed record RenamePlanRequest(string? Name);`, with the doc comment "Only the name; renaming never changes the schedule or the saved time (feature 011 spec FR-014)."
-- [ ] T056 [US4] Add `Task<SavedPlanChange> RenameAsync(string ownerId, Guid id, RenamePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanEditService.cs` (split from `SavedPlanChangeService` in Phase 5):
+- [x] T055 [P] [US4] Add `backend/src/SpekLaiku.Api/DTOs/Requests/RenamePlanRequest.cs`: `public sealed record RenamePlanRequest(string? Name);`, with the doc comment "Only the name; renaming never changes the schedule or the saved time (feature 011 spec FR-014)."
+- [x] T056 [US4] Add `Task<SavedPlanChange> RenameAsync(string ownerId, Guid id, RenamePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Services/SavedPlanEditService.cs` (split from `SavedPlanChangeService` in Phase 5):
   1. Call `FindOwnedAsync`, and return its refusal if there is one. Ownership comes first, so a foreign or missing plan gives 403 or 404 even with an invalid name.
   2. Check the name with `SavedPlanValidator.CheckName`. On error return `Invalid([error])`.
   3. Set `plan.Name = trimmed` only, save, and return `Changed(plan)`.
   
   (depends on T008, T055)
-- [ ] T057 [US4] Add `[HttpPut("{id:guid}/name")] Rename(Guid id, RenamePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`. It returns `ToActionResult(change, plan => Ok(mapper.Map<SavedPlanSummaryResponse>(plan)))`, with `[ProducesResponseType]` for 200, 400 and 404. (depends on T056)
-- [ ] T058 [US4] Add `backend/tests/SpekLaiku.IntegrationTests/RenamePlanEndpointTests.cs`:
+- [x] T057 [US4] Add `[HttpPut("{id:guid}/name")] Rename(Guid id, RenamePlanRequest request, CancellationToken ct)` to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`. It returns `ToActionResult(change, plan => Ok(mapper.Map<SavedPlanSummaryResponse>(plan)))`, with `[ProducesResponseType]` for 200, 400 and 404. (depends on T056)
+- [x] T058 [US4] Add `backend/tests/SpekLaiku.IntegrationTests/RenamePlanEndpointTests.cs`:
   - (a) 200 with the new name. `SavedAtUtc`, `CreatedAtUtc`, `GeneratedScheduleId` and the snapshot are unchanged in the database;
   - (b) `"  Kaunas trip  "` is stored as `"Kaunas trip"`;
   - (c) `""`, `"   "` and 81 characters give 400 with `errors.name` and the exact messages, and the name is unchanged;
@@ -558,8 +558,8 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Frontend for User Story 4
 
-- [ ] T059 [P] [US4] Add `renamePlan(id, name, signal)` to `frontend/src/api/savedPlansApi.ts`. It returns `{ kind: "renamed"; plan: SavedPlanSummary } | { kind: "invalid"; errors } | notFound | forbidden | unauthorized`, and sends `PUT /api/plans/{id}/name` with `{ name }`. Add `RenamePlanRequest` to `frontend/src/types/savedPlan.ts`. Add the tests to `frontend/src/tests/savedPlansApi.test.ts`.
-- [ ] T060 [US4] Add `frontend/src/stores/useRenamePlanStore.ts`, with the same shape as `useSavePlanStore`:
+- [x] T059 [P] [US4] Add `renamePlan(id, name, signal)` to `frontend/src/api/savedPlansApi.ts`. It returns `{ kind: "renamed"; plan: SavedPlanSummary } | { kind: "invalid"; errors } | notFound | forbidden | unauthorized`, and sends `PUT /api/plans/{id}/name` with `{ name }`. Add `RenamePlanRequest` to `frontend/src/types/savedPlan.ts`. Add the tests to `frontend/src/tests/savedPlansApi.test.ts`.
+- [x] T060 [US4] Add `frontend/src/stores/useRenamePlanStore.ts`, with the same shape as `useSavePlanStore`:
   - **Statuses**: `closed | open | saving | renamed | invalid | notFound | sessionExpired | serverError`.
   - **State and actions**: `name`, `nameError`, `nameRefusals`, `lastRequest`, `controller`; `open(currentName)`, `cancel`, `setName`, `submit(planId)`, `retry`, `reset`.
   - An empty name is refused locally with "Enter a plan name.".
@@ -567,13 +567,13 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - On `renamed` it calls `useSavedPlanStore.getState().rename(plan.name)`. Add `rename(name)` to `frontend/src/stores/useSavedPlanStore.ts`; it updates the loaded plan's name.
   
   Add `frontend/src/tests/useRenamePlanStore.test.ts`: the local empty check, success updates the saved plan store, 400 messages, 404, 500 and timeout, Retry, 401 gives `sessionExpired`. (depends on T059)
-- [ ] T061 [US4] Add `frontend/src/components/renamePlanForm.tsx`, using `PlanNameForm` with `formLabel="Rename plan"` and `submitLabel="Save"`.
+- [x] T061 [US4] Add `frontend/src/components/renamePlanForm.tsx`, using `PlanNameForm` with `formLabel="Rename plan"` and `submitLabel="Save"`.
   - The status slot shows `renamingMessage = "Renaming your plan…"` (defined in `useRenamePlanStore`) while saving, `renameFailedMessage` with **Retry**, and "This plan no longer exists." on 404.
   - Cancel and Escape close it and return focus to the Rename button.
   - `sessionExpired` sends the user to Log in with `returnTo` set to the plan page and `loginReason: "expired"`, after `markSessionEnded()`, as `savePlanSection.tsx` does.
   
   In `frontend/src/pages/PlanDetailsPage.tsx`, add a **Rename** button after Edit plan that opens the form in place of the action buttons. On `renamed`, show `planRenamedMessage` as the view's notice. The heading, `usePageTitle` and breadcrumbs follow the store's plan name. (depends on T012, T060)
-- [ ] T062 [US4] Extend `frontend/src/tests/PlanDetailsPage.test.tsx` for Rename:
+- [x] T062 [US4] Extend `frontend/src/tests/PlanDetailsPage.test.tsx` for Rename:
   - the form opens with the current name and focus in the field;
   - an empty name shows "Enter a plan name." with focus on the field, both on the first and the second refusal;
   - a valid name sends `PUT /api/plans/{id}/name`, shows "✓ Success: Plan renamed.", and updates the heading, title and breadcrumb;
@@ -583,6 +583,13 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - 500 shows the error with Retry and keeps the entered name.
   
   (depends on T061)
+  - Result (2026-11-19):
+    - **Implementation notes**:
+      - `RenameAsync` is in `SavedPlanEditService` (T056 updated in Phase 5).
+      - The plan page's actions (Edit plan, Rename, Duplicate, Delete, the Rename form and the messages) moved into `frontend/src/components/planDetailsActions.tsx`, as T051 allowed, so `PlanDetailsPage.tsx` stays small.
+      - Retry sends the name that was sent, as for Save changes.
+    - **Changed test**: the Phase 5 test "offers Edit plan first among the plan's actions" now expects Edit plan, Rename, Duplicate and Delete (spec User Story 1 scenario 2).
+    - **Checks**: backend build with 0 warnings; 663 unit and 363 integration tests (+9); `dotnet format` clean. Frontend lint and Prettier clean; 87 files (+1) and 1220 tests (+18); build clean.
 
 **Checkpoint**: Rename works with validation, focus and errors. Tests are green.
 

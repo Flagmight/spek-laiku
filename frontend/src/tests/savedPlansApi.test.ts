@@ -5,6 +5,7 @@ import {
   duplicatePlan,
   getSavedPlan,
   getSavedPlans,
+  renamePlan,
   replacePlan,
   savePlan,
 } from "../api/savedPlansApi"
@@ -308,6 +309,66 @@ describe("replacePlan", () => {
     routeFetch({ [route]: () => jsonResponse(500) })
 
     await expect(replacePlan(plan.id, request)).rejects.toEqual(
+      new ApiError(500),
+    )
+  })
+})
+
+describe("renamePlan", () => {
+  const route = `PUT /api/plans/${plan.id}/name`
+
+  it("puts the name to the plan's name address and returns the plan on 200", async () => {
+    const renamed = { ...plan, name: "Kaunas trip" }
+    const { requests } = routeFetch({
+      [route]: () => jsonResponse(200, renamed),
+    })
+
+    expect(await renamePlan(plan.id, { name: "Kaunas trip" })).toEqual({
+      kind: "renamed",
+      plan: renamed,
+    })
+    expect(requests).toEqual([
+      {
+        method: "PUT",
+        path: `/api/plans/${plan.id}/name`,
+        body: { name: "Kaunas trip" },
+      },
+    ])
+  })
+
+  it("returns the name message on 400", async () => {
+    routeFetch({
+      [route]: () =>
+        jsonResponse(400, { errors: { name: ["Enter a plan name."] } }),
+    })
+
+    expect(await renamePlan(plan.id, { name: "" })).toEqual({
+      kind: "invalid",
+      errors: { name: "Enter a plan name." },
+    })
+  })
+
+  it("maps 404 to notFound, 403 to forbidden and 401 to unauthorized", async () => {
+    routeFetch({ [route]: () => jsonResponse(404, { status: 404 }) })
+    expect(await renamePlan(plan.id, { name: "A" })).toEqual({
+      kind: "notFound",
+    })
+
+    routeFetch({ [route]: () => jsonResponse(403, { status: 403 }) })
+    expect(await renamePlan(plan.id, { name: "A" })).toEqual({
+      kind: "forbidden",
+    })
+
+    routeFetch({ [route]: () => jsonResponse(401) })
+    expect(await renamePlan(plan.id, { name: "A" })).toEqual({
+      kind: "unauthorized",
+    })
+  })
+
+  it("throws ApiError for 500", async () => {
+    routeFetch({ [route]: () => jsonResponse(500) })
+
+    await expect(renamePlan(plan.id, { name: "A" })).rejects.toEqual(
       new ApiError(500),
     )
   })
