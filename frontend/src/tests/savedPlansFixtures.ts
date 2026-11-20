@@ -1,5 +1,11 @@
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
+import type {
+  PlanCheck,
+  PlanCheckEntry,
+  PlanProblem,
+  PlanRule,
+} from "../types/planCheck"
 import type { PlanSchedule } from "../types/planSchedule"
 import type { SavedPlan, SavedPlanSummary } from "../types/savedPlan"
 import { jsonResponse, signedInUser } from "./renderApp"
@@ -124,6 +130,48 @@ export const savedPlan: SavedPlan = {
   scheduled: museumSchedule.scheduled,
   unscheduled: [],
   travel: museumSchedule.travel,
+}
+
+// A check of savedPlan that finds no problem (feature 012 contracts/plan-check-api.md): one entry per scheduled
+// activity, with the same date, times, name and weather.
+export const planCheckNoProblems: PlanCheck = planCheckWith([])
+
+// A check of savedPlan whose entries take the given overrides, by position; entries without one have no problem.
+export function planCheckWith(entries: Partial<PlanCheckEntry>[]): PlanCheck {
+  return {
+    savedAt: savedPlan.savedAt,
+    status: "checked",
+    forecastUpdatedAt: "14:05",
+    entries: savedPlan.scheduled.map((activity, index) => ({
+      date: activity.date,
+      startTime: activity.startTime,
+      endTime: activity.endTime,
+      activityName: activity.activityName,
+      past: false,
+      weather: activity.weather,
+      problems: [],
+      ...entries[index],
+    })),
+  }
+}
+
+// One problem of the given rule; every field it does not set is null, as the server sends it.
+export function problem(
+  rule: PlanRule,
+  fields: Partial<PlanProblem> = {},
+): PlanProblem {
+  return {
+    rule,
+    time: null,
+    value: null,
+    limit: null,
+    sunTime: null,
+    otherActivityName: null,
+    otherStartTime: null,
+    otherEndTime: null,
+    fromPlaceName: null,
+    ...fields,
+  }
 }
 
 // The routes for a signed-in Active Registered User on the saved plan screens.

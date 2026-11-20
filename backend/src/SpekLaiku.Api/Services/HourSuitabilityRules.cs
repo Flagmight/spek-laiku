@@ -51,32 +51,59 @@ public static class HourSuitabilityRules
     public static string TooWindy(decimal wind, decimal maximum) =>
         $"Too windy: {Shown(wind)} m/s, maximum {Shown(maximum)} m/s";
 
-    // Called only when the hour has every value. An Outdoor activity always has its four limits after the
-    // check in feature 005; a missing one is simply not compared.
-    private static void AddWeatherReasons(List<string> reasons, PlanningHour hour, CheckedPlanActivity activity)
+    /// <summary>
+    /// The weather limits the hour breaks, in the order cold, warm, rain, wind (feature 012 research section 5).
+    /// Empty for an Indoor activity and for an hour without every value. An Outdoor activity always has its four
+    /// limits after the check in feature 005; a missing one is simply not compared.
+    /// </summary>
+    public static IReadOnlyList<LimitBreach> Breaches(PlanningHour hour, CheckedPlanActivity activity)
     {
-        var temperature = hour.TemperatureC!.Value;
-        var rain = hour.RainMmPerHour!.Value;
-        var wind = hour.WindMs!.Value;
+        if (activity.Type != ActivityType.Outdoor
+            || hour.TemperatureC is not { } temperature
+            || hour.RainMmPerHour is not { } rain
+            || hour.WindMs is not { } wind)
+        {
+            return [];
+        }
+
+        var breaches = new List<LimitBreach>();
 
         if (activity.MinTemperatureC is { } minimum && temperature < minimum)
         {
-            reasons.Add(TooCold(temperature, minimum));
+            breaches.Add(new LimitBreach(PlanRule.Cold, temperature, minimum));
         }
 
         if (activity.MaxTemperatureC is { } maximum && temperature > maximum)
         {
-            reasons.Add(TooWarm(temperature, maximum));
+            breaches.Add(new LimitBreach(PlanRule.Heat, temperature, maximum));
         }
 
         if (activity.MaxRainMmPerHour is { } maxRain && rain > maxRain)
         {
-            reasons.Add(TooMuchRain(rain, maxRain));
+            breaches.Add(new LimitBreach(PlanRule.Rain, rain, maxRain));
         }
 
         if (activity.MaxWindMs is { } maxWind && wind > maxWind)
         {
-            reasons.Add(TooWindy(wind, maxWind));
+            breaches.Add(new LimitBreach(PlanRule.Wind, wind, maxWind));
+        }
+
+        return breaches;
+    }
+
+    // Called only for an Outdoor activity when the hour has every value.
+    private static void AddWeatherReasons(List<string> reasons, PlanningHour hour, CheckedPlanActivity activity)
+    {
+        foreach (var breach in Breaches(hour, activity))
+        {
+            reasons.Add(breach.Rule switch
+            {
+                PlanRule.Cold => TooCold(breach.Value, breach.Limit),
+                PlanRule.Heat => TooWarm(breach.Value, breach.Limit),
+                PlanRule.Rain => TooMuchRain(breach.Value, breach.Limit),
+                PlanRule.Wind => TooWindy(breach.Value, breach.Limit),
+                _ => throw new InvalidOperationException($"{breach.Rule} is not a weather limit."),
+            });
         }
     }
 

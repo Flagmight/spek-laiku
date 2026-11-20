@@ -133,6 +133,15 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
     /// </summary>
     public async Task<HttpClient> CreateSignedInClientAsync(
         string role = "Registered User",
+        AccountStatus status = AccountStatus.Active) =>
+        (await CreateSignedInUserAsync(role, status)).Client;
+
+    /// <summary>
+    /// As <see cref="CreateSignedInClientAsync"/>, and also returns the user, for tests that need its id, for
+    /// example to insert a saved plan it owns (feature 012).
+    /// </summary>
+    public async Task<(ApplicationUser User, HttpClient Client)> CreateSignedInUserAsync(
+        string role = "Registered User",
         AccountStatus status = AccountStatus.Active)
     {
         var user = await CreateUserAsync(status, role: role);
@@ -140,7 +149,7 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
         var response = await client.PostAsync(
             $"{TestSignInStartupFilter.Path}?email={Uri.EscapeDataString(user.Email!)}", content: null);
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        return client;
+        return (user, client);
     }
 
     /// <summary>

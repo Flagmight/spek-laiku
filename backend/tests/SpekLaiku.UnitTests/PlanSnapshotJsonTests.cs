@@ -50,6 +50,40 @@ public sealed class PlanSnapshotJsonTests
         Assert.True(PlanSnapshotConversion.Comparer.Equals(snapshot, read));
     }
 
+    [Fact]
+    public void StoredScheduleWithoutActivityIndex_IsReadWithNull()
+    {
+        // Plans saved before feature 012 have no "activityIndex" key at all (research section 4).
+        var json = JsonSerializer.Serialize(CreateSnapshot(), PlanSnapshotConversion.JsonOptions)
+            .Replace(",\"activityIndex\":null", string.Empty, StringComparison.Ordinal);
+        Assert.DoesNotContain("activityIndex", json);
+
+        var read = JsonSerializer.Deserialize<PlanSnapshot>(json, PlanSnapshotConversion.JsonOptions)!;
+
+        Assert.Equal(2, read.Schedule.Scheduled.Count);
+        Assert.All(read.Schedule.Scheduled, entry => Assert.Null(entry.ActivityIndex));
+        Assert.NotNull(read.Schedule.Scheduled[1].Travel);
+    }
+
+    [Fact]
+    public void ActivityIndex_RoundTripsAsActivityIndex()
+    {
+        var snapshot = CreateSnapshot();
+        var withIndex = snapshot with
+        {
+            Schedule = snapshot.Schedule with
+            {
+                Scheduled = [.. snapshot.Schedule.Scheduled.Select((entry, index) => entry with { ActivityIndex = index })]
+            }
+        };
+
+        var json = JsonSerializer.Serialize(withIndex, PlanSnapshotConversion.JsonOptions);
+        var read = JsonSerializer.Deserialize<PlanSnapshot>(json, PlanSnapshotConversion.JsonOptions)!;
+
+        Assert.Contains("\"activityIndex\":1", json);
+        Assert.Equal([0, 1], read.Schedule.Scheduled.Select(entry => entry.ActivityIndex));
+    }
+
     internal static PlanSnapshot CreateSnapshot()
     {
         var cyclingId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");

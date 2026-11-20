@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;
 using SpekLaiku.Api.DTOs.Responses;
@@ -121,6 +122,27 @@ public sealed class PlanScheduleMappingTests : IDisposable
         Assert.Equal(
             ["ActivityName", "Date", "StartTime", "EndTime", "Place", "Weather", "Travel"],
             typeof(ScheduledActivityResponse).GetProperties().Select(property => property.Name));
+    }
+
+    [Fact]
+    public void ScheduledActivityResponse_HasNoActivityIndex()
+    {
+        // The index links an entry to its activity on the server only (feature 012 research section 4).
+        var entry = new ScheduledActivity(
+            CategoryId,
+            "Cycling",
+            new DateOnly(2026, 11, 14),
+            new TimeOnly(9, 0),
+            new TimeOnly(11, 0),
+            new NearbyPlace("Path", 54.9, 23.9, 1.0m, null, "way/1"),
+            new WeatherSnapshot(8m, 0m, 3m, IsIndoor: false),
+            ActivityIndex: 3);
+
+        var json = JsonSerializer.Serialize(
+            mapper.Map<ScheduledActivityResponse>(entry), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.DoesNotContain("activityIndex", json);
+        Assert.DoesNotContain("categoryId", json);
     }
 
     [Fact]
