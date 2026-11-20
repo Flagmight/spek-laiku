@@ -1,6 +1,8 @@
+using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.Data;
 using SpekLaiku.Api.Entities;
 using SpekLaiku.Api.Services;
@@ -17,6 +19,39 @@ internal sealed class SavedPlanSeed(PostgreSqlApiFactory factory)
 {
     /// <summary>The saved and created time of every seeded plan: the day before <see cref="ScheduleScenario.Now"/>.</summary>
     public static readonly DateTime SavedAtUtc = new(2026, 11, 9, 10, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>Today at <see cref="ScheduleScenario.Now"/> (14:20 in Vilnius), the first forecast date.</summary>
+    public static readonly DateOnly Today = new(2026, 11, 10);
+
+    /// <summary>Two days after <see cref="Today"/>, as in <see cref="ScheduleScenario.PlanDate"/>.</summary>
+    public static readonly DateOnly PlanDate = new(2026, 11, 12);
+
+    public static readonly TimeOnly Sunrise = new(7, 30);
+    public static readonly TimeOnly Sunset = new(16, 30);
+
+    /// <summary>
+    /// The whole forecast period from <see cref="Today"/>: 10 °C, no rain and <paramref name="wind"/> m/s every
+    /// hour, with <see cref="Sunrise"/> and <see cref="Sunset"/> every day.
+    /// </summary>
+    public static HourlyForecast CalmForecast(double wind = 5.0) =>
+        FakeForecastClient.Fill(Today, ForecastPeriod.Days, 10.0, 0.0, wind, Sunrise, Sunset);
+
+    /// <summary>Sends <c>GET /api/plans/{id}/check</c> and returns the status and the parsed body, if any.</summary>
+    public static async Task<(HttpStatusCode Status, JsonElement Body)> CheckAsync(HttpClient client, Guid id) =>
+        await CheckAsync(client, id.ToString());
+
+    public static async Task<(HttpStatusCode Status, JsonElement Body)> CheckAsync(HttpClient client, string id)
+    {
+        using var response = await client.GetAsync($"/api/plans/{id}/check");
+        var text = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrEmpty(text))
+        {
+            return (response.StatusCode, default);
+        }
+
+        using var document = JsonDocument.Parse(text);
+        return (response.StatusCode, document.RootElement.Clone());
+    }
 
     private const int FirstLocationId = 900000;
 

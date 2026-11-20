@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanCheckStore } from "../stores/usePlanCheckStore"
 import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { SavedPlan } from "../types/savedPlan"
@@ -12,7 +13,13 @@ import {
   routeFetch,
   signedInUser,
 } from "./renderApp"
-import { acceptMuseumPlan, savedPlan } from "./savedPlansFixtures"
+import {
+  acceptMuseumPlan,
+  noProblemCheckRoute,
+  planCheckWith,
+  problem,
+  savedPlan,
+} from "./savedPlansFixtures"
 
 const id = "0b8f4c1e-7d2a-4f3b-9e6c-5a1d2c3b4e5f"
 
@@ -80,12 +87,17 @@ const plan: SavedPlan = {
   travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
 }
 
+// The plan page with the given plan answer. The plan check (feature 012) finds no problem unless another answer
+// is given.
 function render(
   answer: (request: RecordedRequest) => Response | Promise<Response>,
+  checkAnswer?: (request: RecordedRequest) => Response | Promise<Response>,
 ) {
   const routes = routeFetch({
     "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
     [`GET /api/plans/${id}`]: answer,
+    ...noProblemCheckRoute(plan),
+    ...(checkAnswer && { [`GET /api/plans/${id}/check`]: checkAnswer }),
   })
   renderAppWithLocation(`/plans/${id}`)
   return routes
@@ -93,7 +105,11 @@ function render(
 
 describe("PlanDetailsPage", () => {
   it("shows the plan's name, breadcrumbs, setup, saved time and note", async () => {
-    render(() => jsonResponse(200, plan))
+    // Until the plan check has an answer, the note says this is the plan as saved (feature 012 spec FR-013).
+    render(
+      () => jsonResponse(200, plan),
+      () => new Promise<Response>(() => {}),
+    )
 
     expect(
       await screen.findByRole("heading", {
@@ -233,6 +249,7 @@ describe("PlanDetailsPage", () => {
           },
         ]),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
     })
     const { currentLocation } = renderAppWithLocation("/plans")
 
@@ -258,6 +275,7 @@ describe("PlanDetailsPage delete", () => {
     const routes = routeFetch({
       "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       [`DELETE /api/plans/${id}`]: answer,
       "GET /api/plans": () => jsonResponse(200, []),
     })
@@ -326,7 +344,9 @@ describe("PlanDetailsPage duplicate", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       [`GET /api/plans/${copyId}`]: () => jsonResponse(200, copy),
+      ...noProblemCheckRoute(copy),
       [`POST /api/plans/${id}/copies`]: answer,
     })
     return renderAppWithLocation(`/plans/${id}`)
@@ -389,6 +409,7 @@ describe("PlanDetailsPage edit", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       "GET /api/plan-setup/period": () =>
         jsonResponse(200, { firstDate, lastDate: "2026-11-25", maxDates: 7 }),
     })
@@ -507,6 +528,7 @@ describe("PlanDetailsPage rename", () => {
     const routes = routeFetch({
       "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       [`PUT /api/plans/${id}/name`]: answer,
     })
     renderAppWithLocation(`/plans/${id}`)
@@ -654,6 +676,7 @@ describe("PlanDetailsPage rename after the session ended", () => {
       "GET /api/auth/me": () =>
         sessionEnded ? jsonResponse(401) : jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       [`PUT /api/plans/${id}/name`]: () => {
         sessionEnded = true
         return jsonResponse(401)
@@ -672,5 +695,179 @@ describe("PlanDetailsPage rename after the session ended", () => {
     expect(
       screen.getByText("Your session has expired. Log in again."),
     ).toBeInTheDocument()
+  })
+})
+
+// Feature 012 User Story 1: opening the plan checks it against the latest forecast.
+describe("PlanDetailsPage plan check", () => {
+  const wind = problem("wind", { time: "11:00", value: 9, limit: 8 })
+  const windyCycling = planCheckWith(
+    [
+      {
+        weather: {
+          temperatureC: 6.5,
+          rainMmPerHour: 0,
+          windMs: 9,
+          isIndoor: false,
+        },
+        problems: [wind],
+      },
+    ],
+    plan,
+  )
+
+  function renderWithCheck(
+    checkAnswer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    return render(() => jsonResponse(200, plan), checkAnswer)
+  }
+
+  function entry(index: number) {
+    return document.getElementById(`scheduled-entry-${index}`)
+  }
+
+  it("shows the saved plan at once and announces the check while it runs", async () => {
+    renderWithCheck(() => new Promise<Response>(() => {}))
+
+    await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
+    const region = screen.getByRole("region", { name: "Plan check" })
+    expect(within(region).getByRole("status")).toHaveTextContent(
+      "Checking your plan against the latest forecast…",
+    )
+    expect(
+      screen.getByText(
+        "This is your plan as saved on Wed 18 Nov 2026. The forecast may have changed since.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("says the plan fits and when the forecast was received", async () => {
+    const { requests } = renderWithCheck(() =>
+      jsonResponse(200, planCheckWith([], plan)),
+    )
+
+    expect(
+      await screen.findByText(
+        "✓ No problems found. Your plan fits the current forecast.",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Checked against the forecast updated at 14:05."),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/This is your plan as saved on/)).toBeNull()
+    expect(screen.queryByText("✗ Problem")).toBeNull()
+    expect(requests.map((request) => request.path)).toContain(
+      `/api/plans/${id}/check`,
+    )
+  })
+
+  it("lists a problem, marks its entry and shows the latest weather", async () => {
+    renderWithCheck(() => jsonResponse(200, windyCycling))
+
+    expect(
+      await screen.findByText("1 problem in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", {
+        name: "Cycling, 2026-11-21 10:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+      }),
+    ).toBeInTheDocument()
+    const cycling = entry(0)!
+    expect(cycling).toHaveTextContent("✗ Problem")
+    expect(cycling).toHaveTextContent(
+      "Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+    )
+    expect(cycling).toHaveTextContent("9 m/s wind, 0 mm/h rain, 6.5 °C")
+    expect(cycling).not.toHaveTextContent("3.2 m/s wind")
+    expect(entry(1)).not.toHaveTextContent("✗ Problem")
+  })
+
+  it("moves focus to the entry when a problem's link is followed", async () => {
+    const user = userEvent.setup()
+    renderWithCheck(() => jsonResponse(200, windyCycling))
+
+    await user.click(await screen.findByRole("link", { name: /^Cycling, / }))
+
+    expect(entry(0)).toHaveFocus()
+  })
+
+  it("loads the plan again when the check is of a newer version of it", async () => {
+    let checks = 0
+    const { requests } = renderWithCheck(() =>
+      jsonResponse(
+        200,
+        // The first check finds a plan saved later (Save changes in another tab); the second matches.
+        ++checks === 1
+          ? { ...planCheckWith([], plan), savedAt: "2026-11-19T08:00:00Z" }
+          : planCheckWith([], plan),
+      ),
+    )
+
+    expect(
+      await screen.findByText(
+        "✓ No problems found. Your plan fits the current forecast.",
+      ),
+    ).toBeInTheDocument()
+    const paths = requests.map((request) => request.path)
+    expect(paths.filter((path) => path === `/api/plans/${id}`)).toHaveLength(2)
+    expect(
+      paths.filter((path) => path === `/api/plans/${id}/check`),
+    ).toHaveLength(2)
+  })
+
+  it("loads the plan again only once when the versions still differ", async () => {
+    const { requests } = renderWithCheck(() =>
+      jsonResponse(200, {
+        ...windyCycling,
+        savedAt: "2026-11-19T08:00:00Z",
+      }),
+    )
+    await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
+
+    await waitFor(() =>
+      expect(
+        requests.filter((request) => request.path === `/api/plans/${id}/check`),
+      ).toHaveLength(2),
+    )
+    // Give a third request the chance to start; none may.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const paths = requests.map((request) => request.path)
+    expect(paths.filter((path) => path === `/api/plans/${id}`)).toHaveLength(2)
+    expect(
+      paths.filter((path) => path === `/api/plans/${id}/check`),
+    ).toHaveLength(2)
+    expect(screen.queryByText("✗ Problem")).toBeNull()
+    expect(
+      screen.getByText(
+        "This is your plan as saved on Wed 18 Nov 2026. The forecast may have changed since.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("ignores a check answer that arrives after the page was left", async () => {
+    const user = userEvent.setup()
+    let answer: (response: Response) => void = () => {}
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      "GET /api/plans": () => jsonResponse(200, []),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`GET /api/plans/${id}/check`]: () =>
+        new Promise<Response>((resolve) => (answer = resolve)),
+    })
+    const { currentLocation } = renderAppWithLocation(`/plans/${id}`)
+    await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole(
+        "link",
+        { name: "My plans" },
+      ),
+    )
+    answer(jsonResponse(200, windyCycling))
+
+    await waitFor(() => expect(currentLocation()).toBe("/plans"))
+    expect(usePlanCheckStore.getState().status).toBe("idle")
+    expect(usePlanCheckStore.getState().result).toBeNull()
   })
 })

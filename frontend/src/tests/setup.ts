@@ -22,6 +22,7 @@ import {
   usePlanActivitiesStore,
 } from "../stores/usePlanActivitiesStore"
 import { usePlanCategoriesStore } from "../stores/usePlanCategoriesStore"
+import { usePlanCheckStore } from "../stores/usePlanCheckStore"
 import { usePlanForecastStore } from "../stores/usePlanForecastStore"
 import { usePlanPeriodStore } from "../stores/usePlanPeriodStore"
 import { usePlanPlacesStore } from "../stores/usePlanPlacesStore"
@@ -57,6 +58,7 @@ afterEach(() => {
   useKeptScheduleStore.getState().clear()
   useSavedPlansStore.getState().reset()
   useSavedPlanStore.getState().reset()
+  usePlanCheckStore.getState().reset()
   usePlanActionsStore.getState().reset()
   usePlanEditStore.setState(initialPlanEditState)
   useRenamePlanStore.getState().reset()

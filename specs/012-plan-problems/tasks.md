@@ -177,7 +177,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Backend for User Story 1
 
-- [ ] T016 [US1] Create `backend/src/SpekLaiku.Api/Services/PlanWeatherRules.cs`, a static class with `public static IReadOnlyList<PlanProblem> For(ScheduledActivity entry, CheckedPlanActivity activity, PlanningDay day)`. In this phase it returns only the weather limit problems:
+- [x] T016 [US1] Create `backend/src/SpekLaiku.Api/Services/PlanWeatherRules.cs`, a static class with `public static IReadOnlyList<PlanProblem> For(ScheduledActivity entry, CheckedPlanActivity activity, PlanningDay day)`. In this phase it returns only the weather limit problems:
   - The entry's hours are `day.Hours` with `Start >= entry.StartTime && End <= entry.EndTime`, in time order.
   - For each hour, take `HourSuitabilityRules.Breaches(hour, activity)`. For each rule keep the worst breach:
     - `Wind`, `Rain` and `Heat`: the highest `Value`;
@@ -186,7 +186,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     On a tie, keep the earlier hour, so `Time` is "the start of the first hour with the worst value" (spec FR-007).
   - Return `new PlanProblem(rule, Time: hour.Start, Value: worst, Limit: limit)` per broken rule, in `PlanRule` order (Wind, Rain, Cold, Heat).
   - Keep it under about 120 lines. Phase 5 adds `NoForecast` and daylight.
-- [ ] T017 [US1] Create `backend/tests/SpekLaiku.UnitTests/PlanWeatherRulesTests.cs`, with hand-built `PlanningDay` values (all hours in daylight):
+- [x] T017 [US1] Create `backend/tests/SpekLaiku.UnitTests/PlanWeatherRulesTests.cs`, with hand-built `PlanningDay` values (all hours in daylight):
   - `WindAboveLimitInOneHour_GivesWindAtThatHour` (spec example: 9.0 at 11:00, limit 8.0);
   - `WindAboveLimitInSeveralHours_GivesTheHighestAndItsFirstHour`;
   - `SameWorstValueTwice_GivesTheEarlierHour`;
@@ -197,7 +197,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `SeveralRulesBroken_AreListedInRuleOrder`;
   - `HoursOutsideTheEntry_AreIgnored`;
   - `IndoorActivity_GetsNoWeatherProblem`.
-- [ ] T018 [US1] Create `backend/src/SpekLaiku.Api/Services/PlanCheckRules.cs`, a static class with `public static IReadOnlyList<PlanCheckEntry> Check(PlanSnapshot snapshot, IReadOnlyList<PlanningDay> days, DateTimeOffset now)`:
+- [x] T018 [US1] Create `backend/src/SpekLaiku.Api/Services/PlanCheckRules.cs`, a static class with `public static IReadOnlyList<PlanCheckEntry> Check(PlanSnapshot snapshot, IReadOnlyList<PlanningDay> days, DateTimeOffset now)`:
   - One `PlanCheckEntry` per `snapshot.Schedule.Scheduled` entry, **in the stored order**.
   - **Started** (research section 8): add `internal static DateTimeOffset StartInstant(ScheduledActivity entry)`. It builds `entry.Date.ToDateTime(entry.StartTime)` with `ForecastPeriod.Lithuania.GetUtcOffset(local)`, the same way the private `PlanningDays.LocalInstant` builds hour instants. An entry is `Past` when `StartInstant(entry) <= now`, or when `days` has no `PlanningDay` for its date. A `Past` entry gets `Weather = null` and no problems.
   - **Activity lookup** (data-model.md "Validation"): use `snapshot.Activities[entry.ActivityIndex]` when the index is not null, `0 <= index < Activities.Count`, and that activity's `CategoryId == entry.CategoryId`. Otherwise use the first activity with `CategoryId == entry.CategoryId`. If there is none, treat the entry as Indoor without limits: no weather problems, and weather from `ScheduledWeather.At(true, …)`.
@@ -205,7 +205,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - `Weather = ScheduledWeather.At(ActivityForecasts.IsWeatherIndependent(activity), entry.StartTime, day)`;
     - `Problems = PlanWeatherRules.For(entry, activity, day)`.
   - Phase 5 adds overlap and travel. Keep it under about 130 lines.
-- [ ] T019 [US1] Create `backend/tests/SpekLaiku.UnitTests/PlanCheckRulesTests.cs`:
+- [x] T019 [US1] Create `backend/tests/SpekLaiku.UnitTests/PlanCheckRulesTests.cs`:
   - `Entries_AreReturnedInTheStoredOrder_OnePerScheduledActivity`;
   - `CheckedEntry_GetsTheLatestWeatherAtItsStartHour`;
   - `IndoorEntryWithoutDaylight_GetsIsIndoorWeather`;
@@ -216,7 +216,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `EntryStartingAtNow_IsPast`;
   - `EntryStartingOneMinuteAfterNow_IsChecked`;
   - `DateMissingFromTheForecast_IsPast`.
-- [ ] T020 [US1] Create `backend/src/SpekLaiku.Api/Services/PlanCheckService.cs`, a sealed class with the primary constructor `(SavedPlanService savedPlanService, WeatherForecastService weatherForecastService, ForecastPeriod forecastPeriod, IOptions<ForecastOptions> options)` and the method `public async Task<PlanCheckResult> CheckAsync(string ownerId, Guid id, CancellationToken cancellationToken)`:
+- [x] T020 [US1] Create `backend/src/SpekLaiku.Api/Services/PlanCheckService.cs`, a sealed class with the primary constructor `(SavedPlanService savedPlanService, WeatherForecastService weatherForecastService, ForecastPeriod forecastPeriod, IOptions<ForecastOptions> options)` and the method `public async Task<PlanCheckResult> CheckAsync(string ownerId, Guid id, CancellationToken cancellationToken)`:
   1. `var lookup = await savedPlanService.GetAsync(ownerId, id, cancellationToken)`. Return `PlanCheckResult.NotFound` or `PlanCheckResult.Forbidden` before anything else.
   2. `var now = forecastPeriod.GetNow()`.
   3. Get the forecast: `var received = await weatherForecastService.GetAsync(snapshot.Setup.Location, cancellationToken)`. Exceptions are not caught; `ApiExceptionHandler` turns them into 503 or 500.
@@ -225,7 +225,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   6. Return `PlanCheckResult.Of(new PlanCheck(plan.SavedAtUtc, AllPast: false, ForecastPeriod.ToLithuanianMinute(received.ReceivedAt), entries))`.
   
   The class comment cites spec FR-001, FR-002, FR-004, FR-012 and FR-014 and says the plan is read with `AsNoTracking` and never saved. The early return when every activity has started comes in Phase 7. Register it in `backend/src/SpekLaiku.Api/Program.cs` with `builder.Services.AddScoped<PlanCheckService>();` next to `SavedPlanEditService`.
-- [ ] T021 [US1] Create the response DTOs (contracts/plan-check-api.md) and the mapping:
+- [x] T021 [US1] Create the response DTOs (contracts/plan-check-api.md) and the mapping:
   - `backend/src/SpekLaiku.Api/DTOs/Responses/PlanProblemResponse.cs`: `(string Rule, string? Time, decimal? Value, decimal? Limit, string? SunTime, string? OtherActivityName, string? OtherStartTime, string? OtherEndTime, string? FromPlaceName)`.
   - `PlanCheckEntryResponse.cs`: `(DateOnly Date, string StartTime, string EndTime, string ActivityName, bool Past, WeatherSnapshotResponse? Weather, IReadOnlyList<PlanProblemResponse> Problems)`.
   - `PlanCheckResponse.cs`: `(DateTimeOffset SavedAt, string Status, string? ForecastUpdatedAt, IReadOnlyList<PlanCheckEntryResponse> Entries)`.
@@ -236,21 +236,21 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - The entry and problem maps. Weather uses the existing `WeatherSnapshot` → `WeatherSnapshotResponse` map.
     
     Path selections only, no rules (constitution II).
-- [ ] T022 [US1] Create `backend/tests/SpekLaiku.UnitTests/PlanCheckMappingTests.cs`:
+- [x] T022 [US1] Create `backend/tests/SpekLaiku.UnitTests/PlanCheckMappingTests.cs`:
   - `Configuration_IsValid` (the existing pattern with all profiles);
   - `Check_MapsToTheContractShape` (serialize with web defaults and compare keys and values with the contract example);
   - `Rules_AreCamelCase` (all nine);
   - `NullTimes_StayNull`;
   - `AllPast_MapsToStatusAllPast`;
   - `CategoryIdAndActivityIndex_AreNeverSent`.
-- [ ] T023 [US1] Add the endpoint to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`. Inject `PlanCheckService planCheckService` in the primary constructor.
+- [x] T023 [US1] Add the endpoint to `backend/src/SpekLaiku.Api/Controllers/PlansController.cs`. Inject `PlanCheckService planCheckService` in the primary constructor.
   - The action is `[HttpGet("{id:guid}/check")]`, `[EnableRateLimiting(RateLimitPolicies.PlanSetup)]`.
   - Response types: `ProducesResponseType<PlanCheckResponse>(200)`, `ProblemDetails` 404, 429 and 503.
   - Signature: `public async Task<ActionResult<PlanCheckResponse>> Check(Guid id, CancellationToken cancellationToken)`.
   - It calls `planCheckService.CheckAsync(userManager.GetUserId(User)!, id, cancellationToken)` and returns `mapper.Map<PlanCheckResponse>(result.Check)` when found, `Forbid()` when forbidden, and else the existing `PlanNotFound()`.
   - Comment: "Checks the plan against the latest forecast and changes nothing (feature 012 spec FR-002, FR-014). Shares the plan setup request limit (FR-015); a weather failure becomes 503 in ApiExceptionHandler."
   - The file must stay under 200 lines (about 148 expected).
-- [ ] T024 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/PlanCheckEndpointTests.cs` (collection `PostgreSqlCollection.Name`), using `SavedPlanSeed` and the clock and forecast described in "Shared test notes":
+- [x] T024 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/PlanCheckEndpointTests.cs` (collection `PostgreSqlCollection.Name`), using `SavedPlanSeed` and the clock and forecast described in "Shared test notes":
   - `WindAboveTheLimit_IsListedOnTheEntry`: the spec's independent test. Kayaking, wind ≤ 8, on 2026-11-12 10:00–12:00; 9 m/s at 11:00. 200, with `status: "checked"` and one problem `{ rule: "wind", time: "11:00", value: 9.0, limit: 8.0 }`.
   - `ForecastWithinLimits_HasNoProblems`.
   - `Body_MatchesTheContract`: every key of the contract's 200 example, `forecastUpdatedAt` equal to the clock's Lithuanian minute when the forecast was asked, and `savedAt` equal to the seeded `SavedAtUtc`.
@@ -258,7 +258,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `LatestWeather_IsReturnedForEachEntry`.
   
   That opening a plan with `GET /api/plans/{id}` still calls no external service is already tested by `SavedPlanDetailsEndpointTests.OpeningAPlan_CallsNeitherExternalService`. Do not repeat it here.
-- [ ] T025 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/PlanCheckUnchangedTests.cs`, with `ChecksWithAndWithoutProblems_LeaveThePlanUnchanged`:
+- [x] T025 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/PlanCheckUnchangedTests.cs`, with `ChecksWithAndWithoutProblems_LeaveThePlanUnchanged`:
   - Before: read `SnapshotJsonAsync`, and `SavedAtUtc`, `CreatedAtUtc` and `Name` with `AsNoTracking`, and `GET /api/plans`.
   - Run a check with a problem, then move the clock 31 minutes, change the forecast and run a check without problems.
   - After: all of these are identical, and the plan's position in `GET /api/plans` is unchanged (spec FR-014, SC-006).
@@ -267,22 +267,22 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Frontend for User Story 1
 
-- [ ] T026 [P] [US1] Create `frontend/src/api/planCheckApi.ts` with `checkPlan(id, signal)` and `PlanCheckAnswer`, exactly as in contracts/plan-check-api.md "Browser API function":
+- [x] T026 [P] [US1] Create `frontend/src/api/planCheckApi.ts` with `checkPlan(id, signal)` and `PlanCheckAnswer`, exactly as in contracts/plan-check-api.md "Browser API function":
   - 200 → `{ kind: "check", check }`; 401, 403, 404 and 429 → their kinds;
   - 503 → `weatherUnavailable` only when `failedService(response) === "forecast"` (reuse from `api/planStepAnswer.ts`);
   - anything else → `throw new ApiError(status)`;
   - `encodeURIComponent(id)` in the path.
   
   Test it in `frontend/src/tests/planCheckApi.test.ts`: each mapped status, a 503 from another service throws, a 500 throws, and the path and method.
-- [ ] T027 [P] [US1] Create `frontend/src/helpers/planProblemText.ts`:
+- [x] T027 [P] [US1] Create `frontend/src/helpers/planProblemText.ts`:
   - `planProblemText(problem: PlanProblem): string`. In this phase it covers the reasons for `wind`, `rain`, `cold` and `heat`, word for word as in spec User Story 3 scenarios 1 to 3. Numbers are written as JavaScript writes them (`9`, `8.5`), as `scheduleWeatherText` does (research section 11).
   - `planCheckSummaryText(entries: PlanCheckEntry[]): string`: "<n> problem(s) in <m> of <k> scheduled activities." `n` counts problems, `m` entries with problems, and `k` entries that are not `past`. Use "problem" when n = 1 and "problems" otherwise, and "activity" when k = 1 and "activities" otherwise (spec FR-009).
   - `checkedNoteText(forecastUpdatedAt: string): string`: "Checked against the forecast updated at HH:MM."
   - `noProblemsText`: the constant "✓ No problems found. Your plan fits the current forecast."
   
   A switch on `rule` with an exhaustive `never` check. Test it in `frontend/src/tests/planProblemText.test.ts` with each text exactly as in the spec, and the summary "2 problems in 1 of 4 scheduled activities.", "1 problem in 1 of 1 scheduled activity." and a case with a past entry not counted in k.
-- [ ] T028 [P] [US1] In `frontend/src/stores/useSavedPlanStore.ts`, add `markGone: () => void`, which aborts any pending load and sets `{ status: "notFound", plan: null, controller: null }`. Add a test in `frontend/src/tests/useSavedPlanStore.test.ts`.
-- [ ] T029 [US1] Create `frontend/src/stores/usePlanCheckStore.ts`, following `useSavedPlanStore`'s abort, `startTimeout` and stale-answer pattern (data-model.md "usePlanCheckStore"):
+- [x] T028 [P] [US1] In `frontend/src/stores/useSavedPlanStore.ts`, add `markGone: () => void`, which aborts any pending load and sets `{ status: "notFound", plan: null, controller: null }`. Add a test in `frontend/src/tests/useSavedPlanStore.test.ts`.
+- [x] T029 [US1] Create `frontend/src/stores/usePlanCheckStore.ts`, following `useSavedPlanStore`'s abort, `startTimeout` and stale-answer pattern (data-model.md "usePlanCheckStore"):
   - State: `status` (`"idle" | "checking" | "checked" | "allPast" | "weatherUnavailable" | "tooManyRequests" | "serverError"`), `planId`, `result: PlanCheck | null`, `controller`.
   - `check(planId)`: does nothing while `status === "checking"`. Otherwise it sets `checking`, clears `result`, and calls `checkPlan`. It maps the answer:
     - `check` → `checked` or `allPast` with `result`;
@@ -301,7 +301,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - the 10-second timeout with fake timers gives `serverError`;
     - `retry` checks the same plan again;
     - a new check clears the previous `result`.
-- [ ] T030 [US1] Create `frontend/src/components/planCheckSection.tsx`:
+- [x] T030 [US1] Create `frontend/src/components/planCheckSection.tsx`:
   - `<section aria-labelledby="plan-check-heading">` with `<h2 id="plan-check-heading">Plan check</h2>`.
   - One `role="status"` element whose text follows `usePlanCheckStore`:
     - `checking` → "Checking your plan against the latest forecast…";
@@ -311,7 +311,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     Other statuses render nothing in this phase (Phases 6 and 7 add them).
   - With problems, a `<ul className="plan-problems">` follows the status element. It has one `<li>` per problem, in entry order and then problem order (which is date and start time order, research section 12). Each item is a link `<a href={`#scheduled-entry-${index}`}>`, where `index` is the entry's position, with the text "<activity>, <date> <start>–<end>: <reason>". The click handler calls `preventDefault()`, then `document.getElementById(...)?.focus()`.
   - Keep it under about 120 lines.
-- [ ] T031 [US1] Show the check results on the schedule entries (research section 14):
+- [x] T031 [US1] Show the check results on the schedule entries (research section 14):
   - `frontend/src/components/scheduleView.tsx`: an optional `checks?: PlanCheckEntry[]` prop, aligned by index with `schedule.scheduled`. Keep each entry's original index when grouping by date, and pass `checks` and the indexes to `ScheduledDaySection`.
   - `frontend/src/components/scheduledDaySection.tsx`: with a check for an entry:
     - the `<li>` gets `id="scheduled-entry-<index>"` and `tabIndex={-1}`;
@@ -319,23 +319,23 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - when it has problems, it adds "✗ Problem" and a `<ul>` of `planProblemText` reasons.
     
     Without `checks`, the output is exactly as before. If the file passes about 100 lines, move the per-entry marks to `frontend/src/components/scheduledEntryCheck.tsx`.
-- [ ] T032 [US1] Change `frontend/src/components/savedPlanView.tsx`:
+- [x] T032 [US1] Change `frontend/src/components/savedPlanView.tsx`:
   - Render `<PlanCheckSection />` above `<ScheduleView>`.
   - The note: when `usePlanCheckStore` status is `checked`, show `checkedNoteText(result.forecastUpdatedAt)`; otherwise show the existing "This is your plan as saved on …" text (spec FR-011, FR-013).
   - Pass `checks={result.entries}` to `ScheduleView` only when the status is `checked`, `result.entries.length === plan.scheduled.length` and `result.savedAt === plan.savedAt`. Otherwise show the "as saved on" note as well.
   - Update the header comment: the page now checks the plan against the latest forecast (feature 012), while the plan itself is still shown exactly as saved.
-- [ ] T033 [US1] Change `frontend/src/pages/PlanDetailsPage.tsx`:
+- [x] T033 [US1] Change `frontend/src/pages/PlanDetailsPage.tsx`:
   - In the `planId` effect, call `void usePlanCheckStore.getState().check(planId)` right after `store.load(planId)`, and `usePlanCheckStore.getState().reset()` in the cleanup.
   - Add an effect: when the plan is loaded, the check status is `checked` or `allPast`, and `result.savedAt !== plan.savedAt`, call `useSavedPlanStore.getState().load(planId)` and then `usePlanCheckStore.getState().check(planId)` (research section 12).
     - Do this **at most once per page opening**: keep a `useRef(false)` flag that is set when the reload starts and reset only when `planId` changes.
     - If the second answer still differs, keep the plan as loaded and do not pass `checks` to the schedule: `savedPlanView.tsx` already shows no marks unless the entry counts match, and here it must also require `result.savedAt === plan.savedAt`. The "as saved on" note stays. This way a format difference between the two endpoints can never make the page reload forever.
   - Replace the header comment's "Recalculating comes with feature 012. Opening it never generates a schedule or calls the weather or map data services." with: opening it checks the saved plan against the latest forecast (feature 012) and never generates a schedule or changes the plan.
   - Keep the page under about 160 lines.
-- [ ] T034 [US1] Give every existing test that opens a plan page a check route:
+- [x] T034 [US1] Give every existing test that opens a plan page a check route:
   - In `frontend/src/tests/savedPlansFixtures.ts`, add ``[`GET /api/plans/${savedPlanId}/check`]: () => jsonResponse(200, planCheckNoProblems)`` to `savedPlanRoutes`.
   - Search `frontend/src/tests/` for every other ``GET /api/plans/<id>`` route that renders a plan page (for example, the copy's page in the duplicate tests in `PlanDetailsPage.test.tsx`, `keyboard.test.tsx` and `editingNotice.test.tsx`), and add a matching `/check` route that returns a no-problem check for that plan.
   - Change no assertion in this task. Run `npm test`: any test that still fails because of an unexpected request gets the route. Any other failure is investigated, not hidden.
-- [ ] T035 [US1] Create `frontend/src/tests/planCheckSection.test.tsx` and add US1 cases to `frontend/src/tests/PlanDetailsPage.test.tsx`:
+- [x] T035 [US1] Create `frontend/src/tests/planCheckSection.test.tsx` and add US1 cases to `frontend/src/tests/PlanDetailsPage.test.tsx`:
   - The region has the heading "Plan check" and is labelled by it.
   - "Checking your plan against the latest forecast…" is in a status element while the check is pending, and the saved plan is already shown.
   - The no-problem text, and the note "Checked against the forecast updated at 14:05.".
@@ -345,7 +345,17 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - A check whose `savedAt` still differs after that reload causes no further request (exactly two `GET /api/plans/<id>` and two checks). The schedule shows no marks, and the "as saved on" note is shown.
   - A check answer that arrives after leaving the page changes nothing and throws nothing.
   - The Schedule Overview (`ScheduleOverviewPage.test.tsx`) passes unchanged, so it has no ids or marks.
-- [ ] T036 [US1] Run all backend and frontend checks. All must pass.
+- [x] T036 [US1] Run all backend and frontend checks. All must pass.
+  - Result (2026-11-20):
+    - **Backend**: build with 0 warnings; 719 unit tests (+38 since T015) and 397 integration tests (+6); `dotnet format` clean.
+    - **Frontend**: lint, Prettier and type check clean; 91 files and 1286 tests (+4 files, +46 tests); build clean.
+    - **Sizes**: `PlansController` 153, `PlanCheckRules` 78, `PlanWeatherRules` 47, `PlanCheckService` 48 lines; `PlanDetailsPage.tsx` 152, `scheduledDaySection.tsx` 72, `usePlanCheckStore.ts` 101 lines.
+  - **Changes to existing tests (T034)**: check routes were added to the plan page tests in `PlanDetailsPage.test.tsx` and `editingNotice.test.tsx`, and to `savedPlanRoutes`. One feature 010 test, "shows the plan's name, breadcrumbs, setup, saved time and note", now leaves the check unanswered: the "as saved on" note it asserts is shown only until a check succeeds (spec FR-011, FR-013). Its assertions are unchanged.
+  - **Decided while implementing**:
+    - `PlanCheckSection` receives the check of the shown schedule from `SavedPlanView`, rather than reading the store's result directly. The region, the marks and the note then always agree, also when a check is of another version of the plan (research section 12).
+    - `scheduledEntryId` lives in `helpers/planProblemText.ts`, because the `react-refresh/only-export-components` lint rule does not allow a component file to export a function.
+    - The check test helpers (`CalmForecast`, `CheckAsync`, the plan date) are in `SavedPlanSeed.cs`, shared by the four check test classes.
+    - The T035 page tests use this file's Cycling plan, so the example text is "Cycling, 2026-11-21 10:00–13:00: Wind up to 9 m/s …" instead of Kayaking.
 
 **Checkpoint**: Opening a saved plan shows weather limit problems or "No problems found". MVP reached.
 

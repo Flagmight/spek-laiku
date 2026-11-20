@@ -31,6 +31,7 @@ function renderStep(path: string) {
     "POST /api/plan-places": pending,
     "POST /api/plan-schedule": pending,
     [`GET /api/plans/${savedPlanId}`]: pending,
+    [`GET /api/plans/${savedPlanId}/check`]: pending,
   })
   return renderAppWithLocation(path)
 }

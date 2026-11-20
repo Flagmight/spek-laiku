@@ -76,6 +76,31 @@ describe("useSavedPlanStore", () => {
     expect(calls).toBe(2)
   })
 
+  it("says a loaded plan no longer exists after markGone", async () => {
+    routeFetch({ [route]: () => jsonResponse(200, plan) })
+    await store().load(id)
+
+    store().markGone()
+
+    expect(store().status).toBe("notFound")
+    expect(store().plan).toBeNull()
+  })
+
+  it("drops a pending load when markGone is called", async () => {
+    let answer: (response: Response) => void = () => {}
+    routeFetch({
+      [route]: () => new Promise<Response>((resolve) => (answer = resolve)),
+    })
+    const loading = store().load(id)
+
+    store().markGone()
+    answer(jsonResponse(200, plan))
+    await loading
+
+    expect(store().status).toBe("notFound")
+    expect(store().plan).toBeNull()
+  })
+
   it("counts no answer within the time limit as a server error", async () => {
     vi.useFakeTimers()
     try {

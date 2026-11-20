@@ -136,13 +136,17 @@ export const savedPlan: SavedPlan = {
 // activity, with the same date, times, name and weather.
 export const planCheckNoProblems: PlanCheck = planCheckWith([])
 
-// A check of savedPlan whose entries take the given overrides, by position; entries without one have no problem.
-export function planCheckWith(entries: Partial<PlanCheckEntry>[]): PlanCheck {
+// A check of a plan (savedPlan unless another is given) whose entries take the given overrides, by position;
+// entries without one have no problem.
+export function planCheckWith(
+  entries: Partial<PlanCheckEntry>[],
+  plan: SavedPlan = savedPlan,
+): PlanCheck {
   return {
-    savedAt: savedPlan.savedAt,
+    savedAt: plan.savedAt,
     status: "checked",
     forecastUpdatedAt: "14:05",
-    entries: savedPlan.scheduled.map((activity, index) => ({
+    entries: plan.scheduled.map((activity, index) => ({
       date: activity.date,
       startTime: activity.startTime,
       endTime: activity.endTime,
@@ -174,6 +178,14 @@ export function problem(
   }
 }
 
+// The check route of a plan page that finds no problem in the given plan (feature 012).
+export function noProblemCheckRoute(plan: SavedPlan) {
+  return {
+    [`GET /api/plans/${plan.id}/check`]: () =>
+      jsonResponse(200, planCheckWith([], plan)),
+  }
+}
+
 // The routes for a signed-in Active Registered User on the saved plan screens.
 export function savedPlanRoutes(
   plans: SavedPlanSummary[] = savedPlanSummaries(2),
@@ -183,5 +195,8 @@ export function savedPlanRoutes(
     "POST /api/plan-schedule": () => jsonResponse(200, museumSchedule),
     "GET /api/plans": () => jsonResponse(200, plans),
     [`GET /api/plans/${savedPlanId}`]: () => jsonResponse(200, savedPlan),
+    // Opening the plan page checks the plan (feature 012).
+    [`GET /api/plans/${savedPlanId}/check`]: () =>
+      jsonResponse(200, planCheckNoProblems),
   }
 }
