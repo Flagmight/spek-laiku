@@ -157,6 +157,64 @@ public sealed class HourSuitabilityRulesTests
         Assert.Equal(["Too cold: -3.0 °C, minimum -1.0 °C"], reasons);
     }
 
+    [Theory]
+    [InlineData(14.9, 0.0, 3.0, PlanRule.Cold, 14.9, 15.0)]
+    [InlineData(35.1, 0.0, 3.0, PlanRule.Heat, 35.1, 35.0)]
+    [InlineData(20.0, 0.6, 3.0, PlanRule.Rain, 0.6, 0.5)]
+    [InlineData(20.0, 0.0, 8.1, PlanRule.Wind, 8.1, 8.0)]
+    public void Breaches_ForEachBrokenLimit_GivesRuleValueAndLimit(
+        double temperature,
+        double rain,
+        double wind,
+        PlanRule rule,
+        double value,
+        double limit)
+    {
+        var breaches = HourSuitabilityRules.Breaches(Hour((decimal)temperature, (decimal)rain, (decimal)wind), Kayaking);
+
+        Assert.Equal([new LimitBreach(rule, (decimal)value, (decimal)limit)], breaches);
+    }
+
+    [Fact]
+    public void Breaches_SeveralBrokenLimits_AreInTheOrderColdWarmRainWind()
+    {
+        var breaches = HourSuitabilityRules.Breaches(Hour(10m, 1m, 9m), Kayaking);
+
+        Assert.Equal([PlanRule.Cold, PlanRule.Rain, PlanRule.Wind], breaches.Select(breach => breach.Rule));
+    }
+
+    [Fact]
+    public void Breaches_ValueEqualToLimit_IsNoBreach()
+    {
+        Assert.Empty(HourSuitabilityRules.Breaches(Hour(15m, 0.5m, 8m), Kayaking));
+        Assert.Empty(HourSuitabilityRules.Breaches(Hour(35m, 0.5m, 8m), Kayaking));
+    }
+
+    [Fact]
+    public void Breaches_IndoorActivity_IsEmpty()
+    {
+        var limitedIndoor = Museum with { MaxWindMs = 1m, MaxRainMmPerHour = 0m, MinTemperatureC = 30m };
+
+        Assert.Empty(HourSuitabilityRules.Breaches(Hour(10m, 5m, 20m), limitedIndoor));
+    }
+
+    [Theory]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    public void Breaches_HourWithAMissingValue_IsEmpty(bool noTemperature, bool noRain, bool noWind)
+    {
+        var hour = new PlanningHour(
+            new TimeOnly(12, 0),
+            new TimeOnly(13, 0),
+            noTemperature ? null : 50m,
+            noRain ? null : 9m,
+            noWind ? null : 30m,
+            true);
+
+        Assert.Empty(HourSuitabilityRules.Breaches(hour, Kayaking));
+    }
+
     private static PlanningHour Hour(decimal temperature, decimal rain, decimal wind, bool daylight = true) =>
         new(new TimeOnly(12, 0), new TimeOnly(13, 0), temperature, rain, wind, daylight);
 }

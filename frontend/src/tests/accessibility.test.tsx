@@ -19,6 +19,8 @@ import {
   savedPlanId,
   savedPlanRoutes,
   savedPlanSummaries,
+  twoProblemLinkNames,
+  twoProblemRoutes,
 } from "./savedPlansFixtures"
 import {
   daylightActivityForecast,
@@ -1485,6 +1487,28 @@ describe("Plan management accessibility", () => {
     expect(
       screen.getByRole("button", { name: "Cancel editing" }),
     ).toBeInTheDocument()
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+  })
+})
+
+// Feature 012 User Story 7: the plan check for screen readers.
+describe("Plan check accessibility", () => {
+  it("labels the region, names each problem link by its activity and reason, and marks the entry in words", async () => {
+    routeFetch(twoProblemRoutes())
+    renderApp(`/plans/${savedPlanId}`)
+
+    const region = await screen.findByRole("region", { name: "Plan check" })
+    expect(
+      within(region).getByRole("heading", { level: 2, name: "Plan check" }),
+    ).toBeInTheDocument()
+    const links = await within(region).findAllByRole("link")
+    expect(links.map((link) => link.textContent)).toEqual(twoProblemLinkNames)
+    for (const [index, link] of links.entries()) {
+      expect(link).toHaveAccessibleName(twoProblemLinkNames[index])
+    }
+    expect(document.getElementById("scheduled-entry-0")).toHaveTextContent(
+      "✗ Problem",
+    )
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
   })
 })

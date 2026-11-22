@@ -19,6 +19,9 @@ export interface SavedPlanState {
   retry: () => Promise<void>
   // Shows a new name after a rename, without loading the plan again (feature 011 spec FR-014).
   rename: (name: string) => void
+  // The plan was deleted after it loaded, for example in another tab: the page says it no longer exists
+  // (feature 012 spec User Story 6, research section 13).
+  markGone: () => void
   // Aborts a pending request, for example when the page closes.
   reset: () => void
 }
@@ -78,6 +81,10 @@ export const useSavedPlanStore = create<SavedPlanState>()((set, get) => ({
   },
   rename: (name) =>
     set((state) => (state.plan ? { plan: { ...state.plan, name } } : {})),
+  markGone: () => {
+    get().controller?.abort()
+    set({ status: "notFound", plan: null, controller: null })
+  },
   reset: () => {
     get().controller?.abort()
     set(initialSavedPlanState)

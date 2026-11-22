@@ -18,6 +18,7 @@ import {
   savedPlanId,
   savedPlanRoutes,
   savedPlanSummaries,
+  twoProblemRoutes,
 } from "./savedPlansFixtures"
 import { forecastRoutes } from "./forecastFixtures"
 import { placesRoutes } from "./placesFixtures"
@@ -1186,5 +1187,52 @@ describe("keyboard use of plan management", () => {
       await screen.findByRole("heading", { level: 1, name: longPlanName }),
     ).toBeInTheDocument()
     expect(usePlanEditStore.getState().edit).toBeNull()
+  })
+})
+
+// Feature 012 User Story 7: the plan check by keyboard only.
+describe("keyboard use of the plan check", () => {
+  it("reaches each problem link in order and moves focus to its schedule entry with Enter", async () => {
+    routeFetch(twoProblemRoutes())
+    const user = userEvent.setup()
+    renderApp(`/plans/${savedPlanId}`)
+    const region = await screen.findByRole("region", { name: "Plan check" })
+    const links = await within(region).findAllByRole("link")
+    // Delete is the last of the plan's actions, just before the plan check.
+    screen.getByRole("button", { name: `Delete ${longPlanName}` }).focus()
+
+    await user.tab()
+    expect(links[0]).toHaveFocus()
+    await user.tab()
+    expect(links[1]).toHaveFocus()
+    await user.keyboard("{Enter}")
+
+    expect(document.getElementById("scheduled-entry-0")).toHaveFocus()
+  })
+
+  it("puts Recalculate between Edit plan and Rename, and checks again with Enter", async () => {
+    const { requests } = routeFetch(savedPlanRoutes())
+    const user = userEvent.setup()
+    renderApp(`/plans/${savedPlanId}`)
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+    screen.getByRole("button", { name: "Edit plan" }).focus()
+
+    await user.tab()
+    const recalculate = screen.getByRole("button", { name: "Recalculate" })
+    expect(recalculate).toHaveFocus()
+    await user.keyboard("{Enter}")
+
+    await waitFor(() =>
+      expect(
+        requests.filter(
+          (request) => request.path === `/api/plans/${savedPlanId}/check`,
+        ),
+      ).toHaveLength(2),
+    )
+    await waitFor(() => expect(recalculate).toHaveFocus())
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Rename" })).toHaveFocus()
   })
 })

@@ -285,4 +285,46 @@ public sealed class PlanSchedulerTests
         Assert.Equal(CategoryB, scheduled.Single(s => s.ActivityName == "Museum").CategoryId);
         Assert.All(scheduled, activity => Assert.Null(activity.Travel));
     }
+
+    [Fact]
+    public void Assign_SetsEachEntrysActivityIndex_AlsoForARepeatedCategory()
+    {
+        // Cycling twice with different limits, and an unscheduled activity between them, so the index is the
+        // position in the plan's activities, not in the schedule (feature 012 research section 4).
+        var strictCycling = Activity("Cycling", CategoryA) with { MaxWindMs = 5m };
+        var noPlaceMuseum = IndoorActivity("Museum", CategoryB);
+        var relaxedCycling = Activity("Cycling", CategoryA) with { MaxWindMs = 10m };
+        var forecastFirst = Forecast(false, (Date1, new TimeOnly(10, 0), new TimeOnly(14, 0)));
+        var forecastMuseum = Forecast(true, (Date1, new TimeOnly(10, 0), new TimeOnly(14, 0)));
+        var forecastSecond = Forecast(false, (Date2, new TimeOnly(10, 0), new TimeOnly(14, 0)));
+        var places = new[] { WithPlace(CategoryA, PlaceA), NoPlaces(CategoryB) };
+
+        var (scheduled, unscheduled) = PlanScheduler.Assign(
+            [strictCycling, noPlaceMuseum, relaxedCycling],
+            [forecastFirst, forecastMuseum, forecastSecond],
+            places,
+            [EmptyDay(Date1), EmptyDay(Date2)]);
+
+        Assert.Single(unscheduled);
+        Assert.Equal(0, scheduled.Single(s => s.Date == Date1).ActivityIndex);
+        Assert.Equal(2, scheduled.Single(s => s.Date == Date2).ActivityIndex);
+    }
+
+    [Fact]
+    public void TravelRules_KeepTheActivityIndex()
+    {
+        var actA = Activity("Kayaking", CategoryA);
+        var actB = Activity("Cycling", CategoryB);
+        var forecastA = Forecast(false, (Date1, new TimeOnly(8, 0), new TimeOnly(10, 0)));
+        var forecastB = Forecast(false, (Date1, new TimeOnly(12, 0), new TimeOnly(16, 0)));
+        var places = new[] { WithPlace(CategoryA, PlaceA), WithPlace(CategoryB, PlaceB) };
+
+        var (scheduled, _) = PlanScheduler.Assign(
+            [actA, actB], [forecastA, forecastB], places, [EmptyDay(Date1)]);
+        var (withTravel, _) = TravelDistanceRules.Apply(scheduled, places, 30);
+
+        Assert.Equal(0, withTravel.Single(s => s.ActivityName == "Kayaking").ActivityIndex);
+        Assert.Equal(1, withTravel.Single(s => s.ActivityName == "Cycling").ActivityIndex);
+        Assert.NotNull(withTravel.Single(s => s.ActivityName == "Cycling").Travel);
+    }
 }

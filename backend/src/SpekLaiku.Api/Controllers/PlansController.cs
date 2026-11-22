@@ -2,11 +2,13 @@ using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SpekLaiku.Api.Authorization;
 using SpekLaiku.Api.DTOs.Requests;
 using SpekLaiku.Api.DTOs.Responses;
 using SpekLaiku.Api.Entities;
 using SpekLaiku.Api.Errors;
+using SpekLaiku.Api.RateLimiting;
 using SpekLaiku.Api.Services;
 
 namespace SpekLaiku.Api.Controllers;
@@ -22,6 +24,7 @@ public sealed class PlansController(
     SavedPlanService savedPlanService,
     SavedPlanChangeService savedPlanChangeService,
     SavedPlanEditService savedPlanEditService,
+    PlanCheckService planCheckService,
     UserManager<ApplicationUser> userManager,
     IMapper mapper) : ControllerBase
 {
@@ -47,6 +50,25 @@ public sealed class PlansController(
         }
 
         return lookup.IsForbidden ? Forbid() : PlanNotFound();
+    }
+
+    // Checks the plan against the latest forecast and changes nothing (feature 012 spec FR-002, FR-014). Shares the
+    // plan setup request limit (FR-015); a weather failure becomes 503 in ApiExceptionHandler.
+    [HttpGet("{id:guid}/check")]
+    [EnableRateLimiting(RateLimitPolicies.PlanSetup)]
+    [ProducesResponseType<PlanCheckResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<PlanCheckResponse>> Check(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await planCheckService.CheckAsync(userManager.GetUserId(User)!, id, cancellationToken);
+        if (result.Found)
+        {
+            return mapper.Map<PlanCheckResponse>(result.Check);
+        }
+
+        return result.IsForbidden ? Forbid() : PlanNotFound();
     }
 
     [HttpPost]

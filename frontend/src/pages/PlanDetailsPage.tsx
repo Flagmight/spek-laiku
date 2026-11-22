@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import { PlanDetailsActions } from "../components/planDetailsActions"
 import { SavedPlanView } from "../components/savedPlanView"
@@ -12,6 +12,7 @@ import {
   planRenamedMessage,
   useRenamePlanStore,
 } from "../stores/useRenamePlanStore"
+import { usePlanCheckStore } from "../stores/usePlanCheckStore"
 import { useSavedPlanStore } from "../stores/useSavedPlanStore"
 import type { SavedPlanStatus } from "../stores/useSavedPlanStore"
 import type { NavigationState } from "../types/navigationState"
@@ -29,8 +30,9 @@ const titles: Record<SavedPlanStatus, string> = {
 
 // One saved plan, exactly as it was saved, in the Schedule Overview's layout (feature 010 spec User Story 4,
 // FR-010), with its actions (feature 011 spec FR-019). Renaming shows "✓ Success: Plan renamed.", deleting it
-// opens My plans with "Plan deleted.", and duplicating it opens the copy with "Plan duplicated.". Recalculating
-// comes with feature 012. Opening it never generates a schedule or calls the weather or map data services.
+// opens My plans with "Plan deleted.", and duplicating it opens the copy with "Plan duplicated.". Opening it
+// also checks the saved plan against the latest forecast (feature 012 spec FR-002); it never generates a
+// schedule or changes the plan.
 export function PlanDetailsPage() {
   const { planId = "" } = useParams()
   const location = useLocation()
@@ -38,12 +40,35 @@ export function PlanDetailsPage() {
   const status = useSavedPlanStore((state) => state.status)
   const plan = useSavedPlanStore((state) => state.plan)
   const renameStatus = useRenamePlanStore((state) => state.status)
+  const checkResult = usePlanCheckStore((state) => state.result)
+  // The saved time of the newer version the plan was last loaded again for (research 12). Each newer version is
+  // loaded once, so a second replacement in another tab is shown too, and versions that keep differing cannot
+  // loop.
+  const reloadedForNewerPlan = useRef<string | null>(null)
   // The title follows a rename, because it reads the loaded plan's name (feature 011 FR-014).
   usePageTitle(status === "loaded" && plan ? plan.name : titles[status])
 
+  // The plan was replaced (Save changes in another tab) after this page loaded it: show the plan as it is saved
+  // now, and check that version instead of showing a result for another schedule.
+  useEffect(() => {
+    if (
+      plan &&
+      checkResult &&
+      checkResult.savedAt !== plan.savedAt &&
+      reloadedForNewerPlan.current !== checkResult.savedAt
+    ) {
+      reloadedForNewerPlan.current = checkResult.savedAt
+      void useSavedPlanStore.getState().load(planId)
+      void usePlanCheckStore.getState().check(planId)
+    }
+  }, [plan, checkResult, planId])
+
   useEffect(() => {
     const store = useSavedPlanStore.getState()
+    reloadedForNewerPlan.current = null
     void store.load(planId)
+    // Checked at the same time as the plan loads, so the saved plan is shown at once (research section 13).
+    void usePlanCheckStore.getState().check(planId)
     const arrival = location.state as NavigationState | null
     // A duplicate on the previous plan page brings the user to the copy with its notice (research section 12).
     if (arrival?.planNotice === "duplicated") {
@@ -58,6 +83,7 @@ export function PlanDetailsPage() {
     }
     return () => {
       store.reset()
+      usePlanCheckStore.getState().reset()
       usePlanActionsStore.getState().reset()
     }
   }, [planId]) // eslint-disable-line react-hooks/exhaustive-deps

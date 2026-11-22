@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 import { usePlanActivitiesStore } from "../stores/usePlanActivitiesStore"
+import { usePlanCheckStore } from "../stores/usePlanCheckStore"
 import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { SavedPlan } from "../types/savedPlan"
@@ -12,7 +13,13 @@ import {
   routeFetch,
   signedInUser,
 } from "./renderApp"
-import { acceptMuseumPlan, savedPlan } from "./savedPlansFixtures"
+import {
+  acceptMuseumPlan,
+  noProblemCheckRoute,
+  planCheckWith,
+  problem,
+  savedPlan,
+} from "./savedPlansFixtures"
 
 const id = "0b8f4c1e-7d2a-4f3b-9e6c-5a1d2c3b4e5f"
 
@@ -80,12 +87,17 @@ const plan: SavedPlan = {
   travel: { maxDistanceKm: 30, tripsOverLimit: 0 },
 }
 
+// The plan page with the given plan answer. The plan check (feature 012) finds no problem unless another answer
+// is given.
 function render(
   answer: (request: RecordedRequest) => Response | Promise<Response>,
+  checkAnswer?: (request: RecordedRequest) => Response | Promise<Response>,
 ) {
   const routes = routeFetch({
     "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
     [`GET /api/plans/${id}`]: answer,
+    ...noProblemCheckRoute(plan),
+    ...(checkAnswer && { [`GET /api/plans/${id}/check`]: checkAnswer }),
   })
   renderAppWithLocation(`/plans/${id}`)
   return routes
@@ -93,7 +105,11 @@ function render(
 
 describe("PlanDetailsPage", () => {
   it("shows the plan's name, breadcrumbs, setup, saved time and note", async () => {
-    render(() => jsonResponse(200, plan))
+    // Until the plan check has an answer, the note says this is the plan as saved (feature 012 spec FR-013).
+    render(
+      () => jsonResponse(200, plan),
+      () => new Promise<Response>(() => {}),
+    )
 
     expect(
       await screen.findByRole("heading", {
@@ -144,14 +160,14 @@ describe("PlanDetailsPage", () => {
     ).toBeInTheDocument()
   })
 
-  // Feature 011 adds the plan's actions; saving and recalculating are still not offered (feature 012).
-  it("offers no save or recalculate action and generates nothing", async () => {
+  // Feature 011 adds the plan's actions and feature 012 Recalculate (its tests are under "plan check"); saving
+  // is still not offered, and nothing is generated.
+  it("offers no save action and generates nothing", async () => {
     const { requests } = render(() => jsonResponse(200, plan))
 
     await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
 
     expect(screen.queryByRole("button", { name: /save plan/i })).toBeNull()
-    expect(screen.queryByRole("button", { name: /recalculate/i })).toBeNull()
     expect(requests.map((request) => request.path)).not.toContain(
       "/api/plan-schedule",
     )
@@ -233,6 +249,7 @@ describe("PlanDetailsPage", () => {
           },
         ]),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
     })
     const { currentLocation } = renderAppWithLocation("/plans")
 
@@ -258,6 +275,7 @@ describe("PlanDetailsPage delete", () => {
     const routes = routeFetch({
       "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       [`DELETE /api/plans/${id}`]: answer,
       "GET /api/plans": () => jsonResponse(200, []),
     })
@@ -326,7 +344,9 @@ describe("PlanDetailsPage duplicate", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       [`GET /api/plans/${copyId}`]: () => jsonResponse(200, copy),
+      ...noProblemCheckRoute(copy),
       [`POST /api/plans/${id}/copies`]: answer,
     })
     return renderAppWithLocation(`/plans/${id}`)
@@ -389,6 +409,7 @@ describe("PlanDetailsPage edit", () => {
     routeFetch({
       "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       "GET /api/plan-setup/period": () =>
         jsonResponse(200, { firstDate, lastDate: "2026-11-25", maxDates: 7 }),
     })
@@ -403,6 +424,7 @@ describe("PlanDetailsPage edit", () => {
     const buttons = within(actions.closest("p")!).getAllByRole("button")
     expect(buttons.map((button) => button.textContent)).toEqual([
       "Edit plan",
+      "Recalculate",
       "Rename",
       "Duplicate",
       "Delete",
@@ -507,6 +529,7 @@ describe("PlanDetailsPage rename", () => {
     const routes = routeFetch({
       "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       [`PUT /api/plans/${id}/name`]: answer,
     })
     renderAppWithLocation(`/plans/${id}`)
@@ -654,6 +677,7 @@ describe("PlanDetailsPage rename after the session ended", () => {
       "GET /api/auth/me": () =>
         sessionEnded ? jsonResponse(401) : jsonResponse(200, signedInUser()),
       [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      ...noProblemCheckRoute(plan),
       [`PUT /api/plans/${id}/name`]: () => {
         sessionEnded = true
         return jsonResponse(401)
@@ -672,5 +696,647 @@ describe("PlanDetailsPage rename after the session ended", () => {
     expect(
       screen.getByText("Your session has expired. Log in again."),
     ).toBeInTheDocument()
+  })
+})
+
+// Feature 012 User Story 1: opening the plan checks it against the latest forecast.
+describe("PlanDetailsPage plan check", () => {
+  const wind = problem("wind", { time: "11:00", value: 9, limit: 8 })
+  const windyCycling = planCheckWith(
+    [
+      {
+        weather: {
+          temperatureC: 6.5,
+          rainMmPerHour: 0,
+          windMs: 9,
+          isIndoor: false,
+        },
+        problems: [wind],
+      },
+    ],
+    plan,
+  )
+
+  function renderWithCheck(
+    checkAnswer: (request: RecordedRequest) => Response | Promise<Response>,
+  ) {
+    return render(() => jsonResponse(200, plan), checkAnswer)
+  }
+
+  function entry(index: number) {
+    return document.getElementById(`scheduled-entry-${index}`)
+  }
+
+  it("shows the saved plan at once and announces the check while it runs", async () => {
+    renderWithCheck(() => new Promise<Response>(() => {}))
+
+    await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
+    const region = screen.getByRole("region", { name: "Plan check" })
+    expect(within(region).getByRole("status")).toHaveTextContent(
+      "Checking your plan against the latest forecast…",
+    )
+    expect(
+      screen.getByText(
+        "This is your plan as saved on Wed 18 Nov 2026. The forecast may have changed since.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("says the plan fits and when the forecast was received", async () => {
+    const { requests } = renderWithCheck(() =>
+      jsonResponse(200, planCheckWith([], plan)),
+    )
+
+    expect(
+      await screen.findByText(
+        "✓ No problems found. Your plan fits the current forecast.",
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText("Checked against the forecast updated at 14:05."),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/This is your plan as saved on/)).toBeNull()
+    expect(screen.queryByText("✗ Problem")).toBeNull()
+    expect(requests.map((request) => request.path)).toContain(
+      `/api/plans/${id}/check`,
+    )
+  })
+
+  it("lists a problem, marks its entry and shows the latest weather", async () => {
+    renderWithCheck(() => jsonResponse(200, windyCycling))
+
+    expect(
+      await screen.findByText("1 problem in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", {
+        name: "Cycling, Sat 21 Nov 10:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+      }),
+    ).toBeInTheDocument()
+    const cycling = entry(0)!
+    expect(cycling).toHaveTextContent("✗ Problem")
+    expect(cycling).toHaveTextContent(
+      "Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+    )
+    expect(cycling).toHaveTextContent("9 m/s wind, 0 mm/h rain, 6.5 °C")
+    expect(cycling).not.toHaveTextContent("3.2 m/s wind")
+    expect(entry(1)).not.toHaveTextContent("✗ Problem")
+  })
+
+  it("moves focus to the entry when a problem's link is followed", async () => {
+    const user = userEvent.setup()
+    renderWithCheck(() => jsonResponse(200, windyCycling))
+
+    await user.click(await screen.findByRole("link", { name: /^Cycling, / }))
+
+    expect(entry(0)).toHaveFocus()
+  })
+
+  it("loads the plan again when the check is of a newer version of it", async () => {
+    let checks = 0
+    const { requests } = renderWithCheck(() =>
+      jsonResponse(
+        200,
+        // The first check finds a plan saved later (Save changes in another tab); the second matches.
+        ++checks === 1
+          ? { ...planCheckWith([], plan), savedAt: "2026-11-19T08:00:00Z" }
+          : planCheckWith([], plan),
+      ),
+    )
+
+    expect(
+      await screen.findByText(
+        "✓ No problems found. Your plan fits the current forecast.",
+      ),
+    ).toBeInTheDocument()
+    const paths = requests.map((request) => request.path)
+    expect(paths.filter((path) => path === `/api/plans/${id}`)).toHaveLength(2)
+    expect(
+      paths.filter((path) => path === `/api/plans/${id}/check`),
+    ).toHaveLength(2)
+  })
+
+  it("loads the plan again only once when the versions still differ", async () => {
+    const { requests } = renderWithCheck(() =>
+      jsonResponse(200, {
+        ...windyCycling,
+        savedAt: "2026-11-19T08:00:00Z",
+      }),
+    )
+    await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
+
+    await waitFor(() =>
+      expect(
+        requests.filter((request) => request.path === `/api/plans/${id}/check`),
+      ).toHaveLength(2),
+    )
+    // Give a third request the chance to start; none may.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const paths = requests.map((request) => request.path)
+    expect(paths.filter((path) => path === `/api/plans/${id}`)).toHaveLength(2)
+    expect(
+      paths.filter((path) => path === `/api/plans/${id}/check`),
+    ).toHaveLength(2)
+    expect(screen.queryByText("✗ Problem")).toBeNull()
+    expect(
+      screen.getByText(
+        "This is your plan as saved on Wed 18 Nov 2026. The forecast may have changed since.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("ignores a check answer that arrives after the page was left", async () => {
+    const user = userEvent.setup()
+    let answer: (response: Response) => void = () => {}
+    routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+      "GET /api/plans": () => jsonResponse(200, []),
+      [`GET /api/plans/${id}`]: () => jsonResponse(200, plan),
+      [`GET /api/plans/${id}/check`]: () =>
+        new Promise<Response>((resolve) => (answer = resolve)),
+    })
+    const { currentLocation } = renderAppWithLocation(`/plans/${id}`)
+    await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole(
+        "link",
+        { name: "My plans" },
+      ),
+    )
+    answer(jsonResponse(200, windyCycling))
+
+    await waitFor(() => expect(currentLocation()).toBe("/plans"))
+    expect(usePlanCheckStore.getState().status).toBe("idle")
+    expect(usePlanCheckStore.getState().result).toBeNull()
+  })
+})
+
+// Feature 012 User Story 2: Recalculate checks the plan again.
+describe("PlanDetailsPage recalculate", () => {
+  const rain = problem("rain", { time: "10:00", value: 2.5, limit: 1 })
+
+  // The first check finds no problem; later ones wait for the test to release them.
+  function renderRecalculate() {
+    const later: ((response: Response) => void)[] = []
+    let checks = 0
+    const routes = render(
+      () => jsonResponse(200, plan),
+      () =>
+        ++checks === 1
+          ? jsonResponse(200, planCheckWith([], plan))
+          : new Promise<Response>((resolve) => later.push(resolve)),
+    )
+    const checkRequests = () =>
+      routes.requests.filter(
+        (request) => request.path === `/api/plans/${id}/check`,
+      )
+    return { later, checkRequests }
+  }
+
+  it("offers Recalculate between Edit plan and Rename", async () => {
+    renderRecalculate()
+
+    const recalculate = await screen.findByRole("button", {
+      name: "Recalculate",
+    })
+
+    const buttons = within(recalculate.closest("p")!).getAllByRole("button")
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Edit plan",
+      "Recalculate",
+      "Rename",
+      "Duplicate",
+      "Delete",
+    ])
+  })
+
+  it("checks again, announces it and replaces the previous result", async () => {
+    const user = userEvent.setup()
+    const { later, checkRequests } = renderRecalculate()
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Recalculate" }))
+
+    const region = screen.getByRole("region", { name: "Plan check" })
+    expect(within(region).getByRole("status")).toHaveTextContent(
+      "Checking your plan against the latest forecast…",
+    )
+    expect(checkRequests()).toHaveLength(2)
+    later[0](jsonResponse(200, planCheckWith([{ problems: [rain] }], plan)))
+
+    expect(
+      await screen.findByText("1 problem in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        "✓ No problems found. Your plan fits the current forecast.",
+      ),
+    ).toBeNull()
+  })
+
+  it("is disabled while checking, so selecting it twice sends one check", async () => {
+    const user = userEvent.setup()
+    const { later, checkRequests } = renderRecalculate()
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+    const recalculate = screen.getByRole("button", { name: "Recalculate" })
+
+    await user.click(recalculate)
+    expect(recalculate).toBeDisabled()
+    await user.click(recalculate)
+
+    expect(checkRequests()).toHaveLength(2)
+    later[0](jsonResponse(200, planCheckWith([], plan)))
+    await waitFor(() => expect(recalculate).toBeEnabled())
+  })
+
+  it("gives focus back to Recalculate when the check has ended", async () => {
+    const user = userEvent.setup()
+    const { later } = renderRecalculate()
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+    const recalculate = screen.getByRole("button", { name: "Recalculate" })
+
+    await user.click(recalculate)
+    later[0](jsonResponse(200, planCheckWith([], plan)))
+
+    await waitFor(() => expect(recalculate).toHaveFocus())
+  })
+})
+
+// Feature 012 User Story 3: each problem gives its reason.
+describe("PlanDetailsPage problem reasons", () => {
+  const wind = problem("wind", { time: "11:00", value: 9, limit: 8 })
+  const overlap = problem("overlap", {
+    otherActivityName: "Museum",
+    otherStartTime: "12:00",
+    otherEndTime: "14:00",
+  })
+  const travel = problem("travel", {
+    value: 34.2,
+    limit: 30,
+    fromPlaceName: "Kaunas Castle",
+  })
+  const noForecast = problem("noForecast", { time: "15:00" })
+
+  // The plan with a third entry, Cycling again on the second date.
+  const twoDatePlan: SavedPlan = {
+    ...plan,
+    scheduled: [
+      ...plan.scheduled,
+      { ...plan.scheduled[0], date: "2026-11-22", startTime: "09:00" },
+    ],
+  }
+
+  function entry(index: number) {
+    return document.getElementById(`scheduled-entry-${index}`)!
+  }
+
+  it("shows each reason of an entry with several problems", async () => {
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        jsonResponse(
+          200,
+          planCheckWith([{ problems: [wind, overlap, travel] }], plan),
+        ),
+    )
+
+    expect(
+      await screen.findByText("3 problems in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    const cycling = entry(0)
+    expect(within(cycling).getAllByText("✗ Problem")).toHaveLength(1)
+    expect(cycling).toHaveTextContent(
+      "Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+    )
+    expect(cycling).toHaveTextContent("Overlaps with Museum (12:00–14:00).")
+    expect(cycling).toHaveTextContent(
+      "Travel of 34.2 km from Kaunas Castle, more than your 30 km limit.",
+    )
+  })
+
+  it("lists the problems over two dates in date and start time order", async () => {
+    render(
+      () => jsonResponse(200, twoDatePlan),
+      () =>
+        jsonResponse(
+          200,
+          planCheckWith(
+            [
+              { problems: [wind] },
+              { problems: [noForecast] },
+              { date: "2026-11-22", startTime: "09:00", problems: [wind] },
+            ],
+            twoDatePlan,
+          ),
+        ),
+    )
+
+    await screen.findByText("3 problems in 3 of 3 scheduled activities.")
+    const region = screen.getByRole("region", { name: "Plan check" })
+    expect(
+      within(region)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual([
+      "Cycling, Sat 21 Nov 10:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+      "Museum, Sat 21 Nov 14:00–16:00: No forecast for 15:00.",
+      "Cycling, Sun 22 Nov 09:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+    ])
+  })
+
+  it("shows the activities that could not be scheduled exactly as saved", async () => {
+    render(
+      () => jsonResponse(200, plan),
+      () => jsonResponse(200, planCheckWith([{ problems: [wind] }], plan)),
+    )
+
+    await screen.findByText("1 problem in 1 of 2 scheduled activities.")
+    const unscheduled = screen.getByRole("region", {
+      name: "Could not be scheduled",
+    })
+    expect(within(unscheduled).getByRole("listitem")).toHaveTextContent(
+      "Kayaking: No suitable time found",
+    )
+    expect(unscheduled).not.toHaveTextContent("✗ Problem")
+    expect(unscheduled).not.toHaveTextContent("Already past. Not checked.")
+  })
+})
+
+// Feature 012 User Story 4: a failed check keeps the saved plan on screen as saved.
+describe("PlanDetailsPage check failures", () => {
+  const savedNote =
+    "This is your plan as saved on Wed 18 Nov 2026. The forecast may have changed since."
+  const wind = problem("wind", { time: "11:00", value: 9, limit: 8 })
+
+  function entry(index: number) {
+    return document.getElementById(`scheduled-entry-${index}`)!
+  }
+
+  function expectPlanAsSaved() {
+    expect(screen.getByText(savedNote)).toBeInTheDocument()
+    // The saved weather of Cycling, not a newer one. Without a check the entries have no ids.
+    expect(screen.getByText("Cycling").closest("li")).toHaveTextContent(
+      "3.2 m/s wind, 0 mm/h rain, 8.5 °C",
+    )
+    expect(screen.queryByText("✗ Problem")).toBeNull()
+    const region = screen.getByRole("region", { name: "Plan check" })
+    expect(within(region).queryAllByRole("link")).toHaveLength(0)
+    expect(within(region).getByRole("status")).toHaveTextContent("")
+  }
+
+  it.each([
+    [
+      "the weather service failed",
+      () =>
+        jsonResponse(503, {
+          status: 503,
+          title: "Service unavailable.",
+          detail: "The weather service is unavailable. No forecast is shown.",
+          service: "forecast",
+        }),
+      "Error: The forecast could not be updated. Your saved plan is unchanged.",
+    ],
+    [
+      "the server failed",
+      () => jsonResponse(500, { status: 500, title: "Server error." }),
+      "Error: Something went wrong. Try again.",
+    ],
+    [
+      "the request limit was reached",
+      () =>
+        jsonResponse(429, {
+          status: 429,
+          title: "Too many requests.",
+          detail: "Too many requests. Wait a minute and try again.",
+        }),
+      "Error: Too many requests. Wait a minute and try again.",
+    ],
+  ])(
+    "shows the error with Retry and the plan as saved when %s",
+    async (_, answer, message) => {
+      render(() => jsonResponse(200, plan), answer)
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(message)
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument()
+      expectPlanAsSaved()
+    },
+  )
+
+  it("shows the result when Retry succeeds after a weather failure", async () => {
+    const user = userEvent.setup()
+    let checks = 0
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        ++checks === 1
+          ? jsonResponse(503, { status: 503, service: "forecast" })
+          : jsonResponse(200, planCheckWith([{ problems: [wind] }], plan)),
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Retry" }))
+
+    expect(
+      await screen.findByText("1 problem in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
+    expect(checks).toBe(2)
+  })
+
+  it("shows the plan as saved again when Recalculate fails after a successful check", async () => {
+    const user = userEvent.setup()
+    let checks = 0
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        ++checks === 1
+          ? jsonResponse(
+              200,
+              planCheckWith(
+                [
+                  {
+                    weather: {
+                      temperatureC: 6.5,
+                      rainMmPerHour: 0,
+                      windMs: 9,
+                      isIndoor: false,
+                    },
+                    problems: [wind],
+                  },
+                ],
+                plan,
+              ),
+            )
+          : jsonResponse(503, { status: 503, service: "forecast" }),
+    )
+    await screen.findByText("1 problem in 1 of 2 scheduled activities.")
+    expect(entry(0)).toHaveTextContent("9 m/s wind, 0 mm/h rain, 6.5 °C")
+
+    await user.click(screen.getByRole("button", { name: "Recalculate" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Error: The forecast could not be updated. Your saved plan is unchanged.",
+    )
+    expectPlanAsSaved()
+  })
+})
+
+// Feature 012 User Story 5: activities that have started are not checked.
+describe("PlanDetailsPage past activities", () => {
+  const pastText = "Already past. Not checked."
+
+  function entry(index: number) {
+    return document.getElementById(`scheduled-entry-${index}`)!
+  }
+
+  it("marks a started activity as past with its saved weather and counts only the others", async () => {
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        jsonResponse(
+          200,
+          planCheckWith(
+            [
+              { past: true, weather: null, problems: [] },
+              { problems: [problem("noForecast", { time: "15:00" })] },
+            ],
+            plan,
+          ),
+        ),
+    )
+
+    expect(
+      await screen.findByText("1 problem in 1 of 1 scheduled activity."),
+    ).toBeInTheDocument()
+    expect(entry(0)).toHaveTextContent(pastText)
+    expect(entry(0)).toHaveTextContent("3.2 m/s wind, 0 mm/h rain, 8.5 °C")
+    expect(entry(0)).not.toHaveTextContent("✗ Problem")
+    expect(entry(1)).not.toHaveTextContent(pastText)
+    expect(entry(1)).toHaveTextContent("✗ Problem")
+  })
+
+  it("says a plan whose dates have passed is not checked, and offers no Recalculate", async () => {
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        jsonResponse(200, {
+          ...planCheckWith(
+            plan.scheduled.map(() => ({ past: true, weather: null })),
+            plan,
+          ),
+          status: "allPast",
+          forecastUpdatedAt: null,
+        }),
+    )
+
+    const region = await screen.findByRole("region", { name: "Plan check" })
+    await waitFor(() =>
+      expect(within(region).getByRole("status")).toHaveTextContent(
+        "This plan's dates have passed. It is not checked against the forecast.",
+      ),
+    )
+    expect(screen.queryByRole("button", { name: "Recalculate" })).toBeNull()
+    expect(entry(0)).toHaveTextContent(pastText)
+    expect(entry(1)).toHaveTextContent(pastText)
+    expect(
+      screen.getByText(
+        "This is your plan as saved on Wed 18 Nov 2026. The forecast may have changed since.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Checked against the forecast/)).toBeNull()
+  })
+})
+
+// Feature 012 User Story 6: the page reacts when the server refuses the check.
+describe("PlanDetailsPage refused checks", () => {
+  it("says the plan no longer exists when Recalculate finds it deleted elsewhere", async () => {
+    const user = userEvent.setup()
+    let checks = 0
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        ++checks === 1
+          ? jsonResponse(200, planCheckWith([], plan))
+          : jsonResponse(404, {
+              status: 404,
+              title: "Not found.",
+              detail: "This plan no longer exists.",
+            }),
+    )
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Recalculate" }))
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Plan not found" }),
+    ).toBeInTheDocument()
+    expect(screen.getByText("This plan no longer exists.")).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", { name: "Go to the home page" }),
+    ).toHaveAttribute("href", "/")
+    expect(
+      screen.getByRole("link", { name: "Go to My plans" }),
+    ).toHaveAttribute("href", "/plans")
+  })
+
+  it("asks who is signed in again when the check answers 401", async () => {
+    const { requests } = render(
+      () => jsonResponse(200, plan),
+      () => new Response(null, { status: 401 }),
+    )
+
+    await waitFor(() =>
+      expect(
+        requests.filter((request) => request.path === "/api/auth/me"),
+      ).toHaveLength(2),
+    )
+  })
+})
+
+// Feature 012 research section 12: each newer version of the plan is loaded once.
+describe("PlanDetailsPage plan replaced elsewhere", () => {
+  it("shows the check again after the plan is replaced a second time", async () => {
+    const user = userEvent.setup()
+    const versions = [
+      plan,
+      { ...plan, savedAt: "2026-11-19T08:00:00Z" },
+      { ...plan, savedAt: "2026-11-20T09:00:00Z" },
+    ]
+    let loads = 0
+    let checks = 0
+    const wind = problem("wind", { time: "11:00", value: 9, limit: 8 })
+    // The first two checks find the second version; Recalculate then finds the third, with a problem.
+    const { requests } = render(
+      () => jsonResponse(200, versions[Math.min(loads++, 2)]),
+      () =>
+        ++checks <= 2
+          ? jsonResponse(200, planCheckWith([], versions[1]))
+          : jsonResponse(
+              200,
+              planCheckWith([{ problems: [wind] }], versions[2]),
+            ),
+    )
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Recalculate" }))
+
+    expect(
+      await screen.findByText("1 problem in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    expect(
+      requests.filter((request) => request.path === `/api/plans/${id}`),
+    ).toHaveLength(3)
   })
 })

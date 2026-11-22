@@ -40,7 +40,7 @@ public static class PlanScheduler
             }
 
             var planningDay = days.First(d => d.Date == best.Value.Date);
-            var weather = BuildWeather(forecast.WeatherIndependent, best.Value.Period, planningDay);
+            var weather = ScheduledWeather.At(forecast.WeatherIndependent, best.Value.Period.Start, planningDay);
 
             scheduled.Add(new ScheduledActivity(
                 activity.CategoryId,
@@ -49,7 +49,8 @@ public static class PlanScheduler
                 best.Value.Period.Start,
                 best.Value.Period.End,
                 categoryEntry.Places[0],
-                weather));
+                weather,
+                ActivityIndex: i));
 
             if (!occupiedSlots.TryGetValue(best.Value.Date, out var slots))
             {
@@ -97,17 +98,6 @@ public static class PlanScheduler
         }
 
         return best;
-    }
-
-    private static WeatherSnapshot BuildWeather(bool weatherIndependent, SuitablePeriod period, PlanningDay day)
-    {
-        if (weatherIndependent)
-        {
-            return new WeatherSnapshot(null, null, null, IsIndoor: true);
-        }
-
-        var startHour = day.Hours.FirstOrDefault(h => h.Start == period.Start);
-        return new WeatherSnapshot(startHour?.TemperatureC, startHour?.RainMmPerHour, startHour?.WindMs, IsIndoor: false);
     }
 
     private static bool Overlaps(
