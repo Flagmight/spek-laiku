@@ -770,7 +770,7 @@ describe("PlanDetailsPage plan check", () => {
     ).toBeInTheDocument()
     expect(
       screen.getByRole("link", {
-        name: "Cycling, 2026-11-21 10:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+        name: "Cycling, Sat 21 Nov 10:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
       }),
     ).toBeInTheDocument()
     const cycling = entry(0)!
@@ -1046,9 +1046,9 @@ describe("PlanDetailsPage problem reasons", () => {
         .getAllByRole("link")
         .map((link) => link.textContent),
     ).toEqual([
-      "Cycling, 2026-11-21 10:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
-      "Museum, 2026-11-21 14:00–16:00: No forecast for 15:00.",
-      "Cycling, 2026-11-22 09:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+      "Cycling, Sat 21 Nov 10:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+      "Museum, Sat 21 Nov 14:00–16:00: No forecast for 15:00.",
+      "Cycling, Sun 22 Nov 09:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
     ])
   })
 

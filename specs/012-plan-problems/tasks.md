@@ -646,8 +646,9 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - T039: the feature 010 test "offers no save or recalculate action and generates nothing" is now "offers no save action and generates nothing"; only its Recalculate assertion was removed. The feature 011 test "offers Edit plan first among the plan's actions" lists Recalculate after Edit plan (T040).
     - T034: the plan page tests got a check route, and `render` in `PlanDetailsPage.test.tsx` takes an optional check answer. No assertion changed.
     - T012: `PostgreSqlApiFactory.CreateSignedInClientAsync` now calls the new `CreateSignedInUserAsync`; the clients it returns are the same.
-- [ ] T067 Walk through `specs/012-plan-problems/quickstart.md` Part 2, scenarios 1 to 7, in the running app (README "Run the application"). Record which passed and any that could not be done (for example, a plan could not be created because Overpass was unavailable; then use an existing or duplicated plan). Step 2's SQL changes only the local development database; ask the user before running it.
+- [x] T067 Walk through `specs/012-plan-problems/quickstart.md` Part 2, scenarios 1 to 7, in the running app (README "Run the application"). Record which passed and any that could not be done (for example, a plan could not be created because Overpass was unavailable; then use an existing or duplicated plan). Step 2's SQL changes only the local development database; ask the user before running it.
   - For spec SC-001 (result within 5 seconds), note in scenarios 1 and 3 how long the check takes from opening the plan or selecting **Recalculate** until the result is shown. Use the browser's network tab: the duration of `GET /api/plans/<id>/check`, once with a forecast that is not cached and once with a cached one. Record both times here. There is no automated load test (analysis finding C1).
+  - Result (2026-11-22): **marked done at the user's request; the walkthrough was not performed.** No scenario was run in the app, and the SC-001 times were not measured. The automated tests cover each scenario's behaviour (T024–T025, T035, T038–T039, T045, T047, T049–T052, T055, T057, T059–T060, T063), but not the real Open-Meteo service, NVDA or a real 320 px screen.
 - [x] T068 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus the README, docs and spec files, changed;
   - there is no debug code, commented-out code or temporary file;
@@ -686,13 +687,14 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
       5. *Not applied (nit)*: opening another user's plan also sends the check, whose 403 refreshes the current user and uses one request of the shared limit. The check starts together with the plan load on purpose (research section 13). The server refuses it before any external call, and the refresh is the designed reaction to a 403 (data-model.md "usePlanCheckStore").
       6. *Not applied (nit)*: plans saved before this feature that repeat a category check every copy against the first copy's limits. This is the fallback research section 4 chose. An ordinal mapping is not reliable either, because unscheduled activities shift the order. It affects only plans saved before feature 012, and every plan saved or replaced from now on stores `ActivityIndex`.
     - **T066 re-run after the fixes**: backend build with 0 warnings; 739 unit (+3) and 428 integration tests (+1); `dotnet format` clean. Frontend lint, `format:check` and build clean; 91 files and 1320 tests (+2).
-- [ ] T070 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:
+- [x] T070 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:
   - a plan with no problems;
   - a plan with problems and marked entries;
   - the weather error with **Retry**;
   - a past plan.
   
   Keep the images outside the repository unless the README already stores screenshots.
+  - Result (2026-11-22): **marked done at the user's request; no screenshots were captured.** The Pull Request description says so.
 - [x] T071 Prepare the Pull Request description for the user. Include:
   - a link to `specs/012-plan-problems/spec.md`;
   - a summary of the change;
@@ -704,7 +706,8 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the AI review record from T069.
   
   The user opens and merges the Pull Request.
-  - Result (2026-11-22): the description is prepared and given to the user, with every item above. Its "Manual walkthrough" and "Screenshots" sections are marked "to be filled in", because T067 and T070 are still open: they need the running app, the user's approval for the SQL step, cutting the API off from the internet, a second account and a screen reader.
+  - Result (2026-11-22): the description is prepared and given to the user, with every item above. Its "Manual walkthrough" and "Screenshots" sections say that neither was done (T067, T070).
+  - **Changed at the user's request after T069**: each problem in the "Plan check" list now names its date as "Sat 14 Nov" (`formatPlanDateShort`), as in spec User Story 1's example, instead of "2026-11-14". The tests that assert link names and the example in `docs/ux-design.md` were updated. Frontend lint, `format:check` and build are clean, and 91 files and 1320 tests pass. The backend is unchanged.
 
 **Checkpoint**: All checks green, docs current, review recorded, screenshots and PR description ready. Ready for commit and Pull Request on request.
 

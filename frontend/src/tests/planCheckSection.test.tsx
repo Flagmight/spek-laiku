@@ -61,7 +61,7 @@ describe("PlanCheckSection", () => {
       "1 problem in 1 of 1 scheduled activity.",
     )
     const link = screen.getByRole("link", {
-      name: "Museum, 2026-11-14 06:00–22:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+      name: "Museum, Sat 14 Nov 06:00–22:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
     })
     expect(link).toHaveAttribute("href", "#scheduled-entry-0")
   })

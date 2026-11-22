@@ -222,8 +222,8 @@ export const twoProblemCheck: PlanCheck = planCheckWith([
 
 // The names of twoProblemCheck's links in the "Plan check" list.
 export const twoProblemLinkNames = [
-  "Museum, 2026-11-14 06:00–22:00: Overlaps with Cycling (10:00–12:00).",
-  "Museum, 2026-11-14 06:00–22:00: Travel of 34.2 km from Kaunas Castle, more than your 30 km limit.",
+  "Museum, Sat 14 Nov 06:00–22:00: Overlaps with Cycling (10:00–12:00).",
+  "Museum, Sat 14 Nov 06:00–22:00: Travel of 34.2 km from Kaunas Castle, more than your 30 km limit.",
 ]
 
 // The saved plan screens' routes, with a plan check that finds twoProblemCheck's problems.

@@ -401,7 +401,7 @@ area.
 |  | Editing a saved plan | "Editing '<name>'. Your saved plan is not changed until you save." with **Cancel editing** on every step; **Save changes** instead of **Save plan**. Success: "✓ Success: Changes saved." with **Open plan**. Server error: "Error: Changes could not be saved. Try again." A deleted plan: "This plan no longer exists. Save it as a new plan instead." with **Save plan** (feature 011). |
 | Plan Problems and Alternatives | Loading | "Checking your plan against the latest forecast…" |
 |  | Empty | "✓ No problems found. Your plan fits the current forecast." |
-|  | Problems found | "<n> problem(s) in <m> of <k> scheduled activities." with one link per problem ("Kayaking, 2026-11-21 10:00–12:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s."), and "✗ Problem" with the reasons on each affected schedule entry; started activities show "Already past. Not checked." (feature 012). |
+|  | Problems found | "<n> problem(s) in <m> of <k> scheduled activities." with one link per problem ("Kayaking, Sat 21 Nov 10:00–12:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s."), and "✗ Problem" with the reasons on each affected schedule entry; started activities show "Already past. Not checked." (feature 012). |
 |  | Plan in the past | "This plan's dates have passed. It is not checked against the forecast." (feature 012). |
 |  | No alternative | "No alternative found for this activity. Keep it or remove it." |
 |  | Service unavailable | "Error: The forecast could not be updated. Your saved plan is unchanged." |

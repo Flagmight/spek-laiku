@@ -1,4 +1,5 @@
 import type { PlanCheckEntry, PlanProblem } from "../types/planCheck"
+import { formatPlanDateShort } from "./formatPlanDate"
 import { kmText } from "./placeText"
 
 // The words of the plan check (feature 012 spec User Stories 1 and 3, FR-009, FR-011). The server has decided
@@ -44,12 +45,13 @@ export function planProblemText(problem: PlanProblem): string {
   }
 }
 
-// One problem as the "Plan check" list shows it: the activity, its date and time, and the reason.
+// One problem as the "Plan check" list shows it: the activity, its date ("Sat 14 Nov", as in spec User Story 1)
+// and time, and the reason.
 export function planProblemItemText(
   entry: PlanCheckEntry,
   problem: PlanProblem,
 ): string {
-  return `${entry.activityName}, ${entry.date} ${entry.startTime}–${entry.endTime}: ${planProblemText(problem)}`
+  return `${entry.activityName}, ${formatPlanDateShort(entry.date)} ${entry.startTime}–${entry.endTime}: ${planProblemText(problem)}`
 }
 
 // Every problem with its entry and the entry's position in the schedule, in the order the server sends the

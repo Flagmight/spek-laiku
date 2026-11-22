@@ -103,7 +103,7 @@ describe("planProblemText", () => {
 describe("planProblemItemText", () => {
   it("names the activity, its date and time, and the reason", () => {
     expect(planProblemItemText(entry(), wind)).toBe(
-      "Kayaking, 2026-11-21 10:00–12:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+      "Kayaking, Sat 21 Nov 10:00–12:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
     )
   })
 })
