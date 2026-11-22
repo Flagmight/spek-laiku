@@ -142,6 +142,46 @@ public sealed class PlanCheckEndpointTests : IDisposable
         Assert.Equal(JsonValueKind.Null, museum.GetProperty("windMs").ValueKind);
     }
 
+    [Fact]
+    public async Task SecondCheckWithin30Minutes_ReusesTheForecast()
+    {
+        var (client, location, id) = await KayakingPlanAsync();
+        Script(location, SavedPlanSeed.CalmForecast());
+        var calls = factory.Forecast.Calls;
+
+        var (_, first) = await SavedPlanSeed.CheckAsync(client, id);
+        factory.Clock.UtcNow = ScheduleScenario.Now.AddMinutes(29);
+        var (_, second) = await SavedPlanSeed.CheckAsync(client, id);
+
+        Assert.Equal(calls + 1, factory.Forecast.Calls);
+        Assert.Equal("14:20", first.GetProperty("forecastUpdatedAt").GetString());
+        // The time the forecast was received, not the time of the check (spec Edge Cases).
+        Assert.Equal("14:20", second.GetProperty("forecastUpdatedAt").GetString());
+    }
+
+    [Fact]
+    public async Task CheckAfter30Minutes_AsksAgainAndSeesTheNewForecast()
+    {
+        // The spec's User Story 2 test: rain above the limit appears after the first check.
+        var (client, location, id) = await KayakingPlanAsync();
+        Script(location, SavedPlanSeed.CalmForecast());
+        var (_, first) = await SavedPlanSeed.CheckAsync(client, id);
+        Assert.Empty(Entry(first, 0).GetProperty("problems").EnumerateArray());
+
+        Script(location, FakeForecastClient.WithHour(SavedPlanSeed.CalmForecast(), SavedPlanSeed.PlanDate, 10, 10.0, 2.5, 5.0));
+        factory.Clock.UtcNow = ScheduleScenario.Now.AddMinutes(31);
+        var calls = factory.Forecast.Calls;
+        var (_, second) = await SavedPlanSeed.CheckAsync(client, id);
+
+        Assert.Equal(calls + 1, factory.Forecast.Calls);
+        Assert.Equal("14:51", second.GetProperty("forecastUpdatedAt").GetString());
+        var problem = Assert.Single(Entry(second, 0).GetProperty("problems").EnumerateArray());
+        Assert.Equal("rain", problem.GetProperty("rule").GetString());
+        Assert.Equal("10:00", problem.GetProperty("time").GetString());
+        Assert.Equal(2.5m, problem.GetProperty("value").GetDecimal());
+        Assert.Equal(1.0m, problem.GetProperty("limit").GetDecimal());
+    }
+
     private async Task<(HttpClient Client, PlaceLocation Location, Guid Id)> KayakingPlanAsync()
     {
         var (user, client) = await factory.CreateSignedInUserAsync();

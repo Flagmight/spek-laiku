@@ -371,20 +371,27 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 2. Change the forecast so one activity gets rain above its limit, and wait past the 30-minute reuse time.
 3. Select **Recalculate**: the rain problem is listed.
 
-- [ ] T037 [US2] In `frontend/src/components/planDetailsActions.tsx`, add a `<button type="button" className="plan-recalculate">Recalculate</button>` between `<EditPlanButton>` and **Rename** (spec FR-017):
+- [x] T037 [US2] In `frontend/src/components/planDetailsActions.tsx`, add a `<button type="button" className="plan-recalculate">Recalculate</button>` between `<EditPlanButton>` and **Rename** (spec FR-017):
   - It calls `usePlanCheckStore.getState().check(plan.id)`.
   - It is `disabled` while the status is `checking`.
   - It is not rendered when the status is `allPast`.
-- [ ] T038 [US2] Add backend tests to `backend/tests/SpekLaiku.IntegrationTests/PlanCheckEndpointTests.cs`:
+- [x] T038 [US2] Add backend tests to `backend/tests/SpekLaiku.IntegrationTests/PlanCheckEndpointTests.cs`:
   - `SecondCheckWithin30Minutes_ReusesTheForecast`: one weather call for two checks, and the same `forecastUpdatedAt`.
   - `CheckAfter30Minutes_AsksAgainAndSeesTheNewForecast`: the spec's independent test, with rain added after the first check, the clock moved 31 minutes, and the rain problem listed with a new `forecastUpdatedAt`.
-- [ ] T039 [US2] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
+- [x] T039 [US2] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
   - The actions in order: Edit plan, Recalculate, Rename, Duplicate, Delete (`getAllByRole("button")` in the actions paragraph).
   - Selecting **Recalculate** sends a second check, announces the loading text, and the new result replaces the old one.
   - **Recalculate** is disabled while checking, and two quick selections send one request.
   - Change the feature 010 test "offers no save or recalculate action and generates nothing": it now asserts that there is no **Save plan** and that nothing is generated. **Recalculate** is now offered on purpose (spec FR-017). Record this change for T066.
   - Update the feature 011 test "offers Edit plan first among the plan's actions" only if it asserts the full list; Edit plan must still be first.
-- [ ] T040 [US2] Run all checks.
+- [x] T040 [US2] Run all checks.
+  - Result (2026-11-20):
+    - **Backend**: build with 0 warnings; 719 unit and 399 integration tests (+2); `dotnet format` clean.
+    - **Frontend**: lint and type check clean; 91 files and 1290 tests (+4); build clean.
+  - **Changed existing tests**, both because **Recalculate** is added on purpose (spec FR-017):
+    - The feature 010 test "offers no save or recalculate action and generates nothing" is now "offers no save action and generates nothing". It no longer asserts that Recalculate is absent; its other assertions are unchanged.
+    - The feature 011 test "offers Edit plan first among the plan's actions" asserts the full list of actions, which now includes Recalculate after Edit plan. Edit plan is still first.
+  - **Decided while implementing**: Recalculate uses the real `disabled` attribute while checking, as Duplicate, Delete and Save already do. A disabled button loses keyboard focus, so focus returns to Recalculate when the check it started has ended (tested), in the same way Rename gets focus back when its form closes.
 
 **Checkpoint**: Recalculate works and cannot run twice at once.
 

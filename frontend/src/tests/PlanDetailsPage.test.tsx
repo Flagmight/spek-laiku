@@ -160,14 +160,14 @@ describe("PlanDetailsPage", () => {
     ).toBeInTheDocument()
   })
 
-  // Feature 011 adds the plan's actions; saving and recalculating are still not offered (feature 012).
-  it("offers no save or recalculate action and generates nothing", async () => {
+  // Feature 011 adds the plan's actions and feature 012 Recalculate (its tests are under "plan check"); saving
+  // is still not offered, and nothing is generated.
+  it("offers no save action and generates nothing", async () => {
     const { requests } = render(() => jsonResponse(200, plan))
 
     await screen.findByRole("heading", { level: 1, name: "Weekend in Kaunas" })
 
     expect(screen.queryByRole("button", { name: /save plan/i })).toBeNull()
-    expect(screen.queryByRole("button", { name: /recalculate/i })).toBeNull()
     expect(requests.map((request) => request.path)).not.toContain(
       "/api/plan-schedule",
     )
@@ -424,6 +424,7 @@ describe("PlanDetailsPage edit", () => {
     const buttons = within(actions.closest("p")!).getAllByRole("button")
     expect(buttons.map((button) => button.textContent)).toEqual([
       "Edit plan",
+      "Recalculate",
       "Rename",
       "Duplicate",
       "Delete",
@@ -869,5 +870,102 @@ describe("PlanDetailsPage plan check", () => {
     await waitFor(() => expect(currentLocation()).toBe("/plans"))
     expect(usePlanCheckStore.getState().status).toBe("idle")
     expect(usePlanCheckStore.getState().result).toBeNull()
+  })
+})
+
+// Feature 012 User Story 2: Recalculate checks the plan again.
+describe("PlanDetailsPage recalculate", () => {
+  const rain = problem("rain", { time: "10:00", value: 2.5, limit: 1 })
+
+  // The first check finds no problem; later ones wait for the test to release them.
+  function renderRecalculate() {
+    const later: ((response: Response) => void)[] = []
+    let checks = 0
+    const routes = render(
+      () => jsonResponse(200, plan),
+      () =>
+        ++checks === 1
+          ? jsonResponse(200, planCheckWith([], plan))
+          : new Promise<Response>((resolve) => later.push(resolve)),
+    )
+    const checkRequests = () =>
+      routes.requests.filter(
+        (request) => request.path === `/api/plans/${id}/check`,
+      )
+    return { later, checkRequests }
+  }
+
+  it("offers Recalculate between Edit plan and Rename", async () => {
+    renderRecalculate()
+
+    const recalculate = await screen.findByRole("button", {
+      name: "Recalculate",
+    })
+
+    const buttons = within(recalculate.closest("p")!).getAllByRole("button")
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Edit plan",
+      "Recalculate",
+      "Rename",
+      "Duplicate",
+      "Delete",
+    ])
+  })
+
+  it("checks again, announces it and replaces the previous result", async () => {
+    const user = userEvent.setup()
+    const { later, checkRequests } = renderRecalculate()
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Recalculate" }))
+
+    const region = screen.getByRole("region", { name: "Plan check" })
+    expect(within(region).getByRole("status")).toHaveTextContent(
+      "Checking your plan against the latest forecast…",
+    )
+    expect(checkRequests()).toHaveLength(2)
+    later[0](jsonResponse(200, planCheckWith([{ problems: [rain] }], plan)))
+
+    expect(
+      await screen.findByText("1 problem in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText(
+        "✓ No problems found. Your plan fits the current forecast.",
+      ),
+    ).toBeNull()
+  })
+
+  it("is disabled while checking, so selecting it twice sends one check", async () => {
+    const user = userEvent.setup()
+    const { later, checkRequests } = renderRecalculate()
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+    const recalculate = screen.getByRole("button", { name: "Recalculate" })
+
+    await user.click(recalculate)
+    expect(recalculate).toBeDisabled()
+    await user.click(recalculate)
+
+    expect(checkRequests()).toHaveLength(2)
+    later[0](jsonResponse(200, planCheckWith([], plan)))
+    await waitFor(() => expect(recalculate).toBeEnabled())
+  })
+
+  it("gives focus back to Recalculate when the check has ended", async () => {
+    const user = userEvent.setup()
+    const { later } = renderRecalculate()
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+    const recalculate = screen.getByRole("button", { name: "Recalculate" })
+
+    await user.click(recalculate)
+    later[0](jsonResponse(200, planCheckWith([], plan)))
+
+    await waitFor(() => expect(recalculate).toHaveFocus())
   })
 })
