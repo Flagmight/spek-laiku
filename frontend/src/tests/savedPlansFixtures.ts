@@ -200,3 +200,37 @@ export function savedPlanRoutes(
       jsonResponse(200, planCheckNoProblems),
   }
 }
+
+// Two problems on savedPlan's only entry, for the keyboard, screen reader and phone checks (feature 012 User
+// Story 7).
+export const twoProblemCheck: PlanCheck = planCheckWith([
+  {
+    problems: [
+      problem("overlap", {
+        otherActivityName: "Cycling",
+        otherStartTime: "10:00",
+        otherEndTime: "12:00",
+      }),
+      problem("travel", {
+        value: 34.2,
+        limit: 30,
+        fromPlaceName: "Kaunas Castle",
+      }),
+    ],
+  },
+])
+
+// The names of twoProblemCheck's links in the "Plan check" list.
+export const twoProblemLinkNames = [
+  "Museum, 2026-11-14 06:00–22:00: Overlaps with Cycling (10:00–12:00).",
+  "Museum, 2026-11-14 06:00–22:00: Travel of 34.2 km from Kaunas Castle, more than your 30 km limit.",
+]
+
+// The saved plan screens' routes, with a plan check that finds twoProblemCheck's problems.
+export function twoProblemRoutes() {
+  return {
+    ...savedPlanRoutes(),
+    [`GET /api/plans/${savedPlanId}/check`]: () =>
+      jsonResponse(200, twoProblemCheck),
+  }
+}

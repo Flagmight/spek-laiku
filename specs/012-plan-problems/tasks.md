@@ -571,8 +571,8 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 - [x] T060 [US6] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
   - `Recalculate` on a plan deleted elsewhere (the check answers 404) shows "This plan no longer exists." with the links to Home and My plans.
   - A check answering 401 refreshes the current user (a second `GET /api/auth/me`).
-- [ ] T061 [US6] Run all checks.
-  - Partial result (2026-11-22): backend build with 0 warnings and `dotnet format` clean. The 8 new `PlanCheckAuthorizationTests` and the 48 `PlanDetailsPage.test.tsx` tests pass. The full run was stopped during `dotnet test` because the computer ran low on memory, not because a check failed. The user chose to commit and continue; the full run of T064 covers this phase too.
+- [x] T061 [US6] Run all checks.
+  - Partial result (2026-11-22): backend build with 0 warnings and `dotnet format` clean. The 8 new `PlanCheckAuthorizationTests` and the 48 `PlanDetailsPage.test.tsx` tests pass. The full run was stopped during `dotnet test` because the computer ran low on memory, not because a check failed. The user chose to commit and continue; the full run of T064 covers this phase too, and passed (427 integration tests, +8).
   - Phase 8 adds tests only: the owner check was already in place (T020, T023), so no production code changed.
 
 **Checkpoint**: Access rules verified for the new endpoint.
@@ -585,17 +585,25 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: At 320 px, using only the keyboard, open a plan with two problems, read the problems, follow a problem's link to its schedule entry, and select **Recalculate**, with no horizontal scrolling.
 
-- [ ] T062 [US7] In `frontend/src/styles.css`, add a commented block "Plan check (feature 012)":
+- [x] T062 [US7] In `frontend/src/styles.css`, add a commented block "Plan check (feature 012)":
   - `.plan-problems`: a list without bullets whose items are cards with a border and padding, as the saved plan cards do on phones, with `overflow-wrap: anywhere`.
   - The "✗ Problem" reasons inside a schedule entry: a block below the entry's line that wraps.
   - `.plan-actions .plan-recalculate { flex-basis: 100%; }` below 40em, and `flex-basis: auto` inside the existing `@media (min-width: 40em)` block. The 44 px `min-height` every button has applies.
   - Reuse the existing colours. No mark relies on colour alone.
-- [ ] T063 [US7] Add tests:
+- [x] T063 [US7] Add tests:
   - `frontend/src/tests/accessibility.test.tsx`: the plan page with problems has the labelled "Plan check" region and heading. Every problem link has an accessible name that includes the activity and the reason. The schedule entries with marks include "✗ Problem" in text.
   - `frontend/src/tests/keyboard.test.tsx`: Tab reaches each problem link in order, then Enter moves focus to `#scheduled-entry-<n>`. **Recalculate** is in the action order between Edit plan and Rename and works with Enter.
   - `frontend/src/tests/responsive.test.tsx`: at 320 px, `.plan-recalculate` gets full width and the problem cards wrap, as the existing checks for the other plan screens do.
   - Status messages: `planCheckSection.test.tsx` asserts that loading and results are in `role="status"` and errors in `role="alert"`, and that focus does not move when they appear (spec FR-018).
-- [ ] T064 [US7] Run all checks.
+- [x] T064 [US7] Run all checks.
+  - Result (2026-11-22), covering Phases 8 and 9; each step was run on its own in the foreground, to use less memory:
+    - **Backend**: build with 0 warnings; 736 unit and 427 integration tests (+8, Phase 8); `dotnet format` clean.
+    - **Frontend**: lint and type check clean; `npm run format:check` clean; 91 files and 1318 tests (+12 since T058: 2 in Phase 8, 10 in Phase 9); build clean.
+  - **Found while checking**: the CI's `npm run format:check` had not been part of the check runs since Phase 5, and two committed test files (`PlanDetailsPage.test.tsx`, `planProblemText.test.ts`) were not in Prettier's style. They are fixed in a separate `style` commit, with no change to any test. From here on, every check run includes `format:check`.
+  - **Decided while implementing**:
+    - The shared fixture `twoProblemCheck` (`savedPlansFixtures.ts`) gives `savedPlan`'s only entry an overlap and a travel problem, so the accessibility, keyboard and 320 px tests use the same two links.
+    - The problem cards reuse the saved plan cards' border (`#d9dee3`). The "✗ Problem" block has a red left border (`#b42318`, the error colour) that only repeats what the ✗ and the words say.
+    - Problem links drop the page links' 20 px left padding inside their card, but keep the 44 × 44 px target.
 
 **Checkpoint**: All stories done.
 

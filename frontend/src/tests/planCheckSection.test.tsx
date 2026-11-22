@@ -85,4 +85,37 @@ describe("PlanCheckSection", () => {
 
     expect(document.activeElement).toBe(before)
   })
+
+  it.each([
+    [
+      "weatherUnavailable",
+      "Error: The forecast could not be updated. Your saved plan is unchanged.",
+    ],
+    ["serverError", "Error: Something went wrong. Try again."],
+    [
+      "tooManyRequests",
+      "Error: Too many requests. Wait a minute and try again.",
+    ],
+  ] as const)(
+    "shows the %s error in an alert with Retry, and leaves the status empty",
+    (status, message) => {
+      renderSection(status, null)
+
+      expect(screen.getByRole("alert")).toHaveTextContent(message)
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument()
+      expect(screen.getByRole("status")).toHaveTextContent("")
+      expect(screen.queryByRole("link")).toBeNull()
+    },
+  )
+
+  it("does not move focus when an error is shown", () => {
+    const { rerender } = renderSection("checking", null)
+    const before = document.activeElement
+
+    usePlanCheckStore.setState({ status: "weatherUnavailable" })
+    rerender(<PlanCheckSection checked={null} />)
+
+    expect(screen.getByRole("alert")).toBeInTheDocument()
+    expect(document.activeElement).toBe(before)
+  })
 })

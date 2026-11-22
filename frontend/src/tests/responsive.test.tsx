@@ -14,6 +14,7 @@ import {
   savedPlanId,
   savedPlanRoutes,
   savedPlanSummaries,
+  twoProblemRoutes,
 } from "./savedPlansFixtures"
 import { forecastRoutes } from "./forecastFixtures"
 import { placesRoutes } from "./placesFixtures"
@@ -1198,6 +1199,46 @@ describe("Plan management at 320 px", () => {
 
     expectTouchTarget(
       await screen.findByRole("button", { name: "Cancel editing" }),
+    )
+  })
+})
+
+// Feature 012 User Story 7: the plan check at 320 px. jsdom does no layout, so these check the CSS rules.
+describe("Plan check at 320 px", () => {
+  it("gives Recalculate the full width and keeps it a 44 × 44 px target", async () => {
+    routeFetch(twoProblemRoutes())
+    renderApp(`/plans/${savedPlanId}`)
+
+    const recalculate = await screen.findByRole("button", {
+      name: "Recalculate",
+    })
+    expect(getComputedStyle(recalculate).flexBasis).toBe("100%")
+    expectTouchTarget(recalculate)
+  })
+
+  it("shows each problem as a card that wraps, with a 44 × 44 px link", async () => {
+    routeFetch(twoProblemRoutes())
+    renderApp(`/plans/${savedPlanId}`)
+
+    const region = await screen.findByRole("region", { name: "Plan check" })
+    const links = await within(region).findAllByRole("link")
+    expect(links).toHaveLength(2)
+    for (const link of links) {
+      expectTouchTarget(link)
+      const card = getComputedStyle(link.closest("li")!)
+      expect(card.overflowWrap).toBe("anywhere")
+      expect(card.borderStyle).toBe("solid")
+    }
+    const reasons = document.querySelector(
+      "#scheduled-entry-0 .entry-problems",
+    )!
+    expect(getComputedStyle(reasons).display).toBe("block")
+    expect(getComputedStyle(reasons).overflowWrap).toBe("anywhere")
+  })
+
+  it("sizes Recalculate to its text only from 40em wide", () => {
+    expect(styles).toMatch(
+      /@media \(min-width: 40em\) \{[^@]*\.plan-actions \.plan-recalculate \{\s*flex-basis: auto;/,
     )
   })
 })
