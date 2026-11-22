@@ -1,8 +1,10 @@
 import type { PlanCheckEntry, PlanProblem } from "../types/planCheck"
+import { kmText } from "./placeText"
 
 // The words of the plan check (feature 012 spec User Stories 1 and 3, FR-009, FR-011). The server has decided
 // every rule, the worst value and its hour; this only words its answer. Numbers are written as the schedule's
-// weather line writes them (9, 8.5), so "9.0" from the server reads "9" (research section 11).
+// weather line writes them (9, 8.5), so "9.0" from the server reads "9" (research section 11). A trip
+// distance is written as the schedule writes it, with one decimal place ("34.2 km", feature 009).
 
 export const checkingText = "Checking your plan against the latest forecast…"
 
@@ -22,12 +24,15 @@ export function planProblemText(problem: PlanProblem): string {
     case "heat":
       return `Temperature up to ${value} °C at ${time}, above your maximum of ${limit} °C.`
     case "noForecast":
+      return `No forecast for ${time}.`
     case "beforeSunrise":
+      return `Starts at ${time}, before sunrise at ${problem.sunTime}.`
     case "afterSunset":
+      return `Ends at ${time}, after sunset at ${problem.sunTime}.`
     case "overlap":
+      return `Overlaps with ${problem.otherActivityName} (${problem.otherStartTime}–${problem.otherEndTime}).`
     case "travel":
-      // Worded with the remaining rules (tasks.md T046).
-      return ""
+      return `Travel of ${kmText(value ?? 0)} from ${problem.fromPlaceName}, more than your ${limit} km limit.`
     default: {
       const unknown: never = problem.rule
       return unknown

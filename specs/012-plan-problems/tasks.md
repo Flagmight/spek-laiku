@@ -405,7 +405,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Backend for User Story 3
 
-- [ ] T041 [US3] Extend `backend/src/SpekLaiku.Api/Services/PlanWeatherRules.cs`:
+- [x] T041 [US3] Extend `backend/src/SpekLaiku.Api/Services/PlanWeatherRules.cs`:
   - **NoForecast**: for an Outdoor activity, the first entry hour with any null value gives `PlanProblem(NoForecast, Time: hour.Start)`. An hour of the entry that is missing from `day.Hours` counts as missing too, with `Time` set to that hour's start.
   - **Daylight**: when `activity.RequiresDaylight`:
     - if the entry's first hour has `Daylight == false`, add `PlanProblem(BeforeSunrise, Time: entry.StartTime, SunTime: day.Sunrise)`;
@@ -413,7 +413,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     
     Both can occur (research section 6).
   - Return everything in `PlanRule` order.
-- [ ] T042 [US3] Add tests to `backend/tests/SpekLaiku.UnitTests/PlanWeatherRulesTests.cs`:
+- [x] T042 [US3] Add tests to `backend/tests/SpekLaiku.UnitTests/PlanWeatherRulesTests.cs`:
   - `MissingValue_GivesNoForecastAtTheFirstSuchHour`;
   - `MissingHour_GivesNoForecast`;
   - `IndoorWithMissingValues_GetsNoNoForecast`;
@@ -423,12 +423,12 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `IndoorRequiringDaylight_GetsDaylightProblemsOnly`;
   - `ActivityNotRequiringDaylight_GetsNoDaylightProblem`;
   - `AllRules_AreInRuleOrder`.
-- [ ] T043 [US3] Extend `backend/src/SpekLaiku.Api/Services/PlanCheckRules.cs` (research section 7):
+- [x] T043 [US3] Extend `backend/src/SpekLaiku.Api/Services/PlanCheckRules.cs` (research section 7):
   - **Overlap**: for each checked entry, every other entry on the same date (past ones included) with `start < otherEnd && otherStart < end` adds `PlanProblem(Overlap, OtherActivityName, OtherStartTime, OtherEndTime)`, ordered by the other entry's start.
   - **Travel**: a checked entry whose saved `Travel?.OverLimit == true` adds `PlanProblem(Travel, Value: Travel.DistanceKm, Limit: snapshot.Schedule.Travel.MaxDistanceKm, FromPlaceName: Travel.FromPlaceName)`.
   - Append these after the weather and daylight problems, so the order stays the `PlanRule` order.
   - Keep the file under 200 lines. If it passes about 150, move overlap and travel into `PlanScheduleRules.cs`.
-- [ ] T044 [US3] Add tests to `backend/tests/SpekLaiku.UnitTests/PlanCheckRulesTests.cs`:
+- [x] T044 [US3] Add tests to `backend/tests/SpekLaiku.UnitTests/PlanCheckRulesTests.cs`:
   - `OverlappingEntries_EachGetAnOverlapWithTheOther`;
   - `TouchingEntries_DoNotOverlap` (10:00–12:00 and 12:00–14:00);
   - `EntriesOnDifferentDates_DoNotOverlap`;
@@ -437,7 +437,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `SavedTripWithinTheLimit_GivesNoProblem`;
   - `PastPreviousActivity_IsStillTheTripsStart` (the saved leg is used as is);
   - `SeveralRulesOnOneEntry_AreEachListed`.
-- [ ] T045 [US3] Add `RuleScenarios` to `backend/tests/SpekLaiku.IntegrationTests/PlanCheckEndpointTests.cs` (spec SC-002). One seeded plan per rule, each with its own location, through the real endpoint:
+- [x] T045 [US3] Add `RuleScenarios` to `backend/tests/SpekLaiku.IntegrationTests/PlanCheckEndpointTests.cs` (spec SC-002). One seeded plan per rule, each with its own location, through the real endpoint:
   - wind, rain, cold and heat;
   - a missing hour (`WithHour` with null values);
   - before sunrise (sunrise scripted after the start) and after sunset;
@@ -456,7 +456,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Frontend for User Story 3
 
-- [ ] T046 [P] [US3] Complete `frontend/src/helpers/planProblemText.ts` with the reasons for `noForecast`, `beforeSunrise`, `afterSunset`, `overlap` and `travel`, word for word as in spec User Story 3 scenarios 4 to 7:
+- [x] T046 [P] [US3] Complete `frontend/src/helpers/planProblemText.ts` with the reasons for `noForecast`, `beforeSunrise`, `afterSunset`, `overlap` and `travel`, word for word as in spec User Story 3 scenarios 4 to 7:
   - "No forecast for HH:MM."
   - "Starts at HH:MM, before sunrise at HH:MM."
   - "Ends at HH:MM, after sunset at HH:MM."
@@ -464,11 +464,18 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - "Travel of <distance> km from <previous place>, more than your <maximum> km limit."
   
   Add a test per text to `frontend/src/tests/planProblemText.test.ts`, and one where an entry with three reasons counts as three problems in one activity (spec Edge Cases).
-- [ ] T047 [US3] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
+- [x] T047 [US3] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
   - An entry with several reasons shows each under "✗ Problem".
   - The problem list over two dates is in date and start time order.
   - A plan with an unscheduled activity: the "Could not be scheduled" list is shown exactly as saved, with no "✗ Problem" and no "Already past. Not checked." in it (spec Edge Cases).
-- [ ] T048 [US3] Run all checks.
+- [x] T048 [US3] Run all checks.
+  - Result (2026-11-22):
+    - **Backend**: build with 0 warnings; 736 unit (+17) and 409 integration tests (+10); `dotnet format` clean.
+    - **Frontend**: lint and type check clean; 91 files and 1299 tests (+9); build clean.
+  - **Decided while implementing**:
+    - `PlanWeatherRules` walks the entry hour by hour from its start, so an hour missing from the latest forecast is a `NoForecast` at that hour. A missing hour gives no daylight problem: there is no daylight flag to read.
+    - An entry's problem list is built as weather and daylight first, then overlaps and travel, which is already the `PlanRule` order. `PlanCheckRules.cs` stays at 111 lines, so overlap and travel were not moved out.
+    - The travel reason writes the distance with `kmText`, one decimal place ("Travel of 40.0 km from …"), as the schedule's travel line does (feature 009).
 
 **Checkpoint**: Every rule is detected and worded.
 

@@ -169,6 +169,116 @@ public sealed class PlanCheckRulesTests
         Assert.True(entry.Past);
     }
 
+    [Fact]
+    public void OverlappingEntries_EachGetAnOverlapWithTheOther()
+    {
+        var snapshot = Snapshot([StrictCycling, Museum], Entry(0, StrictCycling, Date, 10), Entry(1, Museum, Date, 11));
+
+        var entries = PlanCheckRules.Check(snapshot, [Day(Date)], Now);
+
+        Assert.Equal(
+            [new PlanProblem(PlanRule.Overlap, OtherActivityName: "Museum", OtherStartTime: new TimeOnly(11, 0), OtherEndTime: new TimeOnly(13, 0))],
+            entries[0].Problems);
+        Assert.Equal(
+            [new PlanProblem(PlanRule.Overlap, OtherActivityName: "Cycling", OtherStartTime: new TimeOnly(10, 0), OtherEndTime: new TimeOnly(12, 0))],
+            entries[1].Problems);
+    }
+
+    [Fact]
+    public void TouchingEntries_DoNotOverlap()
+    {
+        var snapshot = Snapshot([StrictCycling, Museum], Entry(0, StrictCycling, Date, 10), Entry(1, Museum, Date, 12));
+
+        var entries = PlanCheckRules.Check(snapshot, [Day(Date)], Now);
+
+        Assert.All(entries, entry => Assert.Empty(entry.Problems));
+    }
+
+    [Fact]
+    public void EntriesOnDifferentDates_DoNotOverlap()
+    {
+        var snapshot = Snapshot([StrictCycling, Museum], Entry(0, StrictCycling, Date, 10), Entry(1, Museum, OtherDate, 10));
+
+        var entries = PlanCheckRules.Check(snapshot, [Day(Date), Day(OtherDate)], Now);
+
+        Assert.All(entries, entry => Assert.Empty(entry.Problems));
+    }
+
+    [Fact]
+    public void PastEntry_StillOverlapsACheckedOne_ButGetsNoProblemItself()
+    {
+        // 08:30 today: the Museum (08:00–10:00) has started, Cycling (09:00–11:00) has not.
+        var today = DateOnly.FromDateTime(Now.DateTime);
+        var snapshot = Snapshot([StrictCycling, Museum], Entry(1, Museum, today, 8), Entry(0, StrictCycling, today, 9));
+
+        var entries = PlanCheckRules.Check(snapshot, [Day(today)], Now.AddMinutes(-30));
+
+        Assert.True(entries[0].Past);
+        Assert.Empty(entries[0].Problems);
+        Assert.Equal("Museum", Assert.Single(entries[1].Problems).OtherActivityName);
+    }
+
+    [Fact]
+    public void SavedTripOverTheLimit_GivesTravelWithDistancePlaceAndMaximum()
+    {
+        var snapshot = Snapshot(
+            [Museum, StrictCycling],
+            Entry(0, Museum, Date, 10),
+            Entry(1, StrictCycling, Date, 13) with { Travel = new TravelLeg("Kaunas Castle", 34.2m, OverLimit: true) });
+
+        var entries = PlanCheckRules.Check(snapshot, [Day(Date)], Now);
+
+        Assert.Equal(
+            [new PlanProblem(PlanRule.Travel, Value: 34.2m, Limit: 30m, FromPlaceName: "Kaunas Castle")],
+            entries[1].Problems);
+    }
+
+    [Fact]
+    public void SavedTripWithinTheLimit_GivesNoProblem()
+    {
+        var snapshot = Snapshot(
+            [Museum, StrictCycling],
+            Entry(0, Museum, Date, 10),
+            Entry(1, StrictCycling, Date, 13) with { Travel = new TravelLeg("Kaunas Castle", 12m, OverLimit: false) });
+
+        var entries = PlanCheckRules.Check(snapshot, [Day(Date)], Now);
+
+        Assert.Empty(entries[1].Problems);
+    }
+
+    [Fact]
+    public void PastPreviousActivity_IsStillTheTripsStart()
+    {
+        // 10:30 today: the Museum has started; the saved trip from it is used as is.
+        var today = DateOnly.FromDateTime(Now.DateTime);
+        var snapshot = Snapshot(
+            [Museum, StrictCycling],
+            Entry(0, Museum, today, 10),
+            Entry(1, StrictCycling, today, 13) with { Travel = new TravelLeg("Museum place", 40m, OverLimit: true) });
+
+        var entries = PlanCheckRules.Check(snapshot, [Day(today)], Now.AddHours(1.5));
+
+        Assert.True(entries[0].Past);
+        var problem = Assert.Single(entries[1].Problems);
+        Assert.Equal((PlanRule.Travel, "Museum place"), (problem.Rule, problem.FromPlaceName));
+    }
+
+    [Fact]
+    public void SeveralRulesOnOneEntry_AreEachListed()
+    {
+        var snapshot = Snapshot(
+            [Museum, StrictCycling],
+            Entry(0, Museum, Date, 10),
+            Entry(1, StrictCycling, Date, 11) with { Travel = new TravelLeg("Museum place", 40m, OverLimit: true) });
+        var day = Day(Date, [.. Enumerable.Range(6, 16).Select(hour => Hour(hour, wind: 9m))]);
+
+        var entries = PlanCheckRules.Check(snapshot, [day], Now);
+
+        Assert.Equal(
+            [PlanRule.Wind, PlanRule.Overlap, PlanRule.Travel],
+            entries[1].Problems.Select(problem => problem.Rule));
+    }
+
     private static ScheduledActivity Entry(int? activityIndex, CheckedPlanActivity activity, DateOnly date, int startHour) =>
         new(
             activity.CategoryId,

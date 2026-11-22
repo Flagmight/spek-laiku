@@ -1,6 +1,11 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SpekLaiku.Api.Clients;
+using SpekLaiku.Api.Data;
+using SpekLaiku.Api.Entities;
 using SpekLaiku.Api.Services;
 
 namespace SpekLaiku.IntegrationTests;
@@ -180,6 +185,156 @@ public sealed class PlanCheckEndpointTests : IDisposable
         Assert.Equal("10:00", problem.GetProperty("time").GetString());
         Assert.Equal(2.5m, problem.GetProperty("value").GetDecimal());
         Assert.Equal(1.0m, problem.GetProperty("limit").GetDecimal());
+    }
+
+    /// <summary>
+    /// One seeded plan per rule, through the real endpoint (spec SC-002, User Story 3). Kayaking (wind up to 8 m/s,
+    /// rain up to 1 mm/h, 0 to 30 °C, daylight required) is at 10:00–12:00; each scenario breaks exactly one rule on
+    /// the entry it names, and the problem's fields are those of the contract table.
+    /// </summary>
+    [Theory]
+    [InlineData("wind")]
+    [InlineData("rain")]
+    [InlineData("cold")]
+    [InlineData("heat")]
+    [InlineData("noForecast")]
+    [InlineData("beforeSunrise")]
+    [InlineData("afterSunset")]
+    [InlineData("overlap")]
+    [InlineData("travel")]
+    public async Task RuleScenarios(string rule)
+    {
+        var scenario = RuleScenario.For(rule);
+        var (user, client) = await factory.CreateSignedInUserAsync();
+        var location = SavedPlanSeed.NewLocation();
+        var id = await seed.InsertAsync(user.Id, location, [SavedPlanSeed.PlanDate], [Kayaking, Museum], scenario.Entries);
+        Script(location, scenario.Forecast);
+
+        var (status, body) = await SavedPlanSeed.CheckAsync(client, id);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        var problem = Assert.Single(Entry(body, scenario.EntryIndex).GetProperty("problems").EnumerateArray());
+        Assert.Equal(scenario.Expected, ProblemFields(problem));
+    }
+
+    [Fact]
+    public async Task CategoryLimitsChangedAfterSaving_TheSavedLimitsApply()
+    {
+        // The spec's Edge Case: the plan keeps the limits it was saved with.
+        var (user, client) = await factory.CreateSignedInUserAsync();
+        var location = SavedPlanSeed.NewLocation();
+        var categoryId = await FirstOutdoorCategoryIdAsync();
+        var cycling = SavedPlanSeed.Outdoor("Cycling", categoryId, maxWind: 8);
+        var id = await seed.InsertAsync(
+            user.Id,
+            location,
+            [SavedPlanSeed.PlanDate],
+            [cycling],
+            [SavedPlanSeed.Entry(0, cycling, SavedPlanSeed.PlanDate, new TimeOnly(10, 0), new TimeOnly(12, 0))]);
+        Script(location, SavedPlanSeed.CalmForecast(wind: 5.0));
+
+        var windBefore = await SetCategoryMaxWindAsync(categoryId, 2m);
+        try
+        {
+            var (status, body) = await SavedPlanSeed.CheckAsync(client, id);
+
+            Assert.Equal(HttpStatusCode.OK, status);
+            Assert.Empty(Entry(body, 0).GetProperty("problems").EnumerateArray());
+        }
+        finally
+        {
+            await SetCategoryMaxWindAsync(categoryId, windBefore);
+        }
+    }
+
+    private async Task<Guid> FirstOutdoorCategoryIdAsync()
+    {
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        return await context.ActivityCategories.AsNoTracking()
+            .Where(category => category.Type == ActivityType.Outdoor)
+            .OrderBy(category => category.NormalizedName)
+            .Select(category => category.Id)
+            .FirstAsync();
+    }
+
+    /// <summary>Sets the category's own wind limit and returns the value it had.</summary>
+    private async Task<decimal?> SetCategoryMaxWindAsync(Guid categoryId, decimal? maxWind)
+    {
+        using var scope = factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var category = await context.ActivityCategories.SingleAsync(saved => saved.Id == categoryId);
+        var before = category.MaxWindMs;
+        category.MaxWindMs = maxWind;
+        await context.SaveChangesAsync();
+        return before;
+    }
+
+    /// <summary>The nine problem fields as text, <c>null</c> where the rule does not use the field.</summary>
+    private static List<string?> ProblemFields(JsonElement problem) =>
+        new[] { "rule", "time", "value", "limit", "sunTime", "otherActivityName", "otherStartTime", "otherEndTime", "fromPlaceName" }
+            .Select(name => problem.GetProperty(name) switch
+            {
+                { ValueKind: JsonValueKind.Null } => null,
+                { ValueKind: JsonValueKind.Number } number => number.GetDecimal().ToString("0.0#", CultureInfo.InvariantCulture),
+                var text => text.GetString()
+            })
+            .ToList();
+
+    /// <summary>A plan that breaks one rule: its schedule, the scripted forecast and the expected problem fields.</summary>
+    private sealed record RuleScenario(
+        IReadOnlyList<ScheduledActivity> Entries,
+        HourlyForecast Forecast,
+        int EntryIndex,
+        List<string?> Expected)
+    {
+        private static readonly DateOnly Date = SavedPlanSeed.PlanDate;
+
+        public static RuleScenario For(string rule) => rule switch
+        {
+            "wind" => WeatherHour(11, 10.0, 0.0, 9.0, ["wind", "11:00", "9.0", "8.0", null, null, null, null, null]),
+            "rain" => WeatherHour(10, 10.0, 2.5, 5.0, ["rain", "10:00", "2.5", "1.0", null, null, null, null, null]),
+            "cold" => WeatherHour(10, -3.0, 0.0, 5.0, ["cold", "10:00", "-3.0", "0.0", null, null, null, null, null]),
+            "heat" => WeatherHour(11, 33.0, 0.0, 5.0, ["heat", "11:00", "33.0", "30.0", null, null, null, null, null]),
+            "noForecast" => WeatherHour(11, null, null, null, ["noForecast", "11:00", null, null, null, null, null, null, null]),
+            "beforeSunrise" => new(
+                [Kayaking10To12()],
+                Daylight(new TimeOnly(10, 30), SavedPlanSeed.Sunset),
+                0,
+                ["beforeSunrise", "10:00", null, null, "10:30", null, null, null, null]),
+            "afterSunset" => new(
+                [Kayaking10To12()],
+                Daylight(SavedPlanSeed.Sunrise, new TimeOnly(11, 30)),
+                0,
+                ["afterSunset", "12:00", null, null, "11:30", null, null, null, null]),
+            "overlap" => new(
+                [Kayaking10To12(), SavedPlanSeed.Entry(1, Museum, Date, new TimeOnly(11, 0), new TimeOnly(13, 0))],
+                SavedPlanSeed.CalmForecast(),
+                0,
+                ["overlap", null, null, null, null, "Museum", "11:00", "13:00", null]),
+            "travel" => new(
+                [
+                    SavedPlanSeed.Entry(1, Museum, Date, new TimeOnly(8, 0), new TimeOnly(10, 0)),
+                    Kayaking10To12() with { Travel = new TravelLeg("Museum place", 34.2m, OverLimit: true) }
+                ],
+                SavedPlanSeed.CalmForecast(),
+                1,
+                ["travel", null, "34.2", "30.0", null, null, null, null, "Museum place"]),
+            _ => throw new ArgumentOutOfRangeException(nameof(rule), rule, "No scenario for this rule.")
+        };
+
+        private static RuleScenario WeatherHour(int hour, double? temperature, double? rain, double? wind, List<string?> expected) =>
+            new(
+                [Kayaking10To12()],
+                FakeForecastClient.WithHour(SavedPlanSeed.CalmForecast(), Date, hour, temperature, rain, wind),
+                0,
+                expected);
+
+        private static HourlyForecast Daylight(TimeOnly sunrise, TimeOnly sunset) =>
+            FakeForecastClient.Fill(SavedPlanSeed.Today, ForecastPeriod.Days, 10.0, 0.0, 5.0, sunrise, sunset);
+
+        private static ScheduledActivity Kayaking10To12() =>
+            SavedPlanSeed.Entry(0, Kayaking, Date, new TimeOnly(10, 0), new TimeOnly(12, 0));
     }
 
     private async Task<(HttpClient Client, PlaceLocation Location, Guid Id)> KayakingPlanAsync()

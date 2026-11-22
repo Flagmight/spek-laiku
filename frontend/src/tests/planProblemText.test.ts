@@ -42,6 +42,59 @@ describe("planProblemText", () => {
     ).toBe("Temperature up to 33 °C at 15:00, above your maximum of 30 °C.")
   })
 
+  it("words a missing forecast hour", () => {
+    expect(planProblemText(problem("noForecast", { time: "11:00" }))).toBe(
+      "No forecast for 11:00.",
+    )
+  })
+
+  it("words a start before sunrise with both times", () => {
+    expect(
+      planProblemText(
+        problem("beforeSunrise", { time: "07:00", sunTime: "07:42" }),
+      ),
+    ).toBe("Starts at 07:00, before sunrise at 07:42.")
+  })
+
+  it("words an end after sunset with both times", () => {
+    expect(
+      planProblemText(
+        problem("afterSunset", { time: "17:00", sunTime: "16:05" }),
+      ),
+    ).toBe("Ends at 17:00, after sunset at 16:05.")
+  })
+
+  it("words an overlap with the other activity and its time", () => {
+    expect(
+      planProblemText(
+        problem("overlap", {
+          otherActivityName: "Museum",
+          otherStartTime: "11:00",
+          otherEndTime: "13:00",
+        }),
+      ),
+    ).toBe("Overlaps with Museum (11:00–13:00).")
+  })
+
+  it("words a trip over the limit, with the distance to one decimal place", () => {
+    expect(
+      planProblemText(
+        problem("travel", {
+          value: 34.2,
+          limit: 30,
+          fromPlaceName: "Kaunas Castle",
+        }),
+      ),
+    ).toBe(
+      "Travel of 34.2 km from Kaunas Castle, more than your 30 km limit.",
+    )
+    expect(
+      planProblemText(
+        problem("travel", { value: 40, limit: 30, fromPlaceName: "Museum" }),
+      ),
+    ).toBe("Travel of 40.0 km from Museum, more than your 30 km limit.")
+  })
+
   it("writes decimals as the schedule's weather line does", () => {
     expect(
       planProblemText(problem("wind", { time: "11:00", value: 8.5, limit: 8 })),
@@ -87,6 +140,25 @@ describe("planCheckSummaryText", () => {
         entry(),
       ]),
     ).toBe("2 problems in 1 of 4 scheduled activities.")
+  })
+
+  it("counts an activity with three reasons as three problems in one activity", () => {
+    const overlap = problem("overlap", {
+      otherActivityName: "Museum",
+      otherStartTime: "11:00",
+      otherEndTime: "13:00",
+    })
+    const travel = problem("travel", {
+      value: 34.2,
+      limit: 30,
+      fromPlaceName: "Museum",
+    })
+    expect(
+      planCheckSummaryText([
+        entry({ problems: [wind, overlap, travel] }),
+        entry(),
+      ]),
+    ).toBe("3 problems in 1 of 2 scheduled activities.")
   })
 
   it("uses the singular for one problem and one activity", () => {

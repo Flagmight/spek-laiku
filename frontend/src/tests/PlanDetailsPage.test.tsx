@@ -969,3 +969,103 @@ describe("PlanDetailsPage recalculate", () => {
     await waitFor(() => expect(recalculate).toHaveFocus())
   })
 })
+
+// Feature 012 User Story 3: each problem gives its reason.
+describe("PlanDetailsPage problem reasons", () => {
+  const wind = problem("wind", { time: "11:00", value: 9, limit: 8 })
+  const overlap = problem("overlap", {
+    otherActivityName: "Museum",
+    otherStartTime: "12:00",
+    otherEndTime: "14:00",
+  })
+  const travel = problem("travel", {
+    value: 34.2,
+    limit: 30,
+    fromPlaceName: "Kaunas Castle",
+  })
+  const noForecast = problem("noForecast", { time: "15:00" })
+
+  // The plan with a third entry, Cycling again on the second date.
+  const twoDatePlan: SavedPlan = {
+    ...plan,
+    scheduled: [
+      ...plan.scheduled,
+      { ...plan.scheduled[0], date: "2026-11-22", startTime: "09:00" },
+    ],
+  }
+
+  function entry(index: number) {
+    return document.getElementById(`scheduled-entry-${index}`)!
+  }
+
+  it("shows each reason of an entry with several problems", async () => {
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        jsonResponse(
+          200,
+          planCheckWith([{ problems: [wind, overlap, travel] }], plan),
+        ),
+    )
+
+    expect(
+      await screen.findByText("3 problems in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    const cycling = entry(0)
+    expect(within(cycling).getAllByText("✗ Problem")).toHaveLength(1)
+    expect(cycling).toHaveTextContent(
+      "Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+    )
+    expect(cycling).toHaveTextContent("Overlaps with Museum (12:00–14:00).")
+    expect(cycling).toHaveTextContent(
+      "Travel of 34.2 km from Kaunas Castle, more than your 30 km limit.",
+    )
+  })
+
+  it("lists the problems over two dates in date and start time order", async () => {
+    render(
+      () => jsonResponse(200, twoDatePlan),
+      () =>
+        jsonResponse(
+          200,
+          planCheckWith(
+            [
+              { problems: [wind] },
+              { problems: [noForecast] },
+              { date: "2026-11-22", startTime: "09:00", problems: [wind] },
+            ],
+            twoDatePlan,
+          ),
+        ),
+    )
+
+    await screen.findByText("3 problems in 3 of 3 scheduled activities.")
+    const region = screen.getByRole("region", { name: "Plan check" })
+    expect(
+      within(region)
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual([
+      "Cycling, 2026-11-21 10:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+      "Museum, 2026-11-21 14:00–16:00: No forecast for 15:00.",
+      "Cycling, 2026-11-22 09:00–13:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s.",
+    ])
+  })
+
+  it("shows the activities that could not be scheduled exactly as saved", async () => {
+    render(
+      () => jsonResponse(200, plan),
+      () => jsonResponse(200, planCheckWith([{ problems: [wind] }], plan)),
+    )
+
+    await screen.findByText("1 problem in 1 of 2 scheduled activities.")
+    const unscheduled = screen.getByRole("region", {
+      name: "Could not be scheduled",
+    })
+    expect(within(unscheduled).getByRole("listitem")).toHaveTextContent(
+      "Kayaking: No suitable time found",
+    )
+    expect(unscheduled).not.toHaveTextContent("✗ Problem")
+    expect(unscheduled).not.toHaveTextContent("Already past. Not checked.")
+  })
+})

@@ -3,7 +3,8 @@ namespace SpekLaiku.Api.Services;
 /// <summary>
 /// Checks every scheduled activity of a saved plan against the latest planning hours (feature 012 spec FR-005 to
 /// FR-007, data-model.md). Activities that have started are only marked as past. The others get the latest weather
-/// at their start hour and their problems. The saved plan is read, never changed (spec FR-014).
+/// at their start hour and their problems: weather, daylight, overlaps with the other saved entries and the saved
+/// trip. The saved plan is read, never changed (spec FR-014).
 /// </summary>
 public static class PlanCheckRules
 {
@@ -20,7 +21,7 @@ public static class PlanCheckRules
 
         return snapshot.Schedule.Scheduled
             .Select(entry => daysByDate.TryGetValue(entry.Date, out var day) && !HasStarted(entry, now)
-                ? Checked(entry, ActivityOf(entry, snapshot.Activities), day)
+                ? Checked(entry, snapshot, day)
                 : Past(entry))
             .ToList();
     }
@@ -38,17 +39,49 @@ public static class PlanCheckRules
     /// <summary>Started at or before now: not checked (spec FR-006, User Story 5).</summary>
     internal static bool HasStarted(ScheduledActivity entry, DateTimeOffset now) => StartInstant(entry) <= now;
 
-    private static PlanCheckEntry Checked(ScheduledActivity entry, CheckedPlanActivity? activity, PlanningDay day)
+    /// <summary>
+    /// The entry's weather and daylight problems, then its overlaps and its saved trip, so the problems stay in
+    /// <see cref="PlanRule"/> order (research section 7).
+    /// </summary>
+    private static PlanCheckEntry Checked(ScheduledActivity entry, PlanSnapshot snapshot, PlanningDay day)
     {
+        var activity = ActivityOf(entry, snapshot.Activities);
+
         // An entry whose activity cannot be found is checked as Indoor without limits (data-model.md "Validation").
-        if (activity is null)
+        var weather = ScheduledWeather.At(
+            activity is null || ActivityForecasts.IsWeatherIndependent(activity), entry.StartTime, day);
+        List<PlanProblem> problems = activity is null ? [] : PlanWeatherRules.For(entry, activity, day).ToList();
+
+        problems.AddRange(Overlaps(entry, snapshot.Schedule.Scheduled));
+
+        if (entry.Travel is { OverLimit: true } travel)
         {
-            return Entry(entry, ScheduledWeather.At(true, entry.StartTime, day), []);
+            problems.Add(new PlanProblem(
+                PlanRule.Travel,
+                Value: travel.DistanceKm,
+                Limit: snapshot.Schedule.Travel.MaxDistanceKm,
+                FromPlaceName: travel.FromPlaceName));
         }
 
-        var weather = ScheduledWeather.At(ActivityForecasts.IsWeatherIndependent(activity), entry.StartTime, day);
-        return Entry(entry, weather, PlanWeatherRules.For(entry, activity, day));
+        return Entry(entry, weather, problems);
     }
+
+    /// <summary>
+    /// Every other entry on the same date, past ones included, whose time overlaps this entry's, ordered by its
+    /// start. The test is the one <see cref="PlanScheduler"/> uses, so touching entries do not overlap.
+    /// </summary>
+    private static IEnumerable<PlanProblem> Overlaps(ScheduledActivity entry, IReadOnlyList<ScheduledActivity> scheduled) =>
+        scheduled
+            .Where(other => !ReferenceEquals(other, entry)
+                && other.Date == entry.Date
+                && entry.StartTime < other.EndTime
+                && other.StartTime < entry.EndTime)
+            .OrderBy(other => other.StartTime)
+            .Select(other => new PlanProblem(
+                PlanRule.Overlap,
+                OtherActivityName: other.ActivityName,
+                OtherStartTime: other.StartTime,
+                OtherEndTime: other.EndTime));
 
     private static PlanCheckEntry Past(ScheduledActivity entry) => Entry(entry, null, [], past: true);
 
