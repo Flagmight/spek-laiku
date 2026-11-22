@@ -629,7 +629,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     
     Change nothing else. Check `docs/architecture.md` for statements that contradict the implementation, and correct only what is now wrong.
   - Result (2026-11-22): README "Saved plans" has the **Plan check** bullet, the new actions list, the quickstart and "Feature 012 adds no migration" (also in "Run the application"). `docs/ux-design.md` has the Plan Details / Edit row and the three new states. `docs/architecture.md` already matches the implementation (its Services row names plan checks and its feature table lists 012), so it is unchanged.
-- [ ] T066 Run all checks and confirm they pass:
+- [x] T066 Run all checks and confirm they pass:
   - from the repository root: `dotnet build SpekLaiku.slnx`, `dotnet test SpekLaiku.slnx` and `dotnet format SpekLaiku.slnx --verify-no-changes`;
   - from `frontend/`: `npm run lint`, `npm test` and `npm run build`.
   
@@ -638,9 +638,17 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - T034: test routes added for the check request (routes only, no assertion).
   
   List any change in the PR description (constitution III). Record the results here.
+  - Result (2026-11-22), each step run on its own in the foreground:
+    - **Backend**: build with 0 warnings; 736 unit tests (T002: 666, +70) and 427 integration tests (T002: 391, +36); `dotnet format --verify-no-changes` clean.
+    - **Frontend**: lint and type check clean; `npm run format:check` clean (the CI runs it); 91 files (T002: 87, +4) and 1318 tests (T002: 1240, +78); build clean.
+    - The first `npm test` run counted only 88 files, with no failing test. That is the known worker start-up problem (shared test notes, "Vitest cold start"); the re-run counted 91 files and 1318 tests, all passing.
+  - **Changed existing assertions** (from `git diff main...HEAD` over the existing test files), all allowed above:
+    - T039: the feature 010 test "offers no save or recalculate action and generates nothing" is now "offers no save action and generates nothing"; only its Recalculate assertion was removed. The feature 011 test "offers Edit plan first among the plan's actions" lists Recalculate after Edit plan (T040).
+    - T034: the plan page tests got a check route, and `render` in `PlanDetailsPage.test.tsx` takes an optional check answer. No assertion changed.
+    - T012: `PostgreSqlApiFactory.CreateSignedInClientAsync` now calls the new `CreateSignedInUserAsync`; the clients it returns are the same.
 - [ ] T067 Walk through `specs/012-plan-problems/quickstart.md` Part 2, scenarios 1 to 7, in the running app (README "Run the application"). Record which passed and any that could not be done (for example, a plan could not be created because Overpass was unavailable; then use an existing or duplicated plan). Step 2's SQL changes only the local development database; ask the user before running it.
   - For spec SC-001 (result within 5 seconds), note in scenarios 1 and 3 how long the check takes from opening the plan or selecting **Recalculate** until the result is shown. Use the browser's network tab: the duration of `GET /api/plans/<id>/check`, once with a forecast that is not cached and once with a cached one. Record both times here. There is no automated load test (analysis finding C1).
-- [ ] T068 Review `git diff main...HEAD` and confirm:
+- [x] T068 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus the README, docs and spec files, changed;
   - there is no debug code, commented-out code or temporary file;
   - every new or changed C# class is under 200 lines (`PlansController`, `PlanCheckRules`, `PlanWeatherRules`, `PlanCheckService`, `HourSuitabilityRules`, `PlanScheduler`);
@@ -648,6 +656,11 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - no migration was added, and `ScheduledActivityResponse` is unchanged.
   
   Record the result here.
+  - Result (2026-11-22): 67 files changed.
+    - Every production file is in plan.md "Source Code". The test files are under the `tests/` folders it names, and the rest are the README, `docs/ux-design.md` and this feature's spec files.
+    - No `console.log`, `debugger`, `TODO`, `FIXME`, `.only(` or commented-out code was added, and there is no temporary file.
+    - Lines: `PlansController` 153, `PlanCheckRules` 111, `PlanWeatherRules` 120, `PlanCheckService` 59, `HourSuitabilityRules` 111, `PlanScheduler` 118. `PlanDetailsPage.tsx` 152, `scheduledDaySection.tsx` 76, `planCheckSection.tsx` 83, `usePlanCheckStore.ts` 101.
+    - Nothing under `Migrations/` changed, and `ScheduledActivityResponse.cs` is unchanged (its no-`activityIndex` test is T010).
 - [ ] T069 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds an endpoint behind access control that calls an external service. Record:
   - the tool;
   - the important findings;
