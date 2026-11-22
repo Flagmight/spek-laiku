@@ -85,9 +85,7 @@ describe("planProblemText", () => {
           fromPlaceName: "Kaunas Castle",
         }),
       ),
-    ).toBe(
-      "Travel of 34.2 km from Kaunas Castle, more than your 30 km limit.",
-    )
+    ).toBe("Travel of 34.2 km from Kaunas Castle, more than your 30 km limit.")
     expect(
       planProblemText(
         problem("travel", { value: 40, limit: 30, fromPlaceName: "Museum" }),

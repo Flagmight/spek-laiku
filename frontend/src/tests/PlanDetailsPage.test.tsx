@@ -1083,7 +1083,9 @@ describe("PlanDetailsPage check failures", () => {
   function expectPlanAsSaved() {
     expect(screen.getByText(savedNote)).toBeInTheDocument()
     // The saved weather of Cycling, not a newer one. Without a check the entries have no ids.
-    expect(screen.getByText("Cycling").closest("li")).toHaveTextContent("3.2 m/s wind, 0 mm/h rain, 8.5 °C")
+    expect(screen.getByText("Cycling").closest("li")).toHaveTextContent(
+      "3.2 m/s wind, 0 mm/h rain, 8.5 °C",
+    )
     expect(screen.queryByText("✗ Problem")).toBeNull()
     const region = screen.getByRole("region", { name: "Plan check" })
     expect(within(region).queryAllByRole("link")).toHaveLength(0)
@@ -1282,10 +1284,9 @@ describe("PlanDetailsPage refused checks", () => {
     expect(
       screen.getByRole("link", { name: "Go to the home page" }),
     ).toHaveAttribute("href", "/")
-    expect(screen.getByRole("link", { name: "Go to My plans" })).toHaveAttribute(
-      "href",
-      "/plans",
-    )
+    expect(
+      screen.getByRole("link", { name: "Go to My plans" }),
+    ).toHaveAttribute("href", "/plans")
   })
 
   it("asks who is signed in again when the check answers 401", async () => {
