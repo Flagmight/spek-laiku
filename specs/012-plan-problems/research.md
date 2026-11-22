@@ -109,6 +109,7 @@ The spec has no open questions (Clarifications, session 2026-11-20). This file r
 - If the first hour of the entry is not in daylight, the problem is `beforeSunrise`, with the entry's start time and the date's sunrise.
 - If the last hour is not in daylight, the problem is `afterSunset`, with the end time and the sunset.
 - Both can occur on one entry.
+- A dark hour counts for the side of the day it is on: before or after the middle of the day (halfway between sunrise and sunset). So a one-hour entry, or one that is dark all through, gets only "beforeSunrise" or only "afterSunset" (added after the code review, tasks.md T069).
 - The sunrise and sunset shown are `PlanningDay.Sunrise` and `Sunset` from the latest forecast (spec Edge Cases: the latest times are used).
 
 **Rationale**:

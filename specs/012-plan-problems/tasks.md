@@ -661,13 +661,31 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - No `console.log`, `debugger`, `TODO`, `FIXME`, `.only(` or commented-out code was added, and there is no temporary file.
     - Lines: `PlansController` 153, `PlanCheckRules` 111, `PlanWeatherRules` 120, `PlanCheckService` 59, `HourSuitabilityRules` 111, `PlanScheduler` 118. `PlanDetailsPage.tsx` 152, `scheduledDaySection.tsx` 76, `planCheckSection.tsx` 83, `usePlanCheckStore.ts` 101.
     - Nothing under `Migrations/` changed, and `ScheduledActivityResponse.cs` is unchanged (its no-`activityIndex` test is T010).
-- [ ] T069 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds an endpoint behind access control that calls an external service. Record:
+- [x] T069 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds an endpoint behind access control that calls an external service. Record:
   - the tool;
   - the important findings;
   - the changes made;
   - the findings not applied, each with a short reason.
   
   These go in the Pull Request description (constitution VII). Apply the accepted fixes and re-run T066.
+  - Result (2026-11-22), tools: Claude Code `/code-review` (level high, `main...012-plan-problems`) and `/security-review`.
+    - **`/security-review`**: no vulnerabilities found. It checked:
+      - the endpoint's policy (`ActiveRegisteredUser` on the controller);
+      - that the owner check in `SavedPlanService.GetAsync` comes before any read of the snapshot or call to the weather service;
+      - that the owner id comes from the sign-in cookie, and the route id is constrained to a GUID;
+      - the response DTOs (no owner, location id, `CategoryId` or `ActivityIndex`);
+      - the fixed error bodies of `ApiExceptionHandler`;
+      - that no logging was added;
+      - that the snapshot JSON uses System.Text.Json without polymorphic type handling, and the index is bounds-checked;
+      - that the frontend has no `dangerouslySetInnerHTML` and the id is encoded in the request URL.
+    - **`/code-review`**: 6 findings, 4 applied.
+      1. *Applied (important)*: an activity that requires daylight and has a single dark hour, or is dark all through, got both "before sunrise" and "after sunset". `PlanWeatherRules` now decides the side by the dark hour's start: before or after the middle of the day (halfway between sunrise and sunset). This refines research section 6, which only looked at the first and last hour. Tests: `OneHourAfterSunset_GivesOnlyAfterSunset`, `OneHourBeforeSunrise_GivesOnlyBeforeSunrise` and `EntryDarkAllThroughAfterSunset_GivesOnlyAfterSunset`. `AllRules_AreInRuleOrder` now uses an entry that is dark at both real ends of the day, because its old dark hour at 09:00 is no longer "after sunset".
+      2. *Applied (important)*: after a second replacement of the plan in another tab, the check result was hidden with no message, because the page reloaded at most once per opening. `PlanDetailsPage.tsx` now remembers the saved time of the version it reloaded for, so each newer version is loaded once, and versions that keep differing still cannot loop. The existing "loads the plan again only once" test still passes. The new test "shows the check again after the plan is replaced a second time" failed before the fix.
+      3. *Applied (nit)*: if midnight passed while the forecast was fetched, every entry could come back past with status `checked`, so the page said "No problems found" although nothing was checked. `PlanCheckService` now answers `allPast`, with no `forecastUpdatedAt`, whenever every entry is past. Test: `DateTheForecastNoLongerCovers_MakesThePlanAllPast`.
+      4. *Applied (nit)*: a disabled Recalculate (and a disabled Duplicate or Delete) kept the secondary button's white background, so it did not look disabled. The secondary rule is now `.plan-actions button:not(:first-child):not(:disabled)`, as `.category-list` already does. Test: "keeps Recalculate looking disabled while a check runs".
+      5. *Not applied (nit)*: opening another user's plan also sends the check, whose 403 refreshes the current user and uses one request of the shared limit. The check starts together with the plan load on purpose (research section 13). The server refuses it before any external call, and the refresh is the designed reaction to a 403 (data-model.md "usePlanCheckStore").
+      6. *Not applied (nit)*: plans saved before this feature that repeat a category check every copy against the first copy's limits. This is the fallback research section 4 chose. An ordinal mapping is not reliable either, because unscheduled activities shift the order. It affects only plans saved before feature 012, and every plan saved or replaced from now on stores `ActivityIndex`.
+    - **T066 re-run after the fixes**: backend build with 0 warnings; 739 unit (+3) and 428 integration tests (+1); `dotnet format` clean. Frontend lint, `format:check` and build clean; 91 files and 1320 tests (+2).
 - [ ] T070 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:
   - a plan with no problems;
   - a plan with problems and marked entries;

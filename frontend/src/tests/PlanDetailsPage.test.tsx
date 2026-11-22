@@ -1302,3 +1302,41 @@ describe("PlanDetailsPage refused checks", () => {
     )
   })
 })
+
+// Feature 012 research section 12: each newer version of the plan is loaded once.
+describe("PlanDetailsPage plan replaced elsewhere", () => {
+  it("shows the check again after the plan is replaced a second time", async () => {
+    const user = userEvent.setup()
+    const versions = [
+      plan,
+      { ...plan, savedAt: "2026-11-19T08:00:00Z" },
+      { ...plan, savedAt: "2026-11-20T09:00:00Z" },
+    ]
+    let loads = 0
+    let checks = 0
+    const wind = problem("wind", { time: "11:00", value: 9, limit: 8 })
+    // The first two checks find the second version; Recalculate then finds the third, with a problem.
+    const { requests } = render(
+      () => jsonResponse(200, versions[Math.min(loads++, 2)]),
+      () =>
+        ++checks <= 2
+          ? jsonResponse(200, planCheckWith([], versions[1]))
+          : jsonResponse(
+              200,
+              planCheckWith([{ problems: [wind] }], versions[2]),
+            ),
+    )
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Recalculate" }))
+
+    expect(
+      await screen.findByText("1 problem in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    expect(
+      requests.filter((request) => request.path === `/api/plans/${id}`),
+    ).toHaveLength(3)
+  })
+})

@@ -402,6 +402,32 @@ public sealed class PlanCheckEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task DateTheForecastNoLongerCovers_MakesThePlanAllPast()
+    {
+        // As when midnight passes while the forecast is fetched: the answer starts on the next day, so today's
+        // activity has no forecast and is past, and with nothing left to check the plan is past as a whole.
+        var (user, client) = await factory.CreateSignedInUserAsync();
+        var location = SavedPlanSeed.NewLocation();
+        var id = await seed.InsertAsync(
+            user.Id,
+            location,
+            [SavedPlanSeed.Today],
+            [Kayaking],
+            [SavedPlanSeed.Entry(0, Kayaking, SavedPlanSeed.Today, new TimeOnly(20, 0), new TimeOnly(22, 0))]);
+        Script(
+            location,
+            FakeForecastClient.Fill(
+                SavedPlanSeed.Today.AddDays(1), ForecastPeriod.Days, 10.0, 0.0, 5.0, SavedPlanSeed.Sunrise, SavedPlanSeed.Sunset));
+
+        var (status, body) = await SavedPlanSeed.CheckAsync(client, id);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("allPast", body.GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("forecastUpdatedAt").ValueKind);
+        Assert.True(Entry(body, 0).GetProperty("past").GetBoolean());
+    }
+
+    [Fact]
     public async Task ActivityThatStartedButHasNotEnded_IsPast()
     {
         // 14:20 in Vilnius: Kayaking 14:00–16:00 today has started; the Museum later today has not.

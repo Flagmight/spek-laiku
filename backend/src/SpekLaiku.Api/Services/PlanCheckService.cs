@@ -49,11 +49,14 @@ public sealed class PlanCheckService(
             .Distinct()
             .ToList();
         var days = PlanningDays.Build(received.Data, dates, now, options.Value);
+        var entries = PlanCheckRules.Check(snapshot, days, now);
 
+        // If that leaves no activity to check, the plan is past as a whole: no forecast was used for it.
+        var allPast = entries.All(entry => entry.Past);
         return PlanCheckResult.Of(new PlanCheck(
             plan.SavedAtUtc,
-            AllPast: false,
-            ForecastPeriod.ToLithuanianMinute(received.ReceivedAt),
-            PlanCheckRules.Check(snapshot, days, now)));
+            allPast,
+            allPast ? null : ForecastPeriod.ToLithuanianMinute(received.ReceivedAt),
+            entries));
     }
 }

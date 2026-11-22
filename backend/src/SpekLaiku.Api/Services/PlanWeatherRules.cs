@@ -91,7 +91,9 @@ public static class PlanWeatherRules
     }
 
     // Daylight hours are contiguous, so a dark hour inside an entry is always at its start or its end (research
-    // section 6). A missing hour is a NoForecast matter, not a daylight one.
+    // section 6). The daylight flag says that an hour is dark, not on which side of the day: a dark hour before
+    // midday is before sunrise, and one after it is after sunset. So a one-hour entry, or one that is dark all
+    // through, gets only the problem of its own side. A missing hour is a NoForecast matter, not a daylight one.
     private static void AddDaylightProblems(
         List<PlanProblem> problems,
         ScheduledActivity entry,
@@ -103,12 +105,14 @@ public static class PlanWeatherRules
             return;
         }
 
-        if (hours[0] is { Daylight: false })
+        var midday = day.Sunrise.Add((day.Sunset - day.Sunrise) / 2);
+
+        if (hours[0] is { Daylight: false } first && first.Start < midday)
         {
             problems.Add(new PlanProblem(PlanRule.BeforeSunrise, Time: entry.StartTime, SunTime: day.Sunrise));
         }
 
-        if (hours[^1] is { Daylight: false })
+        if (hours[^1] is { Daylight: false } last && last.Start >= midday)
         {
             problems.Add(new PlanProblem(PlanRule.AfterSunset, Time: entry.EndTime, SunTime: day.Sunset));
         }

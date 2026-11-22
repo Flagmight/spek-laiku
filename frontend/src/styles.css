@@ -716,7 +716,7 @@ fieldset.plan-activity h3 {
 }
 
 .saved-plans td button,
-.plan-actions button:not(:first-child),
+.plan-actions button:not(:first-child):not(:disabled),
 .editing-notice button,
 .confirm-dialog button:last-child {
   background: #ffffff;

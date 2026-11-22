@@ -217,17 +217,60 @@ public sealed class PlanWeatherRulesTests
     [Fact]
     public void AllRules_AreInRuleOrder()
     {
-        var entry = Entry with { StartTime = new TimeOnly(7, 0), EndTime = new TimeOnly(10, 0) };
+        // 07:00–17:00: dark at both ends (sunrise 07:30, sunset 16:30), and every weather rule broken in between.
+        var entry = Entry with { StartTime = new TimeOnly(7, 0), EndTime = new TimeOnly(17, 0) };
         var day = Day(
-            Hour(7, temperature: 35m, rain: 2m, wind: 9m) with { Daylight = false },
-            Hour(8) with { WindMs = null },
-            Hour(9) with { Daylight = false });
+        [
+            Hour(7) with { Daylight = false },
+            Hour(8, temperature: 35m, rain: 2m, wind: 9m),
+            Hour(9) with { WindMs = null },
+            .. Enumerable.Range(10, 6).Select(hour => Hour(hour)),
+            Hour(16) with { Daylight = false }
+        ]);
 
         var problems = PlanWeatherRules.For(entry, Kayaking, day);
 
         Assert.Equal(
             [PlanRule.Wind, PlanRule.Rain, PlanRule.Heat, PlanRule.NoForecast, PlanRule.BeforeSunrise, PlanRule.AfterSunset],
             problems.Select(problem => problem.Rule));
+    }
+
+    [Fact]
+    public void OneHourAfterSunset_GivesOnlyAfterSunset()
+    {
+        // The code review's example: sunset moved to 15:58, so the single hour 15:00–16:00 is dark.
+        var entry = Entry with { StartTime = new TimeOnly(15, 0), EndTime = new TimeOnly(16, 0) };
+        var day = Day(Hour(15) with { Daylight = false }) with { Sunset = new TimeOnly(15, 58) };
+
+        var problems = PlanWeatherRules.For(entry, Kayaking, day);
+
+        Assert.Equal(
+            [new PlanProblem(PlanRule.AfterSunset, Time: new TimeOnly(16, 0), SunTime: new TimeOnly(15, 58))],
+            problems);
+    }
+
+    [Fact]
+    public void OneHourBeforeSunrise_GivesOnlyBeforeSunrise()
+    {
+        var entry = Entry with { StartTime = new TimeOnly(7, 0), EndTime = new TimeOnly(8, 0) };
+        var day = Day(Hour(7) with { Daylight = false });
+
+        var problems = PlanWeatherRules.For(entry, Kayaking, day);
+
+        Assert.Equal(
+            [new PlanProblem(PlanRule.BeforeSunrise, Time: new TimeOnly(7, 0), SunTime: new TimeOnly(7, 30))],
+            problems);
+    }
+
+    [Fact]
+    public void EntryDarkAllThroughAfterSunset_GivesOnlyAfterSunset()
+    {
+        var entry = Entry with { StartTime = new TimeOnly(17, 0), EndTime = new TimeOnly(19, 0) };
+        var day = Day(Hour(17) with { Daylight = false }, Hour(18) with { Daylight = false });
+
+        var problems = PlanWeatherRules.For(entry, Kayaking, day);
+
+        Assert.Equal([PlanRule.AfterSunset], problems.Select(problem => problem.Rule));
     }
 
     private static PlanningHour Hour(int start, decimal temperature = 10m, decimal rain = 0m, decimal wind = 3m) =>

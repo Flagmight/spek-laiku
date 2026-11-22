@@ -41,8 +41,10 @@ export function PlanDetailsPage() {
   const plan = useSavedPlanStore((state) => state.plan)
   const renameStatus = useRenamePlanStore((state) => state.status)
   const checkResult = usePlanCheckStore((state) => state.result)
-  // The plan is loaded again at most once per opening when the check is of a newer version (research 12).
-  const reloadedForNewerPlan = useRef(false)
+  // The saved time of the newer version the plan was last loaded again for (research 12). Each newer version is
+  // loaded once, so a second replacement in another tab is shown too, and versions that keep differing cannot
+  // loop.
+  const reloadedForNewerPlan = useRef<string | null>(null)
   // The title follows a rename, because it reads the loaded plan's name (feature 011 FR-014).
   usePageTitle(status === "loaded" && plan ? plan.name : titles[status])
 
@@ -53,9 +55,9 @@ export function PlanDetailsPage() {
       plan &&
       checkResult &&
       checkResult.savedAt !== plan.savedAt &&
-      !reloadedForNewerPlan.current
+      reloadedForNewerPlan.current !== checkResult.savedAt
     ) {
-      reloadedForNewerPlan.current = true
+      reloadedForNewerPlan.current = checkResult.savedAt
       void useSavedPlanStore.getState().load(planId)
       void usePlanCheckStore.getState().check(planId)
     }
@@ -63,7 +65,7 @@ export function PlanDetailsPage() {
 
   useEffect(() => {
     const store = useSavedPlanStore.getState()
-    reloadedForNewerPlan.current = false
+    reloadedForNewerPlan.current = null
     void store.load(planId)
     // Checked at the same time as the plan loads, so the saved plan is shown at once (research section 13).
     void usePlanCheckStore.getState().check(planId)

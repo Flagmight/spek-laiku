@@ -1242,3 +1242,22 @@ describe("Plan check at 320 px", () => {
     )
   })
 })
+
+describe("Plan check actions", () => {
+  it("keeps Recalculate looking disabled while a check runs", async () => {
+    routeFetch({
+      ...savedPlanRoutes(),
+      [`GET /api/plans/${savedPlanId}/check`]: () =>
+        new Promise<Response>(() => {}),
+    })
+    renderApp(`/plans/${savedPlanId}`)
+
+    const recalculate = await screen.findByRole("button", {
+      name: "Recalculate",
+    })
+    expect(recalculate).toBeDisabled()
+    expect(getComputedStyle(recalculate).backgroundColor).toBe(
+      "rgb(154, 165, 177)",
+    )
+  })
+})
