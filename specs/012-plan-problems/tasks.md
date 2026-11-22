@@ -693,7 +693,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - a past plan.
   
   Keep the images outside the repository unless the README already stores screenshots.
-- [ ] T071 Prepare the Pull Request description for the user. Include:
+- [x] T071 Prepare the Pull Request description for the user. Include:
   - a link to `specs/012-plan-problems/spec.md`;
   - a summary of the change;
   - the tests and checks run (T066, T067);
@@ -704,6 +704,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the AI review record from T069.
   
   The user opens and merges the Pull Request.
+  - Result (2026-11-22): the description is prepared and given to the user, with every item above. Its "Manual walkthrough" and "Screenshots" sections are marked "to be filled in", because T067 and T070 are still open: they need the running app, the user's approval for the SQL step, cutting the API off from the internet, a second account and a screen reader.
 
 **Checkpoint**: All checks green, docs current, review recorded, screenshots and PR description ready. Ready for commit and Pull Request on request.
 
