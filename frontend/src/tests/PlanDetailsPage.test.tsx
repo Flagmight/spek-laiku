@@ -1252,3 +1252,52 @@ describe("PlanDetailsPage past activities", () => {
     expect(screen.queryByText(/Checked against the forecast/)).toBeNull()
   })
 })
+
+// Feature 012 User Story 6: the page reacts when the server refuses the check.
+describe("PlanDetailsPage refused checks", () => {
+  it("says the plan no longer exists when Recalculate finds it deleted elsewhere", async () => {
+    const user = userEvent.setup()
+    let checks = 0
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        ++checks === 1
+          ? jsonResponse(200, planCheckWith([], plan))
+          : jsonResponse(404, {
+              status: 404,
+              title: "Not found.",
+              detail: "This plan no longer exists.",
+            }),
+    )
+    await screen.findByText(
+      "✓ No problems found. Your plan fits the current forecast.",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Recalculate" }))
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Plan not found" }),
+    ).toBeInTheDocument()
+    expect(screen.getByText("This plan no longer exists.")).toBeInTheDocument()
+    expect(
+      screen.getByRole("link", { name: "Go to the home page" }),
+    ).toHaveAttribute("href", "/")
+    expect(screen.getByRole("link", { name: "Go to My plans" })).toHaveAttribute(
+      "href",
+      "/plans",
+    )
+  })
+
+  it("asks who is signed in again when the check answers 401", async () => {
+    const { requests } = render(
+      () => jsonResponse(200, plan),
+      () => new Response(null, { status: 401 }),
+    )
+
+    await waitFor(() =>
+      expect(
+        requests.filter((request) => request.path === "/api/auth/me"),
+      ).toHaveLength(2),
+    )
+  })
+})

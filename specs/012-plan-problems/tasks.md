@@ -559,7 +559,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: Request the check as the owner, another Active Registered User, a Visitor, an Administrator, a Suspended user, and for a deleted plan. Only the owner gets a result, and the weather service is contacted only for the owner.
 
-- [ ] T059 [US6] Create `backend/tests/SpekLaiku.IntegrationTests/PlanCheckAuthorizationTests.cs` (constitution III). Each test seeds a plan for an owner from `CreateSignedInUserAsync`, records `factory.Forecast.Calls`, and asserts that the count is unchanged after the request:
+- [x] T059 [US6] Create `backend/tests/SpekLaiku.IntegrationTests/PlanCheckAuthorizationTests.cs` (constitution III). Each test seeds a plan for an owner from `CreateSignedInUserAsync`, records `factory.Forecast.Calls`, and asserts that the count is unchanged after the request:
   - `Owner_GetsTheCheck` (here the count goes up by one; the control case);
   - `Visitor_Gets401`;
   - `Administrator_Gets403`;
@@ -568,10 +568,12 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `UnknownPlan_Gets404WithTheMessage`: "This plan no longer exists.";
   - `DeletedPlan_Gets404`: delete it with `DELETE /api/plans/{id}` first;
   - `IdThatIsNotAGuid_Gets404`.
-- [ ] T060 [US6] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
+- [x] T060 [US6] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
   - `Recalculate` on a plan deleted elsewhere (the check answers 404) shows "This plan no longer exists." with the links to Home and My plans.
   - A check answering 401 refreshes the current user (a second `GET /api/auth/me`).
 - [ ] T061 [US6] Run all checks.
+  - Partial result (2026-11-22): backend build with 0 warnings and `dotnet format` clean. The 8 new `PlanCheckAuthorizationTests` and the 48 `PlanDetailsPage.test.tsx` tests pass. The full run was stopped during `dotnet test` because the computer ran low on memory, not because a check failed. The user chose to commit and continue; the full run of T064 covers this phase too.
+  - Phase 8 adds tests only: the owner check was already in place (T020, T023), so no production code changed.
 
 **Checkpoint**: Access rules verified for the new endpoint.
 
