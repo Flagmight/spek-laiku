@@ -613,7 +613,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Purpose**: Documentation, full verification, review. No new behaviour.
 
-- [ ] T065 [P] Update the documentation:
+- [x] T065 [P] Update the documentation:
   - **`README.md`, "Saved plans" section**: replace "It is not recalculated and calls no weather or map service; recalculating comes with feature 012." with a **Plan check** bullet. It says:
     - opening a plan and **Recalculate** check it against the latest forecast (at most 30 minutes old);
     - the rules checked (the activity's own weather limits, a missing forecast, daylight, overlap and travel distance), each listed with its reason;
@@ -628,6 +628,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - Plan Problems and Alternatives state table: add "Problems found" (the summary and the list), "Plan in the past" ("This plan's dates have passed. It is not checked against the forecast.") and "Too many requests". Keep "No alternative" and "Changes applied" for feature 013.
     
     Change nothing else. Check `docs/architecture.md` for statements that contradict the implementation, and correct only what is now wrong.
+  - Result (2026-11-22): README "Saved plans" has the **Plan check** bullet, the new actions list, the quickstart and "Feature 012 adds no migration" (also in "Run the application"). `docs/ux-design.md` has the Plan Details / Edit row and the three new states. `docs/architecture.md` already matches the implementation (its Services row names plan checks and its feature table lists 012), so it is unchanged.
 - [ ] T066 Run all checks and confirm they pass:
   - from the repository root: `dotnet build SpekLaiku.slnx`, `dotnet test SpekLaiku.slnx` and `dotnet format SpekLaiku.slnx --verify-no-changes`;
   - from `frontend/`: `npm run lint`, `npm test` and `npm run build`.

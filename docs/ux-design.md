@@ -37,7 +37,7 @@ must be explicitly justified.
 | Schedule Overview | The generated plan in chronological order: start, end, activity, location, weather and travel distance. Includes the "Recalculate" action. | Visitor (session only), Registered User |
 | Plan Problems and Alternatives | Lists conflicts with the current plan (bad weather, overlap, too far) and suggests replacement activities or times. | Visitor, Registered User |
 | My Plans | Lists saved plans with open, duplicate and delete actions (feature 010 lists and opens; feature 011 adds duplicate and delete). | Registered User (own plans only) |
-| Plan Details / Edit | Views and edits one saved plan (feature 010 shows it as saved; feature 011 adds edit, rename, duplicate and delete; recalculating comes with feature 012). | Plan owner |
+| Plan Details / Edit | Views and edits one saved plan (feature 010 shows it as saved; feature 011 adds edit, rename, duplicate and delete; feature 012 adds the plan check and **Recalculate**). | Plan owner |
 | Shared Plan and Voting | Opens a plan via link or invitation, view-only or vote (optional extension). | Registered User (invited) |
 | Profile | Edit profile and preferences, delete account. | Registered User |
 | Admin: Service Status | Shows Open-Meteo and Overpass availability and error logs. | Administrator |
@@ -401,8 +401,11 @@ area.
 |  | Editing a saved plan | "Editing '<name>'. Your saved plan is not changed until you save." with **Cancel editing** on every step; **Save changes** instead of **Save plan**. Success: "✓ Success: Changes saved." with **Open plan**. Server error: "Error: Changes could not be saved. Try again." A deleted plan: "This plan no longer exists. Save it as a new plan instead." with **Save plan** (feature 011). |
 | Plan Problems and Alternatives | Loading | "Checking your plan against the latest forecast…" |
 |  | Empty | "✓ No problems found. Your plan fits the current forecast." |
+|  | Problems found | "<n> problem(s) in <m> of <k> scheduled activities." with one link per problem ("Kayaking, 2026-11-21 10:00–12:00: Wind up to 9 m/s at 11:00, more than your limit of 8 m/s."), and "✗ Problem" with the reasons on each affected schedule entry; started activities show "Already past. Not checked." (feature 012). |
+|  | Plan in the past | "This plan's dates have passed. It is not checked against the forecast." (feature 012). |
 |  | No alternative | "No alternative found for this activity. Keep it or remove it." |
 |  | Service unavailable | "Error: The forecast could not be updated. Your saved plan is unchanged." |
+|  | Too many requests | "Error: Too many requests. Wait a minute and try again." with Retry (feature 012). |
 |  | Success | "✓ Success: Changes applied." |
 | My Plans | Loading | Placeholder rows with "Loading your plans…" |
 |  | Empty | "No saved plans yet." with a **New plan** button. |
