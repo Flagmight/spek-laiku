@@ -490,24 +490,30 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 1. Make the fake weather service fail and open a plan. The error and **Retry** are shown, with the saved weather and the "as saved on" note and nothing listed.
 2. Make the service answer and select **Retry**.
 
-- [ ] T049 [US4] Create `backend/tests/SpekLaiku.IntegrationTests/PlanCheckFailureTests.cs`:
+- [x] T049 [US4] Create `backend/tests/SpekLaiku.IntegrationTests/PlanCheckFailureTests.cs`:
   - `WeatherFailure_Returns503ForTheForecast`: a `[Theory]` over every `FailureKind` scripted with `factory.Forecast.ScriptFailure`. It expects 503 with `service: "forecast"` and the detail of `ApiExceptionHandler`. Logging the failure belongs to the real client and is already covered by `OpenMeteoForecastClientTests`. The check adds no logging of its own, and no user id or email is logged (spec FR-016).
   - `AfterRecovery_TheCheckSucceeds`: `ScriptRecovery`, then 200.
   - `OverTheLimit_Returns429AndDoesNotCallTheWeatherService`: build a host with a low limit as `PlanSetupRateLimitTests.CreateHost` does (copy its pattern, `permitLimit: "2"`). Two checks, then a third gives 429 with the contract body, and the host's own fake forecast client was called at most twice. Also add a `CapturingLoggerProvider` (the integration test helper of the same name) to that host's logging, Assert that no entry at `Warning` level or above was written for the refused request (spec FR-015: a refused check MUST NOT be recorded as a service failure):
   - Take the number of `Entries` before the third request.
   - After it, none of the new entries may contain `" Warning:"`, `" Error:"` or `" Critical:"`. That is the `"{category} {level}: …"` format the provider writes.
-- [ ] T050 [US4] Add `FailedCheck_LeavesThePlanUnchanged` to `backend/tests/SpekLaiku.IntegrationTests/PlanCheckUnchangedTests.cs`: a check that fails with 503 leaves the snapshot JSON, `SavedAtUtc`, `CreatedAtUtc` and `Name` identical (spec NFR-008, SC-003).
-- [ ] T051 [US4] In `frontend/src/components/planCheckSection.tsx`, render the error states (spec FR-013, FR-015):
+- [x] T050 [US4] Add `FailedCheck_LeavesThePlanUnchanged` to `backend/tests/SpekLaiku.IntegrationTests/PlanCheckUnchangedTests.cs`: a check that fails with 503 leaves the snapshot JSON, `SavedAtUtc`, `CreatedAtUtc` and `Name` identical (spec NFR-008, SC-003).
+- [x] T051 [US4] In `frontend/src/components/planCheckSection.tsx`, render the error states (spec FR-013, FR-015):
   - `weatherUnavailable` → "Error: The forecast could not be updated. Your saved plan is unchanged.";
   - `serverError` → "Error: Something went wrong. Try again.";
   - `tooManyRequests` → "Error: Too many requests. Wait a minute and try again.".
   
   Each is in a `role="alert"` paragraph with a **Retry** button that calls `usePlanCheckStore.getState().retry()`. The status element is then empty. No problem list is shown.
-- [ ] T052 [US4] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
+- [x] T052 [US4] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
   - Each of the three errors with **Retry**: the saved weather, the "This is your plan as saved on …" note, and no "✗ Problem" anywhere.
   - **Retry** after the weather error shows the result.
   - A **Recalculate** that fails after a successful check shows the saved weather and the "as saved on" note again.
-- [ ] T053 [US4] Run all checks.
+- [x] T053 [US4] Run all checks.
+  - Result (2026-11-22):
+    - **Backend**: build with 0 warnings; 736 unit and 416 integration tests (+7); `dotnet format` clean.
+    - **Frontend**: lint and type check clean; 91 files and 1304 tests (+5); build clean.
+  - **Decided while implementing**:
+    - The request limit test signs in on its own low-limit host. Its first check asks the weather service and the second reuses the cached answer, so the third is the refused one.
+    - The error texts live in `planCheckSection.tsx`, as `placesAndForecastStatus.tsx` keeps its own, and use `formatErrorMessage` for the "Error: " prefix. The error box uses the existing `server-error` class.
 
 **Checkpoint**: Failures never show outdated data as current, and the plan is never changed.
 

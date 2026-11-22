@@ -61,6 +61,22 @@ public sealed class PlanCheckUnchangedTests : IDisposable
         Assert.Equal(listBefore, await ListIdsAsync(client));
     }
 
+    [Fact]
+    public async Task FailedCheck_LeavesThePlanUnchanged()
+    {
+        // The spec's NFR-008 and SC-003: a weather failure during a check keeps the saved plan as it was.
+        var (user, client) = await factory.CreateSignedInUserAsync();
+        var location = SavedPlanSeed.NewLocation();
+        var id = await InsertKayakingAsync(user.Id, location, "Failed check plan");
+        var before = await RowAsync(id);
+        factory.Forecast.ScriptFailure(location.Latitude, location.Longitude, FailureKind.Timeout);
+
+        var (status, _) = await SavedPlanSeed.CheckAsync(client, id);
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, status);
+        Assert.Equal(before, await RowAsync(id));
+    }
+
     private Task<Guid> InsertKayakingAsync(string ownerId, PlaceLocation location, string name) =>
         seed.InsertAsync(
             ownerId,

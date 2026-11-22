@@ -1069,3 +1069,120 @@ describe("PlanDetailsPage problem reasons", () => {
     expect(unscheduled).not.toHaveTextContent("Already past. Not checked.")
   })
 })
+
+// Feature 012 User Story 4: a failed check keeps the saved plan on screen as saved.
+describe("PlanDetailsPage check failures", () => {
+  const savedNote =
+    "This is your plan as saved on Wed 18 Nov 2026. The forecast may have changed since."
+  const wind = problem("wind", { time: "11:00", value: 9, limit: 8 })
+
+  function entry(index: number) {
+    return document.getElementById(`scheduled-entry-${index}`)!
+  }
+
+  function expectPlanAsSaved() {
+    expect(screen.getByText(savedNote)).toBeInTheDocument()
+    // The saved weather of Cycling, not a newer one. Without a check the entries have no ids.
+    expect(screen.getByText("Cycling").closest("li")).toHaveTextContent("3.2 m/s wind, 0 mm/h rain, 8.5 °C")
+    expect(screen.queryByText("✗ Problem")).toBeNull()
+    const region = screen.getByRole("region", { name: "Plan check" })
+    expect(within(region).queryAllByRole("link")).toHaveLength(0)
+    expect(within(region).getByRole("status")).toHaveTextContent("")
+  }
+
+  it.each([
+    [
+      "the weather service failed",
+      () =>
+        jsonResponse(503, {
+          status: 503,
+          title: "Service unavailable.",
+          detail: "The weather service is unavailable. No forecast is shown.",
+          service: "forecast",
+        }),
+      "Error: The forecast could not be updated. Your saved plan is unchanged.",
+    ],
+    [
+      "the server failed",
+      () => jsonResponse(500, { status: 500, title: "Server error." }),
+      "Error: Something went wrong. Try again.",
+    ],
+    [
+      "the request limit was reached",
+      () =>
+        jsonResponse(429, {
+          status: 429,
+          title: "Too many requests.",
+          detail: "Too many requests. Wait a minute and try again.",
+        }),
+      "Error: Too many requests. Wait a minute and try again.",
+    ],
+  ])(
+    "shows the error with Retry and the plan as saved when %s",
+    async (_, answer, message) => {
+      render(() => jsonResponse(200, plan), answer)
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(message)
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument()
+      expectPlanAsSaved()
+    },
+  )
+
+  it("shows the result when Retry succeeds after a weather failure", async () => {
+    const user = userEvent.setup()
+    let checks = 0
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        ++checks === 1
+          ? jsonResponse(503, { status: 503, service: "forecast" })
+          : jsonResponse(200, planCheckWith([{ problems: [wind] }], plan)),
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Retry" }))
+
+    expect(
+      await screen.findByText("1 problem in 1 of 2 scheduled activities."),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull()
+    expect(checks).toBe(2)
+  })
+
+  it("shows the plan as saved again when Recalculate fails after a successful check", async () => {
+    const user = userEvent.setup()
+    let checks = 0
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        ++checks === 1
+          ? jsonResponse(
+              200,
+              planCheckWith(
+                [
+                  {
+                    weather: {
+                      temperatureC: 6.5,
+                      rainMmPerHour: 0,
+                      windMs: 9,
+                      isIndoor: false,
+                    },
+                    problems: [wind],
+                  },
+                ],
+                plan,
+              ),
+            )
+          : jsonResponse(503, { status: 503, service: "forecast" }),
+    )
+    await screen.findByText("1 problem in 1 of 2 scheduled activities.")
+    expect(entry(0)).toHaveTextContent("9 m/s wind, 0 mm/h rain, 6.5 °C")
+
+    await user.click(screen.getByRole("button", { name: "Recalculate" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Error: The forecast could not be updated. Your saved plan is unchanged.",
+    )
+    expectPlanAsSaved()
+  })
+})
