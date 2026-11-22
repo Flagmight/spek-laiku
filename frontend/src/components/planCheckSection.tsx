@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react"
 import { formatErrorMessage } from "../helpers/formatErrorMessage"
 import {
+  allPastText,
   checkingText,
   noProblemsText,
   planCheckSummaryText,
@@ -21,7 +22,8 @@ const errorTexts: Partial<Record<PlanCheckStatus, string>> = {
 }
 
 // The "Plan check" region above the saved plan's schedule (feature 012 spec FR-008, FR-009, FR-013, FR-018): the
-// loading message, then either the no-problem message, the summary with every problem, or an error with Retry.
+// loading message, then either the no-problem message, the summary with every problem, the past-plan message
+// (spec User Story 5) or an error with Retry.
 // Messages are announced without moving focus; each problem links to its schedule entry. checked is the result
 // of checking the schedule that is shown, or null; a result for another version of the plan is never shown
 // (research section 12).
@@ -33,6 +35,8 @@ export function PlanCheckSection({ checked }: { checked: PlanCheck | null }) {
   let message = ""
   if (status === "checking") {
     message = checkingText
+  } else if (status === "allPast" && checked) {
+    message = allPastText
   } else if (checked) {
     message =
       problems.length === 0

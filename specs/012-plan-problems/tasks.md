@@ -528,20 +528,26 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 1. With a fixed clock, open a plan with entries yesterday and tomorrow. Yesterday's entries show "Already past. Not checked." and tomorrow's are checked.
 2. Open a plan whose dates have all passed. "This plan's dates have passed. It is not checked against the forecast." is shown, and the weather service is not called.
 
-- [ ] T054 [US5] In `backend/src/SpekLaiku.Api/Services/PlanCheckService.cs`, after reading `now`, return early when every scheduled entry's start instant is at or before `now`. The result is `PlanCheckResult.Of(new PlanCheck(plan.SavedAtUtc, AllPast: true, ForecastUpdatedAt: null, entries))`, where `entries` comes from `PlanCheckRules.Check(snapshot, [], now)`, so every entry is `Past`. The weather service is not called (spec FR-006, SC-005). Use `PlanCheckRules.StartInstant` (T018) for "has started", so the service and the rules use the same rule.
-- [ ] T055 [US5] Add tests to `backend/tests/SpekLaiku.IntegrationTests/PlanCheckEndpointTests.cs`:
+- [x] T054 [US5] In `backend/src/SpekLaiku.Api/Services/PlanCheckService.cs`, after reading `now`, return early when every scheduled entry's start instant is at or before `now`. The result is `PlanCheckResult.Of(new PlanCheck(plan.SavedAtUtc, AllPast: true, ForecastUpdatedAt: null, entries))`, where `entries` comes from `PlanCheckRules.Check(snapshot, [], now)`, so every entry is `Past`. The weather service is not called (spec FR-006, SC-005). Use `PlanCheckRules.StartInstant` (T018) for "has started", so the service and the rules use the same rule.
+- [x] T055 [US5] Add tests to `backend/tests/SpekLaiku.IntegrationTests/PlanCheckEndpointTests.cs`:
   - `PartlyPastPlan_ChecksOnlyTheActivitiesAhead`: the spec's independent test, with entries on 2026-11-09 and 2026-11-12 and the clock on 2026-11-10.
   - `PlanWithEveryActivityStarted_IsAllPastAndCallsNoWeatherService`: `status: "allPast"`, `forecastUpdatedAt: null`, every entry `past`, and `factory.Forecast.Calls` unchanged.
   - `ActivityThatStartedButHasNotEnded_IsPast`: the clock is inside the entry.
-- [ ] T056 [US5] Show past entries and past plans in the frontend:
+- [x] T056 [US5] Show past entries and past plans in the frontend:
   - `frontend/src/components/scheduledDaySection.tsx`: an entry whose check is `past` keeps its saved weather and shows the plain text "Already past. Not checked." (spec FR-010).
   - `frontend/src/components/planCheckSection.tsx`: `allPast` → "This plan's dates have passed. It is not checked against the forecast." in the status element.
   - `frontend/src/components/savedPlanView.tsx`: for `allPast`, pass `checks` too (so entries show "Already past. Not checked."), and keep the "as saved on" note, because no forecast was used.
   - The summary already leaves past entries out of k (T027).
-- [ ] T057 [US5] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
+- [x] T057 [US5] Add tests to `frontend/src/tests/PlanDetailsPage.test.tsx`:
   - A partly past plan: the past entry shows "Already past. Not checked." with its saved weather; the summary counts only the checked entries.
   - An `allPast` plan: the message, no **Recalculate**, and every entry shows "Already past. Not checked.".
-- [ ] T058 [US5] Run all checks.
+- [x] T058 [US5] Run all checks.
+  - Result (2026-11-22):
+    - **Backend**: build with 0 warnings; 736 unit and 419 integration tests (+3); `dotnet format` clean.
+    - **Frontend**: lint and type check clean; 91 files and 1306 tests (+2); build clean.
+  - **Decided while implementing**:
+    - `savedPlanView.tsx` now tells apart a check against a forecast (`checked`, which sets the "Checked against …" note) from the result that is shown (`shown`, which also includes `allPast`). An all-past plan therefore marks every entry as past but keeps the "as saved on" note.
+    - The early return relies on data-model.md: a saved plan always has at least one scheduled entry, so an empty schedule never counts as "all past".
 
 **Checkpoint**: Past activities and past plans are handled without a weather call.
 

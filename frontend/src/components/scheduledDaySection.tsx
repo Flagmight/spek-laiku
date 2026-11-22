@@ -15,7 +15,8 @@ export interface ScheduledEntryCheck {
 // FR-008; feature 009 spec FR-007). The activities arrive already sorted by start time;
 // maxDistanceKm is the limit the server checked the trips against, used only for the wording.
 // On the saved plan page, checks (aligned with activities) add the latest weather, the problems and an id
-// that a problem's link moves focus to (feature 012 spec FR-010, FR-011); without them nothing changes.
+// that a problem's link moves focus to (feature 012 spec FR-010, FR-011); without them nothing changes. An
+// entry that has started keeps its saved weather and says it was not checked.
 export function ScheduledDaySection({
   date,
   activities,
@@ -51,6 +52,9 @@ export function ScheduledDaySection({
                 {scheduleWeatherText(check?.weather ?? activity.weather)}
               </span>{" "}
               <span>{travelText(activity.travel, maxDistanceKm)}</span>
+              {check?.past && (
+                <p className="entry-past">Already past. Not checked.</p>
+              )}
               {check && check.problems.length > 0 && (
                 <div className="entry-problems">
                   <p>✗ Problem</p>

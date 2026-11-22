@@ -1186,3 +1186,69 @@ describe("PlanDetailsPage check failures", () => {
     expectPlanAsSaved()
   })
 })
+
+// Feature 012 User Story 5: activities that have started are not checked.
+describe("PlanDetailsPage past activities", () => {
+  const pastText = "Already past. Not checked."
+
+  function entry(index: number) {
+    return document.getElementById(`scheduled-entry-${index}`)!
+  }
+
+  it("marks a started activity as past with its saved weather and counts only the others", async () => {
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        jsonResponse(
+          200,
+          planCheckWith(
+            [
+              { past: true, weather: null, problems: [] },
+              { problems: [problem("noForecast", { time: "15:00" })] },
+            ],
+            plan,
+          ),
+        ),
+    )
+
+    expect(
+      await screen.findByText("1 problem in 1 of 1 scheduled activity."),
+    ).toBeInTheDocument()
+    expect(entry(0)).toHaveTextContent(pastText)
+    expect(entry(0)).toHaveTextContent("3.2 m/s wind, 0 mm/h rain, 8.5 °C")
+    expect(entry(0)).not.toHaveTextContent("✗ Problem")
+    expect(entry(1)).not.toHaveTextContent(pastText)
+    expect(entry(1)).toHaveTextContent("✗ Problem")
+  })
+
+  it("says a plan whose dates have passed is not checked, and offers no Recalculate", async () => {
+    render(
+      () => jsonResponse(200, plan),
+      () =>
+        jsonResponse(200, {
+          ...planCheckWith(
+            plan.scheduled.map(() => ({ past: true, weather: null })),
+            plan,
+          ),
+          status: "allPast",
+          forecastUpdatedAt: null,
+        }),
+    )
+
+    const region = await screen.findByRole("region", { name: "Plan check" })
+    await waitFor(() =>
+      expect(within(region).getByRole("status")).toHaveTextContent(
+        "This plan's dates have passed. It is not checked against the forecast.",
+      ),
+    )
+    expect(screen.queryByRole("button", { name: "Recalculate" })).toBeNull()
+    expect(entry(0)).toHaveTextContent(pastText)
+    expect(entry(1)).toHaveTextContent(pastText)
+    expect(
+      screen.getByText(
+        "This is your plan as saved on Wed 18 Nov 2026. The forecast may have changed since.",
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Checked against the forecast/)).toBeNull()
+  })
+})

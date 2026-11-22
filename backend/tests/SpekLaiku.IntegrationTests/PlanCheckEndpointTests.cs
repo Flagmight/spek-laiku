@@ -11,7 +11,7 @@ using SpekLaiku.Api.Services;
 namespace SpekLaiku.IntegrationTests;
 
 /// <summary>
-/// <c>GET /api/plans/{id}/check</c> for the plan's owner (feature 012 spec User Stories 1 and 2, contracts/
+/// <c>GET /api/plans/{id}/check</c> for the plan's owner (feature 012 spec User Stories 1, 2, 3 and 5, contracts/
 /// plan-check-api.md), against real PostgreSQL, a fixed clock and a scripted weather service. Each test seeds its
 /// own plan at its own location, so forecasts are never shared between tests.
 /// </summary>
@@ -335,6 +335,95 @@ public sealed class PlanCheckEndpointTests : IDisposable
 
         private static ScheduledActivity Kayaking10To12() =>
             SavedPlanSeed.Entry(0, Kayaking, Date, new TimeOnly(10, 0), new TimeOnly(12, 0));
+    }
+
+    [Fact]
+    public async Task PartlyPastPlan_ChecksOnlyTheActivitiesAhead()
+    {
+        // The spec's User Story 5 test: the clock is on 2026-11-10; one entry the day before, one two days after.
+        var yesterday = SavedPlanSeed.Today.AddDays(-1);
+        var (user, client) = await factory.CreateSignedInUserAsync();
+        var location = SavedPlanSeed.NewLocation();
+        var id = await seed.InsertAsync(
+            user.Id,
+            location,
+            [yesterday, SavedPlanSeed.PlanDate],
+            [Kayaking],
+            [
+                SavedPlanSeed.Entry(0, Kayaking, yesterday, new TimeOnly(10, 0), new TimeOnly(12, 0)),
+                SavedPlanSeed.Entry(0, Kayaking, SavedPlanSeed.PlanDate, new TimeOnly(10, 0), new TimeOnly(12, 0))
+            ]);
+        Script(location, FakeForecastClient.WithHour(SavedPlanSeed.CalmForecast(), SavedPlanSeed.PlanDate, 11, 10.0, 0.0, 9.0));
+
+        var (status, body) = await SavedPlanSeed.CheckAsync(client, id);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("checked", body.GetProperty("status").GetString());
+        var past = Entry(body, 0);
+        Assert.True(past.GetProperty("past").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, past.GetProperty("weather").ValueKind);
+        Assert.Empty(past.GetProperty("problems").EnumerateArray());
+        var ahead = Entry(body, 1);
+        Assert.False(ahead.GetProperty("past").GetBoolean());
+        Assert.Equal("wind", Assert.Single(ahead.GetProperty("problems").EnumerateArray()).GetProperty("rule").GetString());
+    }
+
+    [Fact]
+    public async Task PlanWithEveryActivityStarted_IsAllPastAndCallsNoWeatherService()
+    {
+        var yesterday = SavedPlanSeed.Today.AddDays(-1);
+        var (user, client) = await factory.CreateSignedInUserAsync();
+        var location = SavedPlanSeed.NewLocation();
+        var id = await seed.InsertAsync(
+            user.Id,
+            location,
+            [yesterday],
+            [Kayaking, Museum],
+            [
+                SavedPlanSeed.Entry(0, Kayaking, yesterday, new TimeOnly(10, 0), new TimeOnly(12, 0)),
+                SavedPlanSeed.Entry(1, Museum, yesterday, new TimeOnly(13, 0), new TimeOnly(15, 0))
+            ]);
+        Script(location, SavedPlanSeed.CalmForecast());
+        var calls = factory.Forecast.Calls;
+
+        var (status, body) = await SavedPlanSeed.CheckAsync(client, id);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("allPast", body.GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("forecastUpdatedAt").ValueKind);
+        Assert.Equal(2, body.GetProperty("entries").GetArrayLength());
+        Assert.All(body.GetProperty("entries").EnumerateArray(), entry =>
+        {
+            Assert.True(entry.GetProperty("past").GetBoolean());
+            Assert.Equal(JsonValueKind.Null, entry.GetProperty("weather").ValueKind);
+            Assert.Empty(entry.GetProperty("problems").EnumerateArray());
+        });
+        Assert.Equal(calls, factory.Forecast.Calls);
+    }
+
+    [Fact]
+    public async Task ActivityThatStartedButHasNotEnded_IsPast()
+    {
+        // 14:20 in Vilnius: Kayaking 14:00–16:00 today has started; the Museum later today has not.
+        var (user, client) = await factory.CreateSignedInUserAsync();
+        var location = SavedPlanSeed.NewLocation();
+        var id = await seed.InsertAsync(
+            user.Id,
+            location,
+            [SavedPlanSeed.Today],
+            [Kayaking, Museum],
+            [
+                SavedPlanSeed.Entry(0, Kayaking, SavedPlanSeed.Today, new TimeOnly(14, 0), new TimeOnly(16, 0)),
+                SavedPlanSeed.Entry(1, Museum, SavedPlanSeed.Today, new TimeOnly(17, 0), new TimeOnly(19, 0))
+            ]);
+        Script(location, SavedPlanSeed.CalmForecast());
+
+        var (status, body) = await SavedPlanSeed.CheckAsync(client, id);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("checked", body.GetProperty("status").GetString());
+        Assert.True(Entry(body, 0).GetProperty("past").GetBoolean());
+        Assert.False(Entry(body, 1).GetProperty("past").GetBoolean());
     }
 
     private async Task<(HttpClient Client, PlaceLocation Location, Guid Id)> KayakingPlanAsync()

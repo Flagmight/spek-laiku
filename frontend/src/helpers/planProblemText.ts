@@ -11,6 +11,10 @@ export const checkingText = "Checking your plan against the latest forecast…"
 export const noProblemsText =
   "✓ No problems found. Your plan fits the current forecast."
 
+// A plan whose scheduled activities have all started (spec User Story 5).
+export const allPastText =
+  "This plan's dates have passed. It is not checked against the forecast."
+
 // The reason of one broken rule, word for word as in spec User Story 3.
 export function planProblemText(problem: PlanProblem): string {
   const { time, value, limit } = problem

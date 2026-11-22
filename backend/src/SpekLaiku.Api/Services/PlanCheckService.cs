@@ -6,7 +6,8 @@ namespace SpekLaiku.Api.Services;
 /// Checks one saved plan against the latest forecast (feature 012 spec FR-001, FR-002, FR-004, FR-012, FR-014;
 /// research sections 3, 8 and 9). The owner check comes first, so a refused request never reaches the weather
 /// service. Everything the check needs comes from the saved plan. The plan is read with <c>AsNoTracking</c> and
-/// never saved, so a check cannot change it. The forecast comes through the shared cache, at most 30 minutes old.
+/// never saved, so a check cannot change it. A plan whose activities have all started is not checked, and the
+/// weather service is not asked. Otherwise the forecast comes through the shared cache, at most 30 minutes old.
 /// A weather service failure is not caught here: it reaches <c>ApiExceptionHandler</c>, which answers 503.
 /// </summary>
 public sealed class PlanCheckService(
@@ -26,6 +27,16 @@ public sealed class PlanCheckService(
         var plan = lookup.Plan;
         var snapshot = plan.Snapshot;
         var now = forecastPeriod.GetNow();
+
+        // Every activity has started: nothing is checked and the weather service is not asked (spec FR-006, SC-005).
+        if (snapshot.Schedule.Scheduled.All(entry => PlanCheckRules.HasStarted(entry, now)))
+        {
+            return PlanCheckResult.Of(new PlanCheck(
+                plan.SavedAtUtc,
+                AllPast: true,
+                ForecastUpdatedAt: null,
+                PlanCheckRules.Check(snapshot, [], now)));
+        }
 
         var received = await weatherForecastService.GetAsync(snapshot.Setup.Location, cancellationToken);
 
