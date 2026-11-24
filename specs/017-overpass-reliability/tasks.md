@@ -308,23 +308,23 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: A fake main server fails with 502 and a fake fallback has three museums near Kaunas. Step 3 lists them with no error, and the schedule uses them.
 
-- [ ] T033 [P] [US1] Extend `UnitTests/RecordingMapPlacesClient.cs`:
+- [X] T033 [P] [US1] Extend `UnitTests/RecordingMapPlacesClient.cs`:
   - `public void Fail(MapDataServerRole role, FailureKind kind)`, so only calls to that role fail. The existing `Fail(FailureKind)` keeps failing every call.
   - `public Action<MapDataServer>? OnCall { get; set; }`, invoked at the start of each call. US3 uses it to move the clock; a test can also throw from it.
-- [ ] T034 [P] [US1] Extend `IntegrationTests/FakeMapPlacesClient.cs`:
+- [X] T034 [P] [US1] Extend `IntegrationTests/FakeMapPlacesClient.cs`:
   - `ScriptFailure(double latitude, double longitude, FailureKind kind, MapDataServerRole role)`, so only that role fails at that position. The existing overloads keep failing every role.
   - `public int CallsFor(MapDataServerRole role)`.
-- [ ] T035 [US1] Create `Api/Services/MapPlacesSearchService.cs`: `public sealed class MapPlacesSearchService(IMapPlacesClient client, IOptions<MapDataOptions> options)` with `Task<IReadOnlyList<MapElement>> FindAsync(double latitude, double longitude, int radiusKm, IReadOnlyList<string> tags, CancellationToken cancellationToken)`. It follows data-model.md "Attempt rules", without the deadline for now (each attempt gets `server.Timeout`; T045 adds the deadline):
+- [X] T035 [US1] Create `Api/Services/MapPlacesSearchService.cs`: `public sealed class MapPlacesSearchService(IMapPlacesClient client, IOptions<MapDataOptions> options)` with `Task<IReadOnlyList<MapElement>> FindAsync(double latitude, double longitude, int radiusKm, IReadOnlyList<string> tags, CancellationToken cancellationToken)`. It follows data-model.md "Attempt rules", without the deadline for now (each attempt gets `server.Timeout`; T045 adds the deadline):
   - Try `options.Value.Servers()` in order, and return the first successful answer, even an empty one (FR-010).
   - Catch only `ExternalServiceException` with `Service == ExternalService.MapData`, and move on to the next server (FR-009). Everything else passes through, including `OperationCanceledException`.
   - After the last server, rethrow the last failure (FR-012).
   - Each server is called at most once (FR-014).
   - The doc comment cites spec FR-009 to FR-014 and research sections 6 and 7.
-- [ ] T036 [US1] Wire it up:
+- [X] T036 [US1] Wire it up:
   - Register `services.AddScoped<MapPlacesSearchService>();` in `Api/Clients/MapDataRegistration.cs`.
   - Change `Api/Services/NearbyPlacesService.cs` to depend on `MapPlacesSearchService` instead of `IMapPlacesClient` and `IOptions<MapDataOptions>`, and to call `FindAsync` on it.
   - Update the class doc comment: places from either server are cached the same way (FR-011).
-- [ ] T037 [US1] Create `UnitTests/MapPlacesSearchServiceTests.cs` with `RecordingMapPlacesClient` and options with a fallback (`https://main.test/`, `https://fallback.test/`):
+- [X] T037 [US1] Create `UnitTests/MapPlacesSearchServiceTests.cs` with `RecordingMapPlacesClient` and options with a fallback (`https://main.test/`, `https://fallback.test/`):
   - `MainAnswers_FallbackIsNotCalled`.
   - `[Theory] MainFails_FallbackAnswers` for `Timeout`, `Network`, `UnexpectedStatus` and `InvalidResponse`. The calls go main then fallback, each once.
   - `MainAnswersWithNoPlaces_IsASuccessAndFallbackIsNotCalled`.
@@ -332,22 +332,26 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `NoFallbackConfigured_MainFailureIsThrownAtOnce`: one call.
   - `CancelledRequest_IsNotSentToTheFallback`: `OnCall` throws `OperationCanceledException` on the main call; the exception propagates and there is one call.
   - `OtherException_IsNotSentToTheFallback`: an `InvalidOperationException` from the main call propagates.
-- [ ] T038 [US1] Update `UnitTests/NearbyPlacesServiceTests.cs` and `UnitTests/PlanPlacesServiceTests.cs` to build `NearbyPlacesService` through `new MapPlacesSearchService(client, options)`, using options without a fallback. No assertion changes.
-- [ ] T039 [US1] Create `IntegrationTests/MapDataFallbackTests.cs`, with `factory.WithWebHostBuilder(builder => builder.UseSetting("MapData:FallbackServer", "https://fallback.example.test/"))` and its own positions:
+  - **Result**: 13 tests, the listed ones plus `EachAttempt_GetsItsServersWaitingTime`, `OtherServicesFailure_IsNotSentToTheFallback` and `Search_PassesThePositionRadiusAndTagsToEachServer`.
+- [X] T038 [US1] Update `UnitTests/NearbyPlacesServiceTests.cs` and `UnitTests/PlanPlacesServiceTests.cs` to build `NearbyPlacesService` through `new MapPlacesSearchService(client, options)`, using options without a fallback. No assertion changes.
+- [X] T039 [US1] Create `IntegrationTests/MapDataFallbackTests.cs`, with `factory.WithWebHostBuilder(builder => builder.UseSetting("MapData:FallbackServer", "https://fallback.example.test/"))` and its own positions:
   - `PlacesStep_MainFails_ShowsTheFallbacksPlaces`: main `UnexpectedStatus` at the position; `200` with the scripted museums; `CallsFor(Main) == 1` and `CallsFor(Fallback) == 1`. The response's `updatedAt` is `factory.Clock`'s minute in Lithuania, asserted the same way `PlanPlacesEndpointTests` does: the time the fallback's answer was received (User Story 1 scenarios 1 and 2, SC-001).
   - `ScheduleStep_MainFails_UsesTheFallbacksPlaces`: the schedule's scheduled activities use the scripted places (copy the request and forecast setup from `PlanScheduleEndpointTests`).
   - `BothFail_ReturnTheExistingMapDataError`: the same `503` body as `PlanPlacesFailureTests` asserts (scenario 4).
   - `MainAnswers_FallbackIsNotContacted` (scenario 3).
   - `ResponseDoesNotSayWhichServerAnswered`: the body contains neither "fallback" nor the address (scenario 2).
   - `EachFailedAttempt_IsLoggedWithItsRole`: with `CapturingLoggerProvider` as in `PlanPlacesFailureTests`, using the real `OverpassMapPlacesClient` with a fake handler that answers 502 for both addresses. There are two warnings, "… on the main server" and "… on the fallback server", and neither contains the address, the position or the tags (scenario 6, FR-013).
-- [ ] T040 [US1] In `IntegrationTests/PlanSetupRateLimitTests.cs`, confirm that a place request refused with `429` makes no `IMapPlacesClient` call. Add that assertion if it is missing (FR-013, edge case).
-- [ ] T041 [US1] Update `README.md`:
+- [X] T040 [US1] In `IntegrationTests/PlanSetupRateLimitTests.cs`, confirm that a place request refused with `429` makes no `IMapPlacesClient` call. Add that assertion if it is missing (FR-013, edge case).
+  - **Result**: already covered. `PlaceRequests_ShareTheLimitWithSearchesChecksAndForecasts` asserts `Assert.Equal(searches, mapPlaces.Calls)` after the refused request; no change.
+- [X] T041 [US1] Update `README.md`:
   - In "Map data server", add how the fallback works: it is tried once, after a main server failure, within the same request; the user is not told which server answered; each failed attempt is a warning with its role.
   - In the "Places and forecast" failure bullet, add that a configured fallback is tried first.
   - In "Local map data copy", add that `MapData__FallbackServer` can point at the copy instead, so the public server stays the main one (left out in T029 because the fallback did not exist yet).
   - In the deployment notes, mention `MapData:MainServer` and `MapData:FallbackServer` next to the outgoing access and the note about a busy deployment needing its own Overpass instance.
 - [ ] T042 [US1] Hands-on check with the user: `quickstart.md` Part 2, section 3. Record the results here.
-- [ ] T043 [US1] Run all checks (Shared notes).
+- [X] T043 [US1] Run all checks (Shared notes).
+  - **Result (2026-11-24)**: backend build with 0 warnings; `dotnet format` clean; 799 unit tests (T032: 786, +13 from T037) and 440 integration tests (T032: 434, +6 from T039). Frontend unchanged: lint and `format:check` clean, 91 files and 1320 tests, build clean.
+  - One unit run in this phase failed `OverpassMapPlacesClientTests.SlowAnswerWithinTheAttemptTime_IsUsed` (300 ms answer, 2 s attempt time) once; the class passed 3 times on its own and the full suite passed in the next 3 runs. Watch for it in CI (T055).
 
 **Checkpoint**: A failing main server no longer blocks places when a fallback is configured. Until Phase 6, the times are 4 + 4 s without a deadline (plan.md "Build order").
 
@@ -361,32 +365,33 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 - A main server answering after 5 s is used.
 - With a silent main server and a silent fallback, the request ends with the map data error within 9 s.
 
-- [ ] T044 [P] [US3] Create `Api/Services/RequestDeadline.cs` (data-model.md "RequestDeadline"):
+- [X] T044 [P] [US3] Create `Api/Services/RequestDeadline.cs` (data-model.md "RequestDeadline"):
   - `public sealed class RequestDeadline`.
   - `public static readonly TimeSpan Limit = TimeSpan.FromSeconds(9);` and `public static readonly TimeSpan ShortestAttempt = TimeSpan.FromSeconds(1);`
   - A private constructor that takes the `ForecastPeriod` clock and the start time.
   - `public static RequestDeadline Start(ForecastPeriod clock)`.
   - `public TimeSpan Remaining`: `start + Limit - clock.GetNow()`, never below `TimeSpan.Zero`.
   - The doc comment cites FR-007 and research section 4 (why it starts in the services, and why it uses `ForecastPeriod`).
-- [ ] T045 [US3] Change `Api/Services/MapPlacesSearchService.cs` (data-model.md "Attempt rules"):
+- [X] T045 [US3] Change `Api/Services/MapPlacesSearchService.cs` (data-model.md "Attempt rules"):
   - Add the parameter `RequestDeadline deadline` before the `CancellationToken`.
   - Inject `ILogger<MapPlacesSearchService>`.
   - Each attempt gets `time = min(server.Timeout, deadline.Remaining)`.
   - When `time < RequestDeadline.ShortestAttempt`, log `"Map data service not contacted: no time left for the {Server} server"` with `server.Role.ToLogName()`, and stop trying.
   - When no server was contacted, throw `new ExternalServiceException(ExternalService.MapData, FailureKind.Timeout)`. Otherwise rethrow the last failure.
-- [ ] T046 [US3] Pass the deadline through:
+- [X] T046 [US3] Pass the deadline through:
   - `Api/Services/NearbyPlacesService.cs`: `GetAsync(location, radiusKm, categories, RequestDeadline deadline, cancellationToken)`, which passes it to `MapPlacesSearchService.FindAsync`.
   - `Api/Services/PlanPlacesService.cs`: inject `ForecastPeriod`, and make `var deadline = RequestDeadline.Start(forecastPeriod);` the first line of `GetAsync`.
   - `Api/Services/PlanScheduleService.cs`: the same first line, using its existing `forecastPeriod`.
   - Update both doc comments: the 9-second deadline covers the location lookup, the forecast and the map data (FR-007).
-- [ ] T047 [P] [US3] Create `UnitTests/RequestDeadlineTests.cs` with `new ForecastPeriod(new FixedTimeProvider(...))`:
+- [X] T047 [P] [US3] Create `UnitTests/RequestDeadlineTests.cs` with `new ForecastPeriod(new FixedTimeProvider(...))`:
   - `Remaining_IsNineSecondsAtStart`.
   - `Remaining_ShrinksAsTheClockMoves`: 2.5 s later it is 6.5 s.
   - `Remaining_IsNeverBelowZero`: 12 s later it is 0.
-- [ ] T048 [P] [US3] Raise the default waiting times from 4 to 6:
+- [X] T048 [P] [US3] Raise the default waiting times from 4 to 6:
   - `MainTimeoutSeconds` and `FallbackTimeoutSeconds` in `Api/Services/MapDataOptions.cs` and in `Api/appsettings.json` (FR-006).
   - Update `UnitTests/MapDataOptionsTests.cs` (T020) if it asserts the default times.
-- [ ] T049 [US3] Add timing tests to `UnitTests/MapPlacesSearchServiceTests.cs`:
+  - **Result**: the defaults test now expects 6 s, and `FallbackWithoutAWaitingTime_GetsTheDefaultSixSeconds` was added.
+- [X] T049 [US3] Add timing tests to `UnitTests/MapPlacesSearchServiceTests.cs`:
   - Use a `FixedTimeProvider` with `ForecastPeriod`, start the deadline in the test, and move the clock from `RecordingMapPlacesClient.OnCall` or between calls.
   - Update the existing tests to pass a fresh deadline.
   - `AttemptTime_IsTheServersWaitingTimeWhenEnoughTimeIsLeft`: main gets 6 s.
@@ -395,17 +400,20 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `LessThanOneSecondLeft_FallbackIsNotContactedAndAWarningIsLogged`: the clock moves 8.5 s on the main call; there is one call, the main failure is thrown, and the warning says "no time left for the fallback server".
   - `NoTimeLeftAtStart_NoServerIsContactedAndTheFailureIsATimeout`: the clock is already 8.5 s past the start; there are no calls and `ExternalServiceException(MapData, Timeout)` is thrown.
   - `AttemptTime_IsCappedAtNineSecondsInTotal`: across main and fallback, the sum of the attempt times plus the time already used never exceeds 9 s.
-- [ ] T050 [US3] Update `UnitTests/NearbyPlacesServiceTests.cs` and `UnitTests/PlanPlacesServiceTests.cs` for the new parameters: a deadline started on the test clock, and `ForecastPeriod` for `PlanPlacesService`. No assertion changes.
-- [ ] T051 [US3] Create `IntegrationTests/MapDataDeadlineTests.cs`:
+  - **Result**: 9 new test cases; `AttemptTime_IsCappedAtNineSecondsInTotal` is a theory for 0, 2, 5 and 7.5 s already used, with both servers silent at the longest waiting time (8 s). The test class also checks that the "not contacted" warning holds no address.
+- [X] T050 [US3] Update `UnitTests/NearbyPlacesServiceTests.cs` and `UnitTests/PlanPlacesServiceTests.cs` for the new parameters: a deadline started on the test clock, and `ForecastPeriod` for `PlanPlacesService`. No assertion changes.
+- [X] T051 [US3] Create `IntegrationTests/MapDataDeadlineTests.cs`:
   - Add an optional hook `public Action? BeforeAnswer { get; set; }` to `IntegrationTests/FakeForecastClient.cs` and `IntegrationTests/FakeGeocodingClient.cs` (the `GetAsync` used for the plan's location), called at the start of the call.
   - `ScheduleStep_ForecastUsesTheTime_MapDataIsNotContactedAndTheMapDataErrorIsShown`: `BeforeAnswer` moves `factory.Clock` 8.5 s. The response is the map data `503`, and `factory.MapPlaces` gets no new call (User Story 3 scenario 3, SC-002).
   - `PlacesStep_LocationLookupUsesFiveSeconds_MapDataStillGetsTheRest`: geocoding moves the clock 5 s, so the map data call happens and the places are shown.
   - Restore `factory.Clock` and clear the hooks in a `finally` block.
-- [ ] T052 [US3] Update `README.md`:
+  - **Result**: the two listed tests plus `ScheduleStep_LookupAndForecastLeaveEnoughTime_TheScheduleUsesThePlaces` (3 s + 3 s used, the schedule uses the places).
+- [X] T052 [US3] Update `README.md`:
   - Change the waiting times in "Map data server" to 6.
   - Add that place and schedule requests end within 9 seconds, so the page shows places or the map data error before its 10-second limit.
   - Search `README.md` and `docs/architecture.md` for the old 4-second map data wait ("4 seconds", "4 s") and correct only those statements.
-- [ ] T053 [US3] Run all checks (Shared notes).
+- [X] T053 [US3] Run all checks (Shared notes).
+  - **Result (2026-11-24)**: backend build with 0 warnings; `dotnet format` clean; 812 unit tests (T043: 799, +13 from T047 to T049) and 443 integration tests (T043: 440, +3 from T051). Frontend unchanged: lint and `format:check` clean, 91 files and 1320 tests, build clean.
 
 **Checkpoint**: All four stories are complete. Requests end within 9 s in every combination tested.
 
@@ -415,19 +423,22 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Purpose**: Documentation, full verification, review. No new behaviour.
 
-- [ ] T054 [P] Re-read `README.md` and `docs/architecture.md` against the implementation and the contracts:
+- [X] T054 [P] Re-read `README.md` and `docs/architecture.md` against the implementation and the contracts:
   - the settings, the messages, the log lines, the script commands and the fixed values match;
   - the feature list row 017 is present (FR-018).
 
   Change only what is wrong.
-- [ ] T055 Run all checks (Shared notes) and compare the test counts with T002. The only existing assertion allowed to change is the `[timeout:4]` expectation in `OverpassMapPlacesClientTests` (T011). The other existing test changes are signatures and construction only:
+  - **Result (2026-11-24)**: the settings, messages, script commands and fixed values match. Added the "Map data service not contacted: no time left for the … server" warning to the README "Time limit" bullet, and to the `Clients/` row of `docs/architecture.md` that `MapPlacesSearchService` tries the main server and then the fallback within the 9-second `RequestDeadline`. Row 017 is in the feature list.
+- [X] T055 Run all checks (Shared notes) and compare the test counts with T002. The only existing assertion allowed to change is the `[timeout:4]` expectation in `OverpassMapPlacesClientTests` (T011). The other existing test changes are signatures and construction only:
   - `RecordingMapPlacesClient`, `FakeMapPlacesClient`, `FakeForecastClient`, `FakeGeocodingClient`;
   - `NearbyPlacesServiceTests`, `PlanPlacesServiceTests`, `PlanPlacesFailureTests`;
   - the optional assertion in `PlanSetupRateLimitTests` (T040).
 
   List them in the PR description (constitution III), and record the results here.
+  - **Result (2026-11-24)**, after the T058 fixes, each step in the foreground: backend build with 0 warnings; `dotnet format` clean; 812 unit tests (T002: 739, +73) and 443 integration tests (T002: 428, +15), all passing. Frontend unchanged: lint and `format:check` clean, 91 files and 1320 tests (as T002), build clean.
+  - **No existing assertion changed**, not even `[timeout:4]` (see T011). The existing test files changed only in signatures, construction and fakes: `RecordingMapPlacesClient`, `FakeMapPlacesClient`, `FakeForecastClient`, `FakeGeocodingClient`, `NearbyPlacesServiceTests`, `PlanPlacesServiceTests`, `OverpassMapPlacesClientTests` (helpers and new tests; `NoAnswerWithinTimeout_ThrowsTimeout` passes a short attempt time instead of shortening `HttpClient.Timeout`). `PlanPlacesFailureTests` and `PlanSetupRateLimitTests` needed no change.
 - [ ] T056 Walk through `quickstart.md` Part 2, sections 1 to 4, with the user, in the running app with the local copy. Record which scenarios passed and any that could not be done.
-- [ ] T057 Review `git diff main...HEAD` and confirm:
+- [X] T057 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus `README.md`, `docs/architecture.md` and this feature's spec files, changed;
   - there is no debug code, commented-out code or temporary file;
   - every new or changed C# class is under 200 lines (record the counts for `OverpassMapPlacesClient`, `ExternalServiceJson`, `MapPlacesSearchService`, `MapDataOptionsValidator`, `NearbyPlacesService`, `PlanScheduleService` and `Program`);
@@ -437,14 +448,29 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - no request DTO, route value or query value feeds the `MapData` addresses: they are read only through `IOptions<MapDataOptions>` (spec FR-004, User Story 2 scenario 5);
   - no file outside `scripts/`, `README.md`, `docs/architecture.md` and this feature's spec files mentions the container `speklaiku-overpass`, the volume or the Lithuania download address, so no other setup step starts the local copy (spec FR-015).
 
+  - **Result (2026-11-24)**, on `git diff main` including the uncommitted Phases 5 and 6: only the planned source and test files, `scripts/local-map-data.ps1`, `README.md`, `docs/architecture.md` and this feature's spec files changed; no migration and no frontend file. No debug code, commented-out code or temporary file. Class sizes: `OverpassMapPlacesClient` 91, `ExternalServiceJson` 156, `MapPlacesSearchService` 59, `MapDataOptionsValidator` 75, `NearbyPlacesService` 89, `PlanScheduleService` 81, `Program` 170 lines. `appsettings.json` holds only the defaults. The log templates name the service, the kind, the status and the role, never an address. `MapDataServer` is created only in `MapDataOptions.Servers()`, read through `IOptions<MapDataOptions>`. The container, volume and download address appear only in `scripts/`, `README.md` and this feature's spec files.
   Record the result here.
-- [ ] T058 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature changes outgoing calls to configured addresses, start-up validation and a script that runs containers. Record:
+- [X] T058 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature changes outgoing calls to configured addresses, start-up validation and a script that runs containers. Record:
   - the tool;
   - the important findings;
   - the changes made;
   - the findings not applied, each with a short reason.
 
   These go in the Pull Request description (constitution VII). Apply the accepted fixes and re-run T055.
+  - **Result (2026-11-24)**:
+    - **Tools**: `/code-review` (medium) and `/security-review` in Claude Code, on `git diff main` including the uncommitted Phases 5 and 6.
+    - **Security review**: no finding with confidence 8 or more. Checked: no request value reaches the server host or scheme (SSRF); the only new query value is the attempt time, an integer; logs hold no address, position or tags; no certificate bypass; the script's only input is checked against a fixed list, and Docker arguments are constants passed as an array.
+    - **Applied**: the request address is now `new Uri(server.Address, Path).AbsoluteUri` instead of `ToString()`, so percent-encoded characters in a configured address are kept. The README "Time limit" bullet now says the 9 seconds start when the API starts working on the request, not when it reaches the API.
+    - **Not applied, by design**:
+      - A schedule request can end shortly after 9 s when the location lookup and the forecast use their full timeouts: research section 4 and FR-007 accept "9 s + processing", well before the browser's 10 s.
+      - With 6 + 6 s waiting times, a fallback gets at most what is left of 9 s after a silent main server: the spec fixes the defaults (FR-006) and the 9-second limit (FR-007).
+      - `FallbackTimeoutSeconds` is checked even with no fallback: data-model.md chose this so a wrong value is never hidden.
+      - The deadline starts in the services, not in middleware: research section 4.
+    - **Not applied, out of scope**:
+      - Addresses with a user name and password are not sent as a login (HttpClient does not turn the address's user part into an Authorization header). The spec only requires that such an address is never logged; public and local Overpass servers need no login.
+      - An address with a query string or fragment is accepted but would be resolved wrongly; the README defines an address as the server's root.
+      - Two addresses that differ only in the case of their path count as the same server; real Overpass addresses do not differ like that.
+      - `throw lastFailure` keeps the exception but not its original stack trace; the client has already logged the failure, and `ApiExceptionHandler` logs only the type.
 - [ ] T059 Prepare the Pull Request description for the user. Include:
   - a link to `specs/017-overpass-reliability/spec.md`;
   - a summary by story, in build order;
