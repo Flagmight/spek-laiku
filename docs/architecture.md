@@ -465,6 +465,7 @@ Controllers, Frontend.
 | 014 | Administrator Account Access Management (014-admin-accounts) | An administrator manages user account status. The MVP supports suspending and reactivating accounts and blocking suspended users. Account deletion is a Should Have capability and may be implemented after the MVP. | FR-029, FR-031, FR-039 (account suspension), FR-041, FR-042 | Must | 002 |
 | 015 | Service Status and Error Log (015-service-status) | An administrator checks the weather and map services and recent errors. | FR-030, FR-043 | Should | 006, 007 |
 | 016 | Account Deletion (016-account-deletion) | A user deletes their own account and plans. | FR-005, FR-039 (account deletion) | Should | 002, 010 |
+| 017 | Map Data Service Reliability (017-overpass-reliability) | A user still gets nearby places and a schedule when the main map data server is slow or down. | FR-010, FR-043, NFR-007 | Should | 007, 008 |
 
 ## 7. Creating a Feature Specification with /speckit-specify
 
