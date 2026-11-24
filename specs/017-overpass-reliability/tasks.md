@@ -348,7 +348,11 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - In the "Places and forecast" failure bullet, add that a configured fallback is tried first.
   - In "Local map data copy", add that `MapData__FallbackServer` can point at the copy instead, so the public server stays the main one (left out in T029 because the fallback did not exist yet).
   - In the deployment notes, mention `MapData:MainServer` and `MapData:FallbackServer` next to the outgoing access and the note about a busy deployment needing its own Overpass instance.
-- [ ] T042 [US1] Hands-on check with the user: `quickstart.md` Part 2, section 3. Record the results here.
+- [X] T042 [US1] Hands-on check with the user: `quickstart.md` Part 2, section 3. Record the results here.
+  - **Result (2026-11-24)**, with `MapData__MainServer=http://127.0.0.1:9/` (nothing listens) and the local copy as the fallback (`http://127.0.0.1:12345/`):
+    - Steps 1 to 4: step 3 for Klaipėda (Museum) listed places with no error and no sign of which server answered, and the schedule used them (user). The log had one `Map data service failed: Network (null) on the main server` warning without the address, position or tags; the copy answered once (`200`).
+    - Step 5: with the copy stopped, step 3 for Šiauliai showed "Error: The map data service is unavailable. No places are shown." (user); the log had one warning ending "on the main server" and one ending "on the fallback server".
+    - Step 6: without a fallback, step 3 for Panevėžys showed the map data error quickly (user); one main-server warning and no fallback attempt. A refused connection on Windows takes about 2 s, so "at once" is about 2 s here.
 - [X] T043 [US1] Run all checks (Shared notes).
   - **Result (2026-11-24)**: backend build with 0 warnings; `dotnet format` clean; 799 unit tests (T032: 786, +13 from T037) and 440 integration tests (T032: 434, +6 from T039). Frontend unchanged: lint and `format:check` clean, 91 files and 1320 tests, build clean.
   - One unit run in this phase failed `OverpassMapPlacesClientTests.SlowAnswerWithinTheAttemptTime_IsUsed` (300 ms answer, 2 s attempt time) once; the class passed 3 times on its own and the full suite passed in the next 3 runs. Watch for it in CI (T055).
@@ -437,7 +441,12 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   List them in the PR description (constitution III), and record the results here.
   - **Result (2026-11-24)**, after the T058 fixes, each step in the foreground: backend build with 0 warnings; `dotnet format` clean; 812 unit tests (T002: 739, +73) and 443 integration tests (T002: 428, +15), all passing. Frontend unchanged: lint and `format:check` clean, 91 files and 1320 tests (as T002), build clean.
   - **No existing assertion changed**, not even `[timeout:4]` (see T011). The existing test files changed only in signatures, construction and fakes: `RecordingMapPlacesClient`, `FakeMapPlacesClient`, `FakeForecastClient`, `FakeGeocodingClient`, `NearbyPlacesServiceTests`, `PlanPlacesServiceTests`, `OverpassMapPlacesClientTests` (helpers and new tests; `NoAnswerWithinTimeout_ThrowsTimeout` passes a short attempt time instead of shortening `HttpClient.Timeout`). `PlanPlacesFailureTests` and `PlanSetupRateLimitTests` needed no change.
-- [ ] T056 Walk through `quickstart.md` Part 2, sections 1 to 4, with the user, in the running app with the local copy. Record which scenarios passed and any that could not be done.
+- [X] T056 Walk through `quickstart.md` Part 2, sections 1 to 4, with the user, in the running app with the local copy. Record which scenarios passed and any that could not be done.
+  - **Result (2026-11-24)**:
+    - **Section 1 (configuration)**: passed 5 of 5, run by Claude with `dotnet run --no-build`. No `MapData` variables: the API starts and listens. `MainTimeoutSeconds=12`: refuses with `MapData:MainTimeoutSeconds must be 1 to 8.`. `MainServer="not an address"`: refuses with `MapData:MainServer must be an absolute http or https address.`. The same server as main and fallback (one with a trailing `/`): refuses with `MapData:FallbackServer must not be the same as MapData:MainServer.`. Production with an http main server: refuses with `MapData:MainServer may use http only in the Development environment.`. No setting value appeared in any output. The addresses used `127.0.0.1` (see T031).
+    - **Section 2 (local copy)**: passed in T028 and T031.
+    - **Section 3 (fallback)**: passed, see T042.
+    - **Section 4 (deadline)**: step 1 passed. With the default settings, step 3 for Alytus showed "Error: The map data service is unavailable. No places are shown." (user), not "Something went wrong"; the log shows `Timeout` on the main server (the public server did not answer within 6 s), and a later attempt got `502`. Optional step 2 (1-second waiting time) was not done.
 - [X] T057 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus `README.md`, `docs/architecture.md` and this feature's spec files, changed;
   - there is no debug code, commented-out code or temporary file;
@@ -471,7 +480,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
       - An address with a query string or fragment is accepted but would be resolved wrongly; the README defines an address as the server's root.
       - Two addresses that differ only in the case of their path count as the same server; real Overpass addresses do not differ like that.
       - `throw lastFailure` keeps the exception but not its original stack trace; the client has already logged the failure, and `ApiExceptionHandler` logs only the type.
-- [ ] T059 Prepare the Pull Request description for the user. Include:
+- [X] T059 Prepare the Pull Request description for the user. Include:
   - a link to `specs/017-overpass-reliability/spec.md`;
   - a summary by story, in build order;
   - the tests and checks run (T055, T056);
@@ -483,6 +492,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the AI review record from T058.
 
   There are no screenshots, because the user interface does not change. The user opens and merges the Pull Request (no `gh` CLI: push with git and give the PR link).
+  - **Result (2026-11-24)**: description prepared and given to the user in the conversation.
 
 **Checkpoint**: All checks green, docs current, review recorded, PR description ready. Ready for commit and Pull Request on request.
 
