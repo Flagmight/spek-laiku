@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.Data;
@@ -230,7 +231,13 @@ public sealed class PlanPlacesServiceTests : IDisposable
                 new PlanSetupService(new LocationSearchService(geocoding, cache), period),
                 new PlanActivityService(activities, new ActivityCategoryService(activities))),
             tagsContext ?? activitiesContext ?? context,
-            new NearbyPlacesService(mapPlaces, cache, period, options, Options.Create(new MapDataOptions())),
+            new NearbyPlacesService(
+                new MapPlacesSearchService(
+                    mapPlaces, Options.Create(new MapDataOptions()), NullLogger<MapPlacesSearchService>.Instance),
+                cache,
+                period,
+                options),
+            period,
             options);
     }
 }

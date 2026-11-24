@@ -23,6 +23,12 @@ public sealed class FakeGeocodingClient : IGeocodingClient
 
     public int GetCalls => getCalls;
 
+    /// <summary>
+    /// Runs at the start of each lookup by id (the plan's location), for example to move the test clock as if the
+    /// lookup took time.
+    /// </summary>
+    public Action? BeforeAnswer { get; set; }
+
     /// <summary>A search for <paramref name="text"/> returns these places.</summary>
     public void Script(string text, params GeocodingPlace[] results) => searches[text] = results;
 
@@ -49,6 +55,7 @@ public sealed class FakeGeocodingClient : IGeocodingClient
     public Task<GeocodingPlace?> GetAsync(long id, CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref getCalls);
+        BeforeAnswer?.Invoke();
         if (getFailures.TryGetValue(id, out var kind))
         {
             throw new ExternalServiceException(ExternalService.LocationSearch, kind);

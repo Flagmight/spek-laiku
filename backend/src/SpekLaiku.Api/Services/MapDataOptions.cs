@@ -20,13 +20,13 @@ public sealed class MapDataOptions
     public string MainServer { get; init; } = "https://overpass-api.de/";
 
     /// <summary>How long the main server may take to answer.</summary>
-    public int MainTimeoutSeconds { get; init; } = 4;
+    public int MainTimeoutSeconds { get; init; } = 6;
 
     /// <summary>The fallback server's root address; empty means no fallback.</summary>
     public string? FallbackServer { get; init; }
 
     /// <summary>How long the fallback server may take to answer.</summary>
-    public int FallbackTimeoutSeconds { get; init; } = 4;
+    public int FallbackTimeoutSeconds { get; init; } = 6;
 
     /// <summary>The main server, then the fallback when one is configured. Call only after validation.</summary>
     public IReadOnlyList<MapDataServer> Servers()

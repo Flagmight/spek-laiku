@@ -19,6 +19,9 @@ public sealed class FakeForecastClient : IForecastClient
 
     public int Calls => calls;
 
+    /// <summary>Runs at the start of each forecast call, for example to move the test clock as if the call took time.</summary>
+    public Action? BeforeAnswer { get; set; }
+
     /// <summary>A forecast for this position returns <paramref name="forecast"/>.</summary>
     public void Script(double latitude, double longitude, HourlyForecast forecast) =>
         answers[(latitude, longitude)] = forecast;
@@ -38,6 +41,7 @@ public sealed class FakeForecastClient : IForecastClient
         CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref calls);
+        BeforeAnswer?.Invoke();
         if (failures.TryGetValue((latitude, longitude), out var kind))
         {
             throw new ExternalServiceException(ExternalService.Forecast, kind);

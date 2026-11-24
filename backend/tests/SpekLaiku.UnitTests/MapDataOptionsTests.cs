@@ -16,7 +16,15 @@ public sealed class MapDataOptionsTests
 
         Assert.Equal(new Uri("https://overpass-api.de/"), server.Address);
         Assert.Equal(MapDataServerRole.Main, server.Role);
-        Assert.Equal(TimeSpan.FromSeconds(4), server.Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(6), server.Timeout);
+    }
+
+    [Fact]
+    public void FallbackWithoutAWaitingTime_GetsTheDefaultSixSeconds()
+    {
+        var servers = new MapDataOptions { FallbackServer = "https://fallback.test/" }.Servers();
+
+        Assert.Equal(TimeSpan.FromSeconds(6), servers[1].Timeout);
     }
 
     [Fact]

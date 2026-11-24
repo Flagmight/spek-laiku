@@ -11,21 +11,25 @@ namespace SpekLaiku.Api.Services;
 /// the radius and the category's tags, so an administrator's tag change applies at once. The categories
 /// without usable places are searched together in one call to the map data service. The age is checked
 /// against <see cref="ForecastPeriod.GetNow"/>, the clock tests control. Failures are not cached: they reach
-/// <c>ApiExceptionHandler</c>, so no category's places are shown, and the next request asks again. The map data
-/// server and its waiting time come from the <c>MapData</c> settings (feature 017 spec FR-001).
+/// <c>ApiExceptionHandler</c>, so no category's places are shown, and the next request asks again. The search
+/// goes through <see cref="MapPlacesSearchService"/>, which tries the main map data server and then the fallback;
+/// places from either server are cached the same way (feature 017 spec FR-011).
 /// </summary>
 public sealed class NearbyPlacesService(
-    IMapPlacesClient mapPlacesClient,
+    MapPlacesSearchService mapPlacesSearch,
     IMemoryCache cache,
     ForecastPeriod forecastPeriod,
-    IOptions<PlacesOptions> options,
-    IOptions<MapDataOptions> mapDataOptions)
+    IOptions<PlacesOptions> options)
 {
-    /// <summary>One entry per category, in the given order.</summary>
+    /// <summary>
+    /// One entry per category, in the given order. The map data search must end before <paramref name="deadline"/>
+    /// (feature 017 spec FR-007).
+    /// </summary>
     public async Task<IReadOnlyList<ReceivedPlaces>> GetAsync(
         PlaceLocation location,
         int radiusKm,
         IReadOnlyList<CategoryTags> categories,
+        RequestDeadline deadline,
         CancellationToken cancellationToken)
     {
         var now = forecastPeriod.GetNow();
@@ -56,14 +60,12 @@ public sealed class NearbyPlacesService(
         if (missing.Count > 0)
         {
             var tags = missing.SelectMany(index => categories[index].Tags).Distinct(StringComparer.Ordinal).ToList();
-            var server = mapDataOptions.Value.Servers()[0];
-            var elements = await mapPlacesClient.FindAsync(
-                server,
-                server.Timeout,
+            var elements = await mapPlacesSearch.FindAsync(
                 location.Latitude,
                 location.Longitude,
                 radiusKm,
                 tags,
+                deadline,
                 cancellationToken);
 
             foreach (var index in missing)
