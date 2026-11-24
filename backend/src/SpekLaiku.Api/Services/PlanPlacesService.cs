@@ -9,16 +9,20 @@ namespace SpekLaiku.Api.Services;
 /// The places for a plan (spec FR-004 to FR-007, FR-012; data-model.md PlanPlacesService). The setup and the
 /// activities are checked again before the map data service is contacted. The position comes from the location
 /// search service and each category's tags from the database, never from the request. The radius is the plan's
-/// maximum travel distance, capped by <see cref="PlacesOptions.MaxRadiusKm"/>.
+/// maximum travel distance, capped by <see cref="PlacesOptions.MaxRadiusKm"/>. The location lookup and the map data
+/// search together end within <see cref="RequestDeadline.Limit"/> (feature 017 spec FR-007).
 /// </summary>
 public sealed class PlanPlacesService(
     PlanRecheckService planRecheckService,
     ApplicationDbContext context,
     NearbyPlacesService nearbyPlacesService,
+    ForecastPeriod forecastPeriod,
     IOptions<PlacesOptions> options)
 {
     public async Task<PlanPlacesResult> GetAsync(PlanPlacesRequest request, CancellationToken cancellationToken)
     {
+        // First, so the location lookup is inside the 9-second limit too (feature 017 spec FR-007).
+        var deadline = RequestDeadline.Start(forecastPeriod);
         var plan = await planRecheckService.CheckAsync(request.Setup, request.Activities, cancellationToken);
         if (!plan.Succeeded)
         {
@@ -39,7 +43,8 @@ public sealed class PlanPlacesService(
             .ToList();
         var radiusKm = Math.Min(plan.Setup.MaxTravelDistanceKm, options.Value.MaxRadiusKm);
 
-        var received = await nearbyPlacesService.GetAsync(plan.Setup.Location, radiusKm, categories, cancellationToken);
+        var received = await nearbyPlacesService.GetAsync(
+            plan.Setup.Location, radiusKm, categories, deadline, cancellationToken);
 
         // The oldest receive time, so the message never makes older places look newer (Clarifications).
         var updatedAt = ForecastPeriod.ToLithuanianMinute(received.Min(places => places.ReceivedAt));

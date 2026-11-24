@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using SpekLaiku.Api.Clients;
 using SpekLaiku.Api.Services;
@@ -111,7 +112,7 @@ public sealed class NearbyPlacesServiceTests : IDisposable
     {
         await GetAsync(Kayaking);
 
-        await CreateService().GetAsync(Kaunas, 10, [Kayaking], CancellationToken.None);
+        await CreateService().GetAsync(Kaunas, 10, [Kayaking], Deadline(), CancellationToken.None);
 
         Assert.Equal(2, client.Calls.Count);
         Assert.Equal(10, client.Calls[1].RadiusKm);
@@ -122,7 +123,7 @@ public sealed class NearbyPlacesServiceTests : IDisposable
     {
         await GetAsync(Kayaking);
 
-        await CreateService().GetAsync(Kaunas with { Id = 1 }, RadiusKm, [Kayaking], CancellationToken.None);
+        await CreateService().GetAsync(Kaunas with { Id = 1 }, RadiusKm, [Kayaking], Deadline(), CancellationToken.None);
 
         Assert.Equal(2, client.Calls.Count);
     }
@@ -187,8 +188,15 @@ public sealed class NearbyPlacesServiceTests : IDisposable
             tags.Append((Key: "name", Value: name)).ToDictionary(tag => tag.Key, tag => tag.Value));
 
     private Task<IReadOnlyList<ReceivedPlaces>> GetAsync(params CategoryTags[] categories) =>
-        CreateService().GetAsync(Kaunas, RadiusKm, categories, CancellationToken.None);
+        CreateService().GetAsync(Kaunas, RadiusKm, categories, Deadline(), CancellationToken.None);
+
+    private RequestDeadline Deadline() => RequestDeadline.Start(new ForecastPeriod(clock));
 
     private NearbyPlacesService CreateService() =>
-        new(client, cache, new ForecastPeriod(clock), Options.Create(new PlacesOptions()));
+        new(
+            new MapPlacesSearchService(
+                client, Options.Create(new MapDataOptions()), NullLogger<MapPlacesSearchService>.Instance),
+            cache,
+            new ForecastPeriod(clock),
+            Options.Create(new PlacesOptions()));
 }

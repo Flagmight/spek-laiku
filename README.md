@@ -101,11 +101,32 @@ npm run build
 
 The API needs outgoing HTTPS access to `geocoding-api.open-meteo.com` for the location search on Plan setup. The browser never calls it, and the automated tests never call it either: they use fake answers, so they pass without a network connection.
 
+#### Map data server
+
+Nearby places (step 3) and schedules come from an OpenStreetMap Overpass API server. Which server, and how long the API waits for it, are settings in the `MapData` section of `appsettings.json`:
+
+| Setting | Environment variable | Default | Allowed values |
+|---|---|---|---|
+| `MapData:MainServer` | `MapData__MainServer` | `https://overpass-api.de/` | An absolute `https` address; `http` only in the Development environment |
+| `MapData:MainTimeoutSeconds` | `MapData__MainTimeoutSeconds` | `6` | A whole number from 1 to 8 |
+| `MapData:FallbackServer` | `MapData__FallbackServer` | empty (no fallback) | Empty, or an address with the same rules, different from the main server |
+| `MapData:FallbackTimeoutSeconds` | `MapData__FallbackTimeoutSeconds` | `6` | A whole number from 1 to 8 |
+
+- An address is the server's root. The API sends its queries to `<address>api/interpreter`, and a missing trailing `/` is added.
+- Plain `http` is accepted only when the API runs in the Development environment (the `https` launch profile sets it). This is for a local copy of the map data service.
+- A wrong setting stops the API at start-up with a message that names the setting, for example `MapData:MainTimeoutSeconds must be 1 to 8.`. The message never repeats the value, so an address with a user name or password in it is not printed.
+- Put local values in environment variables in the terminal that runs the API (for example `$env:MapData__MainServer = "http://127.0.0.1:12345/"`), never in a committed file.
+- **Fallback**: when `MapData:FallbackServer` is set and the main server fails (no answer in time, no connection, an error status or an answer that cannot be read), the same request is sent to the fallback once, within the same page request, before any error is shown. An answer from the main server, even one without places, is used as it is. The page does not say which server answered, and places from either server are reused the same way. Each failed attempt is logged as a warning that ends with "on the main server" or "on the fallback server", never with the address, the position or the tags. A cancelled request is not sent to the fallback.
+- **Time limit**: a place or schedule request ends within 9 seconds of the API starting to work on it (routing, the request limit and sign-in checks before that take milliseconds), so the page shows the places or the map data error before its own 10-second limit. The location lookup and the forecast count towards the 9 seconds. Each map data attempt gets its waiting time or what is left of the 9 seconds, whichever is shorter, and a server is not contacted with less than 1 second left; the API then answers with the map data error and logs the warning "Map data service not contacted: no time left for the main server" (or "fallback server"). With the defaults, a main server that answers after 5 seconds is still used.
+
 #### Running the API on Windows 10
 
 `overpass-api.de` (nearby places, step 3) accepts only TLS 1.3, and Windows 10 cannot make TLS 1.3 connections. On Windows 10, an API started with `dotnet run` therefore shows "Error: The map data service is unavailable. No places are shown." on Places and forecast, and no schedule can be generated. This affects only the machine that runs the API: users' browsers never contact Overpass. Windows 11, macOS and Linux are not affected.
 
-On Windows 10, run the API in a Linux container instead (Linux .NET uses OpenSSL, which supports TLS 1.3). Keep the database and the frontend as above, and replace step 4 with:
+There are two ways around it on Windows 10:
+
+- Use the [local map data copy](#local-map-data-copy) as the map data server. The API reaches it over plain `http`, so no TLS 1.3 is needed and `dotnet run` works as in step 4.
+- Or run the API in a Linux container (Linux .NET uses OpenSSL, which supports TLS 1.3). Keep the database and the frontend as above, and replace step 4 with:
 
 1. Export the development certificate once, with a password of your choice, to a folder outside the repository:
 
@@ -130,6 +151,63 @@ On Windows 10, run the API in a Linux container instead (Linux .NET uses OpenSSL
    ```
 
    The first start restores and builds inside the container, which takes a minute or two; `docker logs -f speklaiku-api-linux` shows "Now listening on: https://[::]:7254" when it is ready. After a code change, run `docker restart speklaiku-api-linux` (it copies the source again); stop it with `docker rm -f speklaiku-api-linux`.
+
+   To use the local map data copy from this container, add two lines before the image name: `--network speklaiku-dev` (the copy's Docker network, created by its script) and `-e "MapData__MainServer=http://speklaiku-overpass/"`. Inside that network the copy is reached by its container name, not through `localhost`.
+
+#### Local map data copy
+
+`scripts/local-map-data.ps1` runs a local copy of the Overpass API with the OpenStreetMap data for Lithuania only. Use it for development, and when the public map data servers are down or too slow. The automated tests, CI and the deployed application never use it: the tests keep using fake map data answers.
+
+**Prerequisites**: Docker Desktop (on Windows with WSL 2), running. Run the script from the repository root, in Windows PowerShell 5.1 or PowerShell 7.
+
+```powershell
+.\scripts\local-map-data.ps1 start
+```
+
+| Command | What it does |
+|---|---|
+| `start` | The first time: downloads and loads the map data, then starts the copy. Later: starts the existing copy. Ends with "Local map data copy is ready at http://127.0.0.1:12345/" (exit code 0), or with the reason and the copy's last log lines (exit code 1). |
+| `status` | Shows `missing`, `loading`, `stopped`, `failed` or `ready`. When ready, it also shows the date of the map data and the memory limit. Exit code 0 only when ready. |
+| `stop` | Stops the copy. The loaded data is kept, and the next `start` takes about 10 seconds. |
+| `remove` | Removes the copy, its loaded data and its Docker network. The next `start` loads again. |
+| `refresh` | `remove`, then `start`: loads the latest Lithuania map data. This is a full first load again. |
+
+**The first load** happens once and is slow. Measured on the development machine (8 GB RAM, 4 cores, Windows 10 Home, Docker Desktop with WSL 2):
+
+| | |
+|---|---|
+| Download | 214 MB of map data (Geofabrik's Lithuania extract), plus the 423 MB image |
+| Disk space | 4.4 GB for the loaded data (Docker volume `speklaiku-overpass-db`) |
+| Loading time | about 2 hours; the log prints a line only when a stage (nodes, ways, relations) finishes |
+| Peak memory while loading | about 5.1 GB, without a limit |
+| Memory while running | at most 2 GB (the container's limit); about 30 MB when idle |
+
+The peak while loading is more than WSL 2 gives Docker by default (half of the computer's memory, about 3.8 GB on an 8 GB machine). With the default, loading stops with "Failed to process planet file" and `status` shows `failed`. Give WSL 2 more memory for the first load only:
+
+1. Create `%UserProfile%\.wslconfig` with these two lines:
+
+   ```ini
+   [wsl2]
+   memory=6GB
+   ```
+
+2. Close Docker Desktop, run `wsl --shutdown`, and start Docker Desktop again.
+3. Run `.\scripts\local-map-data.ps1 remove` (after a failed load), then `start`. Other programs are slow while it loads.
+4. When it is ready, delete `.wslconfig`, run `wsl --shutdown` and start Docker Desktop again. The running copy stays within its 2 GB limit.
+
+**Check that it is ready**: `.\scripts\local-map-data.ps1 status` shows `ready at http://127.0.0.1:12345/`, the map data date and `memory limit 2.0 GB`.
+
+**Use it from the API**: set the map data server in the terminal that runs the API, before step 4 (see [Map data server](#map-data-server); plain `http` works because the `https` launch profile runs in the Development environment):
+
+```powershell
+$env:MapData__MainServer = "http://127.0.0.1:12345/"
+```
+
+Use `127.0.0.1`, not `localhost`. The copy listens only on IPv4, and on Windows a connection to `localhost` tries IPv6 (`::1`) first; the refused attempt costs about 2 seconds of the waiting time on every request, enough to make a slow first query show the map data error.
+
+To keep the public server as the main one and use the copy only when it fails, set `$env:MapData__FallbackServer = "http://127.0.0.1:12345/"` instead. For the Windows 10 API container, see [Running the API on Windows 10](#running-the-api-on-windows-10).
+
+**The data is a snapshot**: the copy is not updated automatically, and `status` shows the date of its data. Run `refresh` for newer data. The copy listens only on `127.0.0.1`, so other computers on the network cannot reach it.
 
 ## Log in and log out
 
@@ -205,7 +283,7 @@ This feature needs no migration. The manual checks for a release are in `specs/0
 - **Reuse and freshness**: a forecast is reused for the same location for up to 30 minutes, and each category's places for the same location, radius and tags for up to 24 hours. The page shows when each was received ("Forecast updated at 14:05", "Places updated at 09:30"; for places, the oldest time when categories were received at different times). Neither is kept in the browser or saved.
 - **Settings**: `appsettings.json` has a `Forecast` section with `MaxAgeMinutes` (30), `FirstHour` (6) and `LastHour` (22), checked when the API starts (`FirstHour` at least 4, so no planning hour falls on the clock change, and `LastHour` at most 23). A `Places` section has `MaxRadiusKm` (50, from 1 to 200), `MaxPlacesPerActivity` (5, from 1 to 20) and `MaxAgeHours` (24, at least 1), also checked at start. They can be changed without a code change, for example `$env:Forecast__MaxAgeMinutes = "10"` or `$env:Places__MaxRadiusKm = "20"`.
 - **Request limit**: forecast and place requests share the `RateLimiting:PlanSetup` limit with location searches and plan setup checks (30 per minute per network address together). Each opening of step 3 is two requests.
-- **When something fails**: the forecast and the places fail and are retried separately. The forecast shows "Error: The weather service is unavailable. No forecast is shown." and the places "Error: The map data service is unavailable. No places are shown."; either can also show "Error: Too many requests. Wait a minute and try again." or "Error: Something went wrong. Try again.". Each has its own **Retry**, which keeps the rest of the step and shows "Getting the forecast…" or "Getting nearby places…". Without the places, every place shows "Not available" and no activity is flagged; without the forecast, every date cell shows "Not available". The places succeed or fail as a whole, so no partial or old places are shown. Each weather or map data service failure is logged as a warning with its kind, never the position, dates or tags.
+- **When something fails**: the forecast and the places fail and are retried separately. The forecast shows "Error: The weather service is unavailable. No forecast is shown." and the places "Error: The map data service is unavailable. No places are shown."; either can also show "Error: Too many requests. Wait a minute and try again." or "Error: Something went wrong. Try again.". Each has its own **Retry**, which keeps the rest of the step and shows "Getting the forecast…" or "Getting nearby places…". Without the places, every place shows "Not available" and no activity is flagged; without the forecast, every date cell shows "Not available". The places error appears only after the main map data server and, when one is configured, the fallback server have both failed (see [Map data server](#map-data-server)). The places succeed or fail as a whole, so no partial or old places are shown. Each weather or map data service failure is logged as a warning with its kind, never the position, dates or tags.
 - **Plan out of date**: the server checks the setup and activities again before asking for the forecast or the places. If a date has passed or an activity's category changed, the user is sent back to step 1 or 2, which shows "Your plan setup needs to be checked again. Select Continue." or "Your activities need to be checked again. Select Continue." until the next successful Continue.
 - **Who can use it**: visitors (no account needed) and Active Registered Users. An Administrator sees "Access denied" and a Suspended user opens the Account Suspended page; the API refuses both with `403` before contacting any outside service.
 
@@ -245,8 +323,8 @@ Feature 010 adds the migration `AddSavedPlans` and feature 011 the migration `Ad
 ## Deployment notes
 
 - **Behind a reverse proxy**: the plan setup request limit counts requests per client network address. Behind a reverse proxy every request arrives from the proxy's address, so all users would share one limit. Configure the ASP.NET Core forwarded-headers middleware for the trusted proxy before going live.
-- **Outgoing access**: the API host needs outgoing HTTPS access to `geocoding-api.open-meteo.com` (location search), `api.open-meteo.com` (forecast) and `overpass-api.de` (nearby places). `overpass-api.de` accepts only TLS 1.3, so the API host's operating system must support it: Linux (the Linux .NET images), Windows Server 2022 or later, or Windows 11. Windows 10 and Windows Server 2019 cannot reach it (see "Running the API on Windows 10").
-- **Forecast and places cache**: forecasts are kept in the API's memory for up to `Forecast:MaxAgeMinutes`, and places for up to `Places:MaxAgeHours`. With more than one API instance each keeps its own copy, which only means a few more calls to Open-Meteo and Overpass. The public Overpass service gives each address only a few requests at a time, so a busy deployment may need its own Overpass instance.
+- **Outgoing access**: the API host needs outgoing HTTPS access to `geocoding-api.open-meteo.com` (location search), `api.open-meteo.com` (forecast) and `overpass-api.de` (nearby places). The map data server can be changed with `MapData:MainServer`, and a second one added with `MapData:FallbackServer` (see [Map data server](#map-data-server)); the API host then needs access to those instead. `overpass-api.de` accepts only TLS 1.3, so the API host's operating system must support it: Linux (the Linux .NET images), Windows Server 2022 or later, or Windows 11. Windows 10 and Windows Server 2019 cannot reach it (see "Running the API on Windows 10").
+- **Forecast and places cache**: forecasts are kept in the API's memory for up to `Forecast:MaxAgeMinutes`, and places for up to `Places:MaxAgeHours`. With more than one API instance each keeps its own copy, which only means a few more calls to Open-Meteo and Overpass. The public Overpass service gives each address only a few requests at a time, so a busy deployment may need its own Overpass instance, set as `MapData:MainServer`, with the public service as `MapData:FallbackServer` if wanted.
 - **Generated schedules**: each generated schedule is kept for 30 minutes in the `GeneratedSchedules` table so it can be saved; expired rows are deleted when the next schedule is generated, so no cleanup job is needed. Because they are in the database, saving also works with more than one API instance and after a restart.
 - **Time zone data**: the date limits use the `Europe/Vilnius` time zone, so the API host needs time zone data. Slim Linux container images need the `tzdata` package; Windows needs ICU, so do not turn on invariant globalization mode.
 

@@ -52,7 +52,7 @@ SDK version 10.0.401. Preview versions are not used.
 | Authentication | ASP.NET Core Identity | Required by the project rules. No custom password handling. |
 | Object mapping | AutoMapper | Required by the project rules for DTO and entity mapping. |
 | Validation | Data annotations and checks in application services | The server validates all input (NFR-003). No extra validation library is needed. |
-| External services | Open-Meteo forecast API, Open-Meteo geocoding API, OpenStreetMap Overpass API, called through HttpClient created by IHttpClientFactory | Open-Meteo and Overpass are mandatory. The geocoding API provides the location search for plan setup. |
+| External services | Open-Meteo forecast API, Open-Meteo geocoding API, OpenStreetMap Overpass API, called through HttpClient created by IHttpClientFactory | Open-Meteo and Overpass are mandatory. The geocoding API provides the location search for plan setup. The Overpass server is a setting (`MapData:MainServer`, public `overpass-api.de` by default), with an optional fallback server (feature 017). A local copy of the Overpass API for development can be started with `scripts/local-map-data.ps1`. |
 | Caching and resilience | In-memory cache (locations for an hour, forecasts per location and day for up to 30 minutes), timeouts on external calls, and the built-in ASP.NET Core rate limiting middleware on endpoints that call public APIs | Reduces calls to public APIs, keeps one client from flooding them (FR-049), and supports NFR-002, NFR-007 and NFR-008. |
 | Logging | ILogger\<T\> with the built-in providers | Required by the project rules. Passwords and keys are never logged (NFR-006). |
 | Backend tests | xUnit and Microsoft.AspNetCore.Mvc.Testing | Standard for ASP.NET Core. API tests also verify authorization rules. |
@@ -164,6 +164,7 @@ and specs/ contains feature specifications.
 <p>│ └── package.json</p>
 <p>├── specs/</p>
 <p>├── docs/</p>
+<p>├── scripts/</p>
 <p>├── .specify/</p>
 <p>├── .github/</p>
 <p>│ └── workflows/</p>
@@ -186,7 +187,7 @@ and specs/ contains feature specifications.
 | RateLimiting/ | Rate limiting policies of the built-in ASP.NET Core middleware, their options (bound from the `RateLimiting` configuration section) and their registration, applied to controllers by policy name (first used by feature 004: `PlanSetup`, 30 requests per minute per network address, FR-049, shared by location searches, plan setup checks, forecast requests and place requests). |
 | Errors/ | The exception handler that logs unexpected failures and answers with a general `500` problem response, and answers `503` when an external service (Open-Meteo, Overpass) fails, with a `service` field naming it (`"forecast"` or `"locationSearch"` from feature 006, `"places"` from feature 007). |
 | Services/ | Application services with the business logic (suitability, scheduling, plan checks, plans, categories, accounts, service status). |
-| Clients/ | HTTP clients for Open-Meteo (forecast and geocoding) and Overpass, created through IHttpClientFactory, with timeouts and a shared exception type for service failures. Services use them through dependency injection, and tests replace them with fakes (the geocoding client is first, from feature 004; the forecast client follows in feature 006, and the Overpass map data client in feature 007). All three clients share one error handling class, `ExternalServiceJson`, which logs one warning per failure without the request address or body. Places are reused per location, radius and category tags for 24 hours in the API's memory cache (`NearbyPlacesService`), so one Overpass call serves every category that is not cached. |
+| Clients/ | HTTP clients for Open-Meteo (forecast and geocoding) and Overpass, created through IHttpClientFactory, with timeouts and a shared exception type for service failures. Services use them through dependency injection, and tests replace them with fakes (the geocoding client is first, from feature 004; the forecast client follows in feature 006, and the Overpass map data client in feature 007). All three clients share one error handling class, `ExternalServiceJson`, which logs one warning per failure without the request address or body. Places are reused per location, radius and category tags for 24 hours in the API's memory cache (`NearbyPlacesService`), so one Overpass call serves every category that is not cached. The Overpass server and its waiting time come from the `MapData` settings, checked at start-up (`MapDataOptions`, `MapDataOptionsValidator`, registered by `AddMapData`, feature 017). `MapPlacesSearchService` tries the main server and then the optional fallback, and each place or schedule request ends within 9 seconds (`RequestDeadline`). |
 | DTOs/Requests/, DTOs/Responses/ | Request and response objects at the API boundary. Entities are never returned directly. |
 | Mapping/ | AutoMapper profiles between entities and DTOs. They contain no business rules. |
 | Entities/ | Database entity classes. |
@@ -206,6 +207,7 @@ and specs/ contains feature specifications.
 | frontend/package.json | Frontend dependencies and the lint, test and build scripts. |
 | specs/ | Spec Kit feature specifications, one folder per feature (for example specs/001-user-registration/), with the plan and tasks. |
 | docs/ | Project documents: requirements, UX design (flows and wireframes), architecture. |
+| scripts/ | Developer scripts, run by hand and never by the application, the tests or CI. `local-map-data.ps1` runs a local copy of the Overpass API with the map data for Lithuania (feature 017). |
 | .specify/ | Spec Kit files, including the constitution. Generated by Spec Kit. |
 | .github/workflows/ | GitHub Actions: backend and frontend CI. |
 | AGENTS.md | Practical instructions for AI agents working in the repository. |
@@ -465,6 +467,7 @@ Controllers, Frontend.
 | 014 | Administrator Account Access Management (014-admin-accounts) | An administrator manages user account status. The MVP supports suspending and reactivating accounts and blocking suspended users. Account deletion is a Should Have capability and may be implemented after the MVP. | FR-029, FR-031, FR-039 (account suspension), FR-041, FR-042 | Must | 002 |
 | 015 | Service Status and Error Log (015-service-status) | An administrator checks the weather and map services and recent errors. | FR-030, FR-043 | Should | 006, 007 |
 | 016 | Account Deletion (016-account-deletion) | A user deletes their own account and plans. | FR-005, FR-039 (account deletion) | Should | 002, 010 |
+| 017 | Map Data Service Reliability (017-overpass-reliability) | A user still gets nearby places and a schedule when the main map data server is slow or down. | FR-010, FR-043, NFR-007 | Should | 007, 008 |
 
 ## 7. Creating a Feature Specification with /speckit-specify
 

@@ -3,66 +3,83 @@ using System.Net;
 namespace SpekLaiku.Api.Clients;
 
 /// <summary>
-/// Calls the OpenStreetMap Overpass API once per place request with one query for every tag (research
-/// sections 4 and 7). Every failure, including an answer cut short by the service's own limits, becomes an
-/// <see cref="ExternalServiceException"/> after one warning that never names the position, radius or tags.
+/// Calls an OpenStreetMap Overpass API server once per attempt with one query for every tag (feature 007 research
+/// sections 4 and 7). The caller chooses the server and the attempt time (feature 017 research sections 5 and 9).
+/// Every failure, including an answer cut short by the service's own limits and an attempt that runs out of time,
+/// becomes an <see cref="ExternalServiceException"/> after one warning that names the server's role, never its
+/// address, the position, the radius or the tags.
 /// </summary>
 public sealed class OverpassMapPlacesClient(HttpClient httpClient, ILogger<OverpassMapPlacesClient> logger)
     : IMapPlacesClient
 {
-    public static readonly Uri BaseAddress = new("https://overpass-api.de/");
-
     public const string Path = "api/interpreter";
 
     /// <summary>
-    /// The page waits 10 seconds. An uncached location lookup may take up to 5 of them, so the map data
-    /// service gets 4 and the user still sees its own message instead of a general error (spec FR-009).
+    /// Only a backstop: each attempt has its own, shorter time (feature 017 research section 5). It is longer than
+    /// any attempt can be, so it never decides the outcome of a working request.
     /// </summary>
-    public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(OverpassQuery.TimeoutSeconds);
+    public static readonly TimeSpan BackstopTimeout = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// The Overpass usage policy asks for an identifying agent. It holds no personal or contact details.
     /// </summary>
     public const string UserAgent = "SpekLaiku/1.0";
 
-    /// <summary>The address, timeout and agent of the client; used by <c>Program</c> and the tests.</summary>
+    /// <summary>The backstop timeout and agent of the client; used by <c>Program</c> and the tests.</summary>
     public static void Configure(HttpClient client)
     {
-        client.BaseAddress = BaseAddress;
-        client.Timeout = Timeout;
+        client.Timeout = BackstopTimeout;
         client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
     }
 
     public async Task<IReadOnlyList<MapElement>> FindAsync(
+        MapDataServer server,
+        TimeSpan timeout,
         double latitude,
         double longitude,
         int radiusKm,
         IReadOnlyList<string> tags,
         CancellationToken cancellationToken)
     {
-        var query = OverpassQuery.Build(latitude, longitude, radiusKm, tags);
+        var role = server.Role.ToLogName();
+        var query = OverpassQuery.Build(latitude, longitude, radiusKm, tags, Math.Max(1, (int)timeout.TotalSeconds));
 
-        // Without badRequestMeansNotFound the answer is never null: every failure throws.
-        var answer = await ExternalServiceJson.PostFormAsync<OverpassResponse>(
-            httpClient,
-            Path,
-            [new("data", query)],
-            ExternalService.MapData,
-            logger,
-            cancellationToken);
+        using var attempt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        attempt.CancelAfter(timeout);
+
+        OverpassResponse? answer;
+        try
+        {
+            // Without badRequestMeansNotFound the answer is never null: every failure throws.
+            answer = await ExternalServiceJson.PostFormAsync<OverpassResponse>(
+                httpClient,
+                new Uri(server.Address, Path).AbsoluteUri,
+                [new("data", query)],
+                ExternalService.MapData,
+                logger,
+                attempt.Token,
+                server: role);
+        }
+        catch (OperationCanceledException exception)
+            when (attempt.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            throw ExternalServiceJson.Failure(
+                ExternalService.MapData, logger, FailureKind.Timeout, null, inner: exception, server: role);
+        }
 
         if (answer!.Remark is { } remark && remark.Contains("runtime error", StringComparison.OrdinalIgnoreCase))
         {
             var kind = remark.Contains("timed out", StringComparison.OrdinalIgnoreCase)
                 ? FailureKind.Timeout
                 : FailureKind.InvalidResponse;
-            throw ExternalServiceJson.Failure(ExternalService.MapData, logger, kind, (int)HttpStatusCode.OK);
+            throw ExternalServiceJson.Failure(
+                ExternalService.MapData, logger, kind, (int)HttpStatusCode.OK, server: role);
         }
 
         if (answer.Elements is null)
         {
             throw ExternalServiceJson.Failure(
-                ExternalService.MapData, logger, FailureKind.InvalidResponse, (int)HttpStatusCode.OK);
+                ExternalService.MapData, logger, FailureKind.InvalidResponse, (int)HttpStatusCode.OK, server: role);
         }
 
         // An element without a position (a relation without a centre) cannot be placed, so it is left out.

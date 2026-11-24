@@ -10,10 +10,16 @@ namespace SpekLaiku.Api.Clients;
 /// </summary>
 internal static class OverpassQuery
 {
-    /// <summary>The service's own time limit in seconds, the same as the client's timeout.</summary>
-    public const int TimeoutSeconds = 4;
-
-    public static string Build(double latitude, double longitude, int radiusKm, IReadOnlyList<string> tags)
+    /// <summary>
+    /// <paramref name="timeoutSeconds"/> is the service's own time limit: the attempt time in whole seconds
+    /// (feature 017 research section 5), so the server also stops working on a query the client gave up on.
+    /// </summary>
+    public static string Build(
+        double latitude,
+        double longitude,
+        int radiusKm,
+        IReadOnlyList<string> tags,
+        int timeoutSeconds)
     {
         var invariant = CultureInfo.InvariantCulture;
         var around = string.Create(
@@ -21,7 +27,7 @@ internal static class OverpassQuery
             $"(around:{radiusKm * 1000},{latitude.ToString("F5", invariant)},{longitude.ToString("F5", invariant)});");
 
         var query = new StringBuilder();
-        query.Append(invariant, $"[out:json][timeout:{TimeoutSeconds}];\n(\n");
+        query.Append(invariant, $"[out:json][timeout:{timeoutSeconds}];\n(\n");
         foreach (var tag in tags.Distinct(StringComparer.Ordinal))
         {
             var parts = tag.Split('=', 2);

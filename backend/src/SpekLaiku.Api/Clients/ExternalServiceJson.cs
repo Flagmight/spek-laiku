@@ -34,7 +34,8 @@ internal static class ExternalServiceJson
 
     /// <summary>
     /// Sends the fields as a form body (<c>application/x-www-form-urlencoded</c>). The body is never
-    /// <c>null</c>: every failure, including 400, throws.
+    /// <c>null</c>: every failure, including 400, throws. <paramref name="server"/> is the role of the server
+    /// asked (<c>main</c> or <c>fallback</c>, feature 017); it is added to the warning, never the address.
     /// </summary>
     public static Task<T?> PostFormAsync<T>(
         HttpClient httpClient,
@@ -42,7 +43,8 @@ internal static class ExternalServiceJson
         IEnumerable<KeyValuePair<string, string>> fields,
         ExternalService service,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? server = null)
         where T : class =>
         SendAsync<T>(
             httpClient,
@@ -50,17 +52,35 @@ internal static class ExternalServiceJson
             service,
             logger,
             badRequestMeansNotFound: false,
-            cancellationToken);
+            cancellationToken,
+            server);
 
-    /// <summary>Logs the one warning for a failure and returns the exception to throw.</summary>
+    /// <summary>
+    /// Logs the one warning for a failure and returns the exception to throw. With a <paramref name="server"/>
+    /// role the warning ends with "on the {Server} server" (feature 017 spec FR-013).
+    /// </summary>
     public static ExternalServiceException Failure(
         ExternalService service,
         ILogger logger,
         FailureKind kind,
         int? statusCode,
-        Exception? inner = null)
+        Exception? inner = null,
+        string? server = null)
     {
-        logger.LogWarning("{Service} failed: {FailureKind} {StatusCode}", DisplayName(service), kind, statusCode);
+        if (server is null)
+        {
+            logger.LogWarning("{Service} failed: {FailureKind} {StatusCode}", DisplayName(service), kind, statusCode);
+        }
+        else
+        {
+            logger.LogWarning(
+                "{Service} failed: {FailureKind} {StatusCode} on the {Server} server",
+                DisplayName(service),
+                kind,
+                statusCode,
+                server);
+        }
+
         return new ExternalServiceException(service, kind, statusCode, inner);
     }
 
@@ -70,7 +90,8 @@ internal static class ExternalServiceJson
         ExternalService service,
         ILogger logger,
         bool badRequestMeansNotFound,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? server = null)
         where T : class
     {
         HttpResponseMessage response;
@@ -82,11 +103,11 @@ internal static class ExternalServiceJson
             }
             catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested)
             {
-                throw Failure(service, logger, FailureKind.Timeout, null, exception);
+                throw Failure(service, logger, FailureKind.Timeout, null, exception, server);
             }
             catch (HttpRequestException exception)
             {
-                throw Failure(service, logger, FailureKind.Network, null, exception);
+                throw Failure(service, logger, FailureKind.Network, null, exception, server);
             }
         }
 
@@ -100,7 +121,7 @@ internal static class ExternalServiceJson
 
             if (!response.IsSuccessStatusCode)
             {
-                throw Failure(service, logger, FailureKind.UnexpectedStatus, status);
+                throw Failure(service, logger, FailureKind.UnexpectedStatus, status, server: server);
             }
 
             T? body;
@@ -110,18 +131,18 @@ internal static class ExternalServiceJson
             }
             catch (JsonException exception)
             {
-                throw Failure(service, logger, FailureKind.InvalidResponse, status, exception);
+                throw Failure(service, logger, FailureKind.InvalidResponse, status, exception, server);
             }
             catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested)
             {
-                throw Failure(service, logger, FailureKind.Timeout, status, exception);
+                throw Failure(service, logger, FailureKind.Timeout, status, exception, server);
             }
             catch (HttpRequestException exception)
             {
-                throw Failure(service, logger, FailureKind.Network, status, exception);
+                throw Failure(service, logger, FailureKind.Network, status, exception, server);
             }
 
-            return body ?? throw Failure(service, logger, FailureKind.InvalidResponse, status);
+            return body ?? throw Failure(service, logger, FailureKind.InvalidResponse, status, server: server);
         }
     }
 
