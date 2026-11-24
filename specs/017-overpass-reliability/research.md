@@ -132,19 +132,20 @@ Each section records a decision, why it was chosen, and the alternatives that we
   | `OVERPASS_USE_AREAS` | `false` | The query uses `around`, not areas. Skipping area generation saves memory, disk and loading time. |
   | `OVERPASS_DIFF_URL` | not set | No background updates. The copy is a snapshot, and refreshing it is a deliberate command (spec Assumptions). This also keeps the running memory steady. |
   | `OVERPASS_STOP_AFTER_INIT` | `true` (default) | The container stops after loading, so the script can set the memory limit before serving. |
-  | `OVERPASS_SPACE` | `536870912` (512 MiB) | Caps the memory one query may use, so a large query cannot push the container past 2 GB. |
+  | `OVERPASS_SPACE` | `1073741824` (1 GiB) | The memory the dispatcher shares among running queries. A query without `[maxsize]`, such as the application's, asks for 512 MiB. With 512 MiB in total, the first load on 2026-11-24 showed that the dispatcher refused every such query ("load shedded"); with 1 GiB they run. The 2 GB container limit still caps the real memory use. |
   | `OVERPASS_FASTCGI_PROCESSES` | `2` | One developer needs few workers. Fewer processes use less memory than the default 4. |
   | `OVERPASS_ALLOW_DUPLICATE_QUERIES` | `yes` | A "Retry" in the browser can repeat the same query while the first is still running. This is harmless locally. |
+  | `OVERPASS_RATE_LIMIT` | `16` | Must be set. Without it the dispatcher's rate limit is 0, and it refuses every query that comes through the web server with a client address (found on 2026-11-24). 16 parallel queries per address is far more than one developer needs. |
 
 - **Two phases in one container** (FR-015, clarification "2 GB while running"):
   1. **Load**: `docker run` (attached, so the developer sees progress) creates the container `speklaiku-overpass` with the named volume `speklaiku-overpass-db` at `/db` and no memory limit. It downloads, converts and indexes the data, then stops.
   2. **Serve**: the script checks the exit code. It then runs `docker update --memory 2g --memory-swap 2g speklaiku-overpass` and `docker start speklaiku-overpass`. The image's README documents `docker start` as the way to serve after loading. From then on the container cannot use more than 2 GB.
   - Later `start` commands find the existing container and only start it.
 - **Ports and networks**:
-  - The container publishes port 80 on `127.0.0.1:12345` only, so it is reachable from the developer's own machine and not from the local network. An API started with `dotnet run` uses `http://localhost:12345/`. Plain http works on Windows 10, which avoids the TLS 1.3 problem (User Story 4 scenario 5).
+  - The container publishes port 80 on `127.0.0.1:12345` only, so it is reachable from the developer's own machine and not from the local network. An API started with `dotnet run` uses `http://127.0.0.1:12345/`, not `localhost`: on Windows, `localhost` tries `::1` first, and the refused IPv6 attempt cost 2.0 to 2.5 s on the development machine (T031), which made the 4-second attempt time out. Plain http works on Windows 10, which avoids the TLS 1.3 problem (User Story 4 scenario 5).
   - The container also joins the Docker network `speklaiku-dev`. The Windows 10 API container from the README joins the same network and uses `http://speklaiku-overpass/`, so it does not depend on how Docker Desktop forwards `host.docker.internal` to ports bound to `127.0.0.1`.
 - **Unknown until measured**: the image's README gives no figures for memory, disk or loading time. The implementation task runs the first load on the development machine (8 GB RAM, Docker 29.8 on Windows 10 Home with WSL 2). It records in the README the download size, the disk use of the volume, the peak memory while loading (`docker stats`), the memory while serving, and the loading time (FR-016).
-  - If serving needs more than 2 GB with these settings, the task lowers `OVERPASS_SPACE` or the number of processes before anything else. It does not raise the limit, which the clarification fixed.
+  - If serving needs more than 2 GB with these settings, the task lowers the number of processes before anything else. `OVERPASS_SPACE` stays at 1 GiB, because 512 MiB refuses the application's queries. It does not raise the limit, which the clarification fixed.
   - If loading fails because Docker's virtual machine has too little memory, the README explains how to give WSL 2 more memory in `%UserProfile%\.wslconfig`.
 - **Alternatives considered**:
   - Separate load and serve containers sharing the volume. Rejected: the image's README documents restarting the same container, and whether a new container would re-run the load on an existing volume is not documented.

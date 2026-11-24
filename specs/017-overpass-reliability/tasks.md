@@ -211,12 +211,13 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Goal**: One script starts a local Overpass API with Lithuania's map data. It serves within 2 GB of memory, and the API can use it over http. This unblocks manual playtesting.
 
-**Independent Test**: Without the public server, follow the README to start the local copy, set `MapData__MainServer=http://localhost:12345/`, open step 3 for a Kaunas plan with Museum and Cycling, and see places listed (SC-006).
+**Independent Test**: Without the public server, follow the README to start the local copy, set `MapData__MainServer=http://127.0.0.1:12345/`, open step 3 for a Kaunas plan with Museum and Cycling, and see places listed (SC-006).
 
-- [ ] T024 [US4] Pin the image:
+- [X] T024 [US4] Pin the image:
   - Run `docker pull wiktorn/overpass-api:latest` and `docker inspect --format "{{index .RepoDigests 0}}" wiktorn/overpass-api:latest`.
   - Record the full `wiktorn/overpass-api@sha256:…` reference here. It is used in T025.
-- [ ] T025 [US4] Create `scripts/local-map-data.ps1` with its parameters, fixed values and simple commands (`contracts/local-map-data-script.md`; research sections 10 and 11):
+  - **Result**: `wiktorn/overpass-api@sha256:ab893eeac8fa8525fc2227bd29024c239c31da106281c7a5992429c5f00d49a5` (image 423 MB, Overpass API 0.7.62.11).
+- [X] T025 [US4] Create `scripts/local-map-data.ps1` with its parameters, fixed values and simple commands (`contracts/local-map-data-script.md`; research sections 10 and 11):
   - **Compatibility**: Windows PowerShell 5.1 and PowerShell 7. No PowerShell 7-only syntax (`&&`, `??`, ternary).
   - **Parameter**: `param([Parameter(Position = 0)][string]$Command)`, and `$ErrorActionPreference = 'Stop'`.
   - **Fixed values at the top**:
@@ -232,21 +233,23 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - **`stop`**: `docker stop` when the container exists. Exit code 0.
   - **`remove`**: removes the container, the volume and the network when each exists. Exit code 0.
   - Check `$LASTEXITCODE` after every `docker` call, and stop with a clear message when Docker is not running.
-- [ ] T026 [US4] Add `start` and `refresh` to `scripts/local-map-data.ps1`:
+  - **Deviation**: `$ErrorActionPreference = 'Continue'` instead of `'Stop'`. Windows PowerShell 5.1 turns a program's stderr into an error record when the output is redirected, and the loading log is written to stderr; every `docker` call checks its exit code instead (`Invoke-Docker`). The reason is a comment in the script.
+- [X] T026 [US4] Add `start` and `refresh` to `scripts/local-map-data.ps1`:
   - **`start`, first time** (state `missing`):
     1. Pull the pinned image, and create the network and the volume.
     2. `docker run --name speklaiku-overpass --network speklaiku-dev -p 127.0.0.1:12345:80 -v speklaiku-overpass-db:/db` with the environment variables of research section 10 (the PREPROCESS command verbatim), attached and without a memory limit, so progress is shown.
     3. When it exits, check the exit code. When it is not 0, print the last 30 log lines, say "Loading failed. Run remove, then start again.", and exit with code 1.
     4. `docker update --memory 2g --memory-swap 2g speklaiku-overpass`, then `docker start speklaiku-overpass`.
-    5. Wait up to 2 minutes for the readiness check, then print "Local map data copy is ready at http://localhost:12345/".
+    5. Wait up to 2 minutes for the readiness check, then print "Local map data copy is ready at http://127.0.0.1:12345/".
   - **`start`, later** (state `stopped` or `running`): if the memory limit is missing, apply step 4; otherwise only `docker start`. Then wait for readiness.
   - **`start`, state `failed`**: print the reason and exit with code 1.
   - **`refresh`**: `remove`, then `start`.
-- [ ] T027 [US4] Check the script without Docker work:
+- [X] T027 [US4] Check the script without Docker work:
   - It parses in Windows PowerShell 5.1: `powershell -NoProfile -Command "$null = [System.Management.Automation.Language.Parser]::ParseFile('scripts/local-map-data.ps1', [ref]$null, [ref]$e); $e"` prints no errors.
   - No command prints the usage and exits with code 1.
   - `status` prints `missing` and exits with code 1.
-- [ ] T028 [US4] First real run on the development machine (8 GB RAM, Docker 29.8, Windows 10 Home, WSL 2). Run `.\scripts\local-map-data.ps1 start`, and measure and record here:
+  - **Result (2026-11-24)**: parses with 0 errors in Windows PowerShell 5.1; a missing and an unknown command exit with code 1; `status` printed `failed` after the failed first load, `stopped` after a WSL restart and `ready` while serving, each with the right exit code. `missing` was seen before the first load in an earlier session; not repeated, because it needs `remove`.
+- [X] T028 [US4] First real run on the development machine (8 GB RAM, Docker 29.8, Windows 10 Home, WSL 2). Run `.\scripts\local-map-data.ps1 start`, and measure and record here:
   - the download size;
   - the loading time (from start to "ready");
   - the peak memory while loading (`docker stats speklaiku-overpass` in a second terminal);
@@ -257,8 +260,15 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `status` shows `ready`, the data date and the 2 GB limit;
   - `stop` followed by `start` serves again without downloading.
 
-  If serving goes over 2 GB, lower `OVERPASS_SPACE` first, then `OVERPASS_FASTCGI_PROCESSES`, and re-measure. Never raise the limit (clarification Q2). If loading fails for lack of memory, note the WSL 2 memory needed for the README.
-- [ ] T029 [US4] Add the "Local map data copy" section to `README.md`, following FR-016 and `contracts/local-map-data-script.md`. It covers:
+  If serving goes over 2 GB, lower `OVERPASS_FASTCGI_PROCESSES` and re-measure; keep `OVERPASS_SPACE` at 1 GiB (research section 10). Never raise the limit (clarification Q2). If loading fails for lack of memory, note the WSL 2 memory needed for the README.
+
+  **Result (2026-11-24)**:
+  - First attempt with Docker's default WSL 2 memory (3.8 GB): `update_database` was killed for lack of memory after about 24 minutes, during the nodes (`OOMKilled=true`). The script reported `failed` and `remove` cleaned up.
+  - Second attempt with a temporary `.wslconfig` of `memory=6GB` (deleted afterwards): download 214 MB (about 3 minutes); loading time about 1 h 56 min (16:30 to 18:26, start to loaded); peak memory while loading 5.07 GiB (`docker stats`, may include some file cache); volume 4.44 GB; map data from 2026-11-23T19:49:12Z.
+  - After loading, the copy refused every query until two settings were added (research section 10 updated): `OVERPASS_RATE_LIMIT=16` (without it the dispatcher's limit is 0 and blocks every client address) and `OVERPASS_SPACE` raised from 512 MiB to 1 GiB (a query without `[maxsize]` asks for 512 MiB and was load-shed). The `start` timeout path also exited with code 0 because the log lines leaked into the return value of `Wait-Ready`; fixed with `Out-Host`. The container was recreated with the new settings on the same volume, without loading again.
+  - Serving: readiness query 0.08 s; a museum and cycling query around Kaunas (10 km) returned 154 elements in 0.6 to 0.8 s; memory about 28 MiB idle after these queries, limit 2 GB.
+  - `status` shows `ready at http://localhost:12345/`, the data date and `memory limit 2.0 GB`. After `wsl --shutdown` and a Docker restart, `status` showed `stopped`, and `start` was ready again in 11 s without downloading.
+- [X] T029 [US4] Add the "Local map data copy" section to `README.md`, following FR-016 and `contracts/local-map-data-script.md`. It covers:
   - what the local copy is for (development and outages), and that it is never used by the tests or CI;
   - the prerequisites (Docker);
   - the five commands;
@@ -270,9 +280,23 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - how to give WSL 2 more memory if loading needs it.
 
   In "Running the API on Windows 10", add that the local copy over http is a second way around the TLS 1.3 limit. Add `--network speklaiku-dev` as an optional line in the container command, with a short explanation.
-- [ ] T030 [P] [US4] In `docs/architecture.md`, add `scripts/` (developer scripts, such as the local map data copy) to the repository structure. In the external services description, add that the map data server is configurable, with an optional fallback and a local copy for development. Change nothing else.
-- [ ] T031 [US4] Hands-on check with the user: `quickstart.md` Part 2, section 2, steps 5 to 8 (the API with `MapData__MainServer=http://localhost:12345/`, step 3 and the schedule for a Kaunas plan with Museum and Cycling). Record each step's result here. Steps that need the browser are done by the user.
-- [ ] T032 [US4] Run all checks (Shared notes) with the local copy running and again with it stopped. The results are the same (FR-017).
+
+  **Result**: done, except the `MapData__FallbackServer` sentence, which moved to T041 because the fallback is built in Phase 5. The container option is described as two extra lines in the text below the command, not in the command itself, so the command stays copy-paste ready without the copy.
+- [X] T030 [P] [US4] In `docs/architecture.md`, add `scripts/` (developer scripts, such as the local map data copy) to the repository structure. In the external services description, add that the map data server is configurable, with an optional fallback and a local copy for development. Change nothing else.
+- [X] T031 [US4] Hands-on check with the user: `quickstart.md` Part 2, section 2, steps 5 to 8 (the API with `MapData__MainServer=http://127.0.0.1:12345/`, step 3 and the schedule for a Kaunas plan with Museum and Cycling). Record each step's result here. Steps that need the browser are done by the user.
+
+  **Result (2026-11-24)**:
+  - Step 5, first try with `MapData__MainServer=http://localhost:12345/`: step 3 for Kaunas (Museum, Cycling) showed "Error: The map data service is unavailable." The API logged `Timeout` on the main server; the copy ran the query in about 2 s (cold data) and logged `499`. Cause: on Windows, connecting to `localhost` tries `::1` first, which the copy does not listen on, and the refused connection costs about 2 s (measured 2.0 to 2.5 s) before `127.0.0.1` is used.
+  - Step 5 with `MapData__MainServer=http://127.0.0.1:12345/`: places listed with no error (the copy answered `200`, 37 KB, about 1 s), and the generated schedule used them. Passed (user).
+  - Step 6: after `stop`, step 3 for Vilnius (Picnic) showed "Error: The map data service is unavailable. No places are shown." (user); the API logged `Network` on the main server (connection refused, at once). `start` was ready again in 5 s without downloading. Passed.
+  - Step 7 (Windows 10 API container): not done; the API ran with `dotnet run`.
+  - Step 8: done as T032.
+  - Follow-up: the documented address changed from `localhost` to `127.0.0.1` in the script, README, contracts, plan.md, quickstart.md and research section 10, with the reason in the README.
+- [X] T032 [US4] Run all checks (Shared notes) with the local copy running and again with it stopped. The results are the same (FR-017).
+  - **Result (2026-11-24)**, each step in the foreground, first with the local copy running (`status` ready), then stopped (`status` stopped):
+    - **Backend**: build with 0 warnings and 0 errors; `dotnet format --verify-no-changes` clean; 786 unit and 434 integration tests pass (same counts as T023), both times.
+    - **Frontend**: lint clean; `format:check` clean; 91 files and 1320 tests pass; build clean, both times.
+    - The results are the same with and without the copy (FR-017).
 
 **Checkpoint**: Places and schedules work against the local copy. The pending manual checks of features 011 (T072, T075) and 012 (T067, T070) can now be done on `main` after this feature is merged; they are outside this feature.
 
@@ -320,6 +344,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 - [ ] T041 [US1] Update `README.md`:
   - In "Map data server", add how the fallback works: it is tried once, after a main server failure, within the same request; the user is not told which server answered; each failed attempt is a warning with its role.
   - In the "Places and forecast" failure bullet, add that a configured fallback is tried first.
+  - In "Local map data copy", add that `MapData__FallbackServer` can point at the copy instead, so the public server stays the main one (left out in T029 because the fallback did not exist yet).
   - In the deployment notes, mention `MapData:MainServer` and `MapData:FallbackServer` next to the outgoing access and the note about a busy deployment needing its own Overpass instance.
 - [ ] T042 [US1] Hands-on check with the user: `quickstart.md` Part 2, section 3. Record the results here.
 - [ ] T043 [US1] Run all checks (Shared notes).

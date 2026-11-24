@@ -14,7 +14,7 @@ Run from the repository root, in Windows PowerShell 5.1 or PowerShell 7, with Do
 
 | Command | What it does | Ends with |
 |---|---|---|
-| `start` | **First time**: pulls the pinned image, creates the network `speklaiku-dev` and the volume `speklaiku-overpass-db`, then runs the container `speklaiku-overpass` attached, so the download and loading progress is shown. When loading has finished, it sets the 2 GB memory limit and starts the container to serve. **Later**: starts the existing container. | "Local map data copy is ready at http://localhost:12345/" after a successful readiness check; otherwise the reason and the container's last log lines. Exit code 0 or 1. |
+| `start` | **First time**: pulls the pinned image, creates the network `speklaiku-dev` and the volume `speklaiku-overpass-db`, then runs the container `speklaiku-overpass` attached, so the download and loading progress is shown. When loading has finished, it sets the 2 GB memory limit and starts the container to serve. **Later**: starts the existing container. | "Local map data copy is ready at http://127.0.0.1:12345/" after a successful readiness check; otherwise the reason and the container's last log lines. Exit code 0 or 1. |
 | `status` | Reports `missing`, `loading`, `stopped`, `failed` or `ready`. When it is ready, it also shows the date of the map data and the memory limit. | Exit code 0 when ready, 1 otherwise. |
 | `stop` | Stops the container. The loaded data is kept. | Exit code 0. |
 | `remove` | Removes the container, the volume and the network. The next `start` downloads and loads again. | Exit code 0, also when nothing existed. |
@@ -28,14 +28,14 @@ An unknown or missing command prints this table and exits with code 1. The scrip
 |---|---|
 | Image | `wiktorn/overpass-api@sha256:<digest pinned when the script is written>` |
 | Map data | `https://download.geofabrik.de/europe/lithuania-latest.osm.pbf` |
-| Address for `dotnet run` | `http://localhost:12345/` (published on `127.0.0.1` only) |
+| Address for `dotnet run` | `http://127.0.0.1:12345/` (published on `127.0.0.1` only) |
 | Address from the API container | `http://speklaiku-overpass/` on the network `speklaiku-dev` |
 | Memory while serving | at most 2 GB (`--memory 2g --memory-swap 2g`) |
 | Container settings | as in research section 10 |
 
 ## Readiness check
 
-`status` and the end of `start` send this query to `http://localhost:12345/api/interpreter`:
+`status` and the end of `start` send this query to `http://127.0.0.1:12345/api/interpreter`:
 
 ```text
 [out:json][timeout:5];node(54.89,23.88,54.91,23.92)["name"];out 1;

@@ -115,13 +115,16 @@ Nearby places (step 3) and schedules come from an OpenStreetMap Overpass API ser
 - An address is the server's root. The API sends its queries to `<address>api/interpreter`, and a missing trailing `/` is added.
 - Plain `http` is accepted only when the API runs in the Development environment (the `https` launch profile sets it). This is for a local copy of the map data service.
 - A wrong setting stops the API at start-up with a message that names the setting, for example `MapData:MainTimeoutSeconds must be 1 to 8.`. The message never repeats the value, so an address with a user name or password in it is not printed.
-- Put local values in environment variables in the terminal that runs the API (for example `$env:MapData__MainServer = "http://localhost:12345/"`), never in a committed file.
+- Put local values in environment variables in the terminal that runs the API (for example `$env:MapData__MainServer = "http://127.0.0.1:12345/"`), never in a committed file.
 
 #### Running the API on Windows 10
 
 `overpass-api.de` (nearby places, step 3) accepts only TLS 1.3, and Windows 10 cannot make TLS 1.3 connections. On Windows 10, an API started with `dotnet run` therefore shows "Error: The map data service is unavailable. No places are shown." on Places and forecast, and no schedule can be generated. This affects only the machine that runs the API: users' browsers never contact Overpass. Windows 11, macOS and Linux are not affected.
 
-On Windows 10, run the API in a Linux container instead (Linux .NET uses OpenSSL, which supports TLS 1.3). Keep the database and the frontend as above, and replace step 4 with:
+There are two ways around it on Windows 10:
+
+- Use the [local map data copy](#local-map-data-copy) as the map data server. The API reaches it over plain `http`, so no TLS 1.3 is needed and `dotnet run` works as in step 4.
+- Or run the API in a Linux container (Linux .NET uses OpenSSL, which supports TLS 1.3). Keep the database and the frontend as above, and replace step 4 with:
 
 1. Export the development certificate once, with a password of your choice, to a folder outside the repository:
 
@@ -146,6 +149,63 @@ On Windows 10, run the API in a Linux container instead (Linux .NET uses OpenSSL
    ```
 
    The first start restores and builds inside the container, which takes a minute or two; `docker logs -f speklaiku-api-linux` shows "Now listening on: https://[::]:7254" when it is ready. After a code change, run `docker restart speklaiku-api-linux` (it copies the source again); stop it with `docker rm -f speklaiku-api-linux`.
+
+   To use the local map data copy from this container, add two lines before the image name: `--network speklaiku-dev` (the copy's Docker network, created by its script) and `-e "MapData__MainServer=http://speklaiku-overpass/"`. Inside that network the copy is reached by its container name, not through `localhost`.
+
+#### Local map data copy
+
+`scripts/local-map-data.ps1` runs a local copy of the Overpass API with the OpenStreetMap data for Lithuania only. Use it for development, and when the public map data servers are down or too slow. The automated tests, CI and the deployed application never use it: the tests keep using fake map data answers.
+
+**Prerequisites**: Docker Desktop (on Windows with WSL 2), running. Run the script from the repository root, in Windows PowerShell 5.1 or PowerShell 7.
+
+```powershell
+.\scripts\local-map-data.ps1 start
+```
+
+| Command | What it does |
+|---|---|
+| `start` | The first time: downloads and loads the map data, then starts the copy. Later: starts the existing copy. Ends with "Local map data copy is ready at http://127.0.0.1:12345/" (exit code 0), or with the reason and the copy's last log lines (exit code 1). |
+| `status` | Shows `missing`, `loading`, `stopped`, `failed` or `ready`. When ready, it also shows the date of the map data and the memory limit. Exit code 0 only when ready. |
+| `stop` | Stops the copy. The loaded data is kept, and the next `start` takes about 10 seconds. |
+| `remove` | Removes the copy, its loaded data and its Docker network. The next `start` loads again. |
+| `refresh` | `remove`, then `start`: loads the latest Lithuania map data. This is a full first load again. |
+
+**The first load** happens once and is slow. Measured on the development machine (8 GB RAM, 4 cores, Windows 10 Home, Docker Desktop with WSL 2):
+
+| | |
+|---|---|
+| Download | 214 MB of map data (Geofabrik's Lithuania extract), plus the 423 MB image |
+| Disk space | 4.4 GB for the loaded data (Docker volume `speklaiku-overpass-db`) |
+| Loading time | about 2 hours; the log prints a line only when a stage (nodes, ways, relations) finishes |
+| Peak memory while loading | about 5.1 GB, without a limit |
+| Memory while running | at most 2 GB (the container's limit); about 30 MB when idle |
+
+The peak while loading is more than WSL 2 gives Docker by default (half of the computer's memory, about 3.8 GB on an 8 GB machine). With the default, loading stops with "Failed to process planet file" and `status` shows `failed`. Give WSL 2 more memory for the first load only:
+
+1. Create `%UserProfile%\.wslconfig` with these two lines:
+
+   ```ini
+   [wsl2]
+   memory=6GB
+   ```
+
+2. Close Docker Desktop, run `wsl --shutdown`, and start Docker Desktop again.
+3. Run `.\scripts\local-map-data.ps1 remove` (after a failed load), then `start`. Other programs are slow while it loads.
+4. When it is ready, delete `.wslconfig`, run `wsl --shutdown` and start Docker Desktop again. The running copy stays within its 2 GB limit.
+
+**Check that it is ready**: `.\scripts\local-map-data.ps1 status` shows `ready at http://127.0.0.1:12345/`, the map data date and `memory limit 2.0 GB`.
+
+**Use it from the API**: set the map data server in the terminal that runs the API, before step 4 (see [Map data server](#map-data-server); plain `http` works because the `https` launch profile runs in the Development environment):
+
+```powershell
+$env:MapData__MainServer = "http://127.0.0.1:12345/"
+```
+
+Use `127.0.0.1`, not `localhost`. The copy listens only on IPv4, and on Windows a connection to `localhost` tries IPv6 (`::1`) first; the refused attempt costs about 2 seconds, which with the 4-second waiting time is enough to make step 3 show the map data error.
+
+For the Windows 10 API container, see [Running the API on Windows 10](#running-the-api-on-windows-10).
+
+**The data is a snapshot**: the copy is not updated automatically, and `status` shows the date of its data. Run `refresh` for newer data. The copy listens only on `127.0.0.1`, so other computers on the network cannot reach it.
 
 ## Log in and log out
 

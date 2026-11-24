@@ -23,10 +23,10 @@ Section `MapData` in `appsettings.json`. Each setting can be overridden with an 
 
 ```powershell
 # API started with dotnet run, local copy as the main server
-$env:MapData__MainServer = "http://localhost:12345/"
+$env:MapData__MainServer = "http://127.0.0.1:12345/"
 
 # Public server first, local copy as the fallback
-$env:MapData__FallbackServer = "http://localhost:12345/"
+$env:MapData__FallbackServer = "http://127.0.0.1:12345/"
 
 # API in the Windows 10 Linux container (README), on the speklaiku-dev network
 -e "MapData__MainServer=http://speklaiku-overpass/"

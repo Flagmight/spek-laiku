@@ -17,7 +17,7 @@ Build order (clarification Q1): **User Story 2 → User Story 4 → User Story 1
    - Plain `http` is accepted only in Development, which is what the local copy needs.
 2. **Local copy (User Story 4, P1)**:
    - A PowerShell script, `scripts/local-map-data.ps1`, runs the Overpass API in Docker with Geofabrik's Lithuania extract (214 MB).
-   - It loads the data once, then serves on `http://localhost:12345/` with a 2 GB memory limit while running (clarification Q2).
+   - It loads the data once, then serves on `http://127.0.0.1:12345/` with a 2 GB memory limit while running (clarification Q2).
    - It starts only on its own command (clarification Q3).
    - The README records the measured size, memory and loading time.
    - Plain http also avoids Windows 10's TLS 1.3 problem.

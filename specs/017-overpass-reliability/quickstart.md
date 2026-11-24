@@ -52,22 +52,22 @@ Use a Kaunas plan with the categories **Museum** and **Cycling** in every scenar
 ### 2. Local copy (User Story 4)
 
 1. `.\scripts\local-map-data.ps1 status` shows `missing`.
-2. `.\scripts\local-map-data.ps1 start`. Note the download size, the loading time, and the peak memory from `docker stats speklaiku-overpass` (in a second terminal) while it loads. It ends with "Local map data copy is ready at http://localhost:12345/". The README must state figures that match what you saw (FR-016).
+2. `.\scripts\local-map-data.ps1 start`. Note the download size, the loading time, and the peak memory from `docker stats speklaiku-overpass` (in a second terminal) while it loads. It ends with "Local map data copy is ready at http://127.0.0.1:12345/". The README must state figures that match what you saw (FR-016).
 3. `.\scripts\local-map-data.ps1 status` shows `ready`, the data date and a 2 GB limit.
 4. `docker stats --no-stream speklaiku-overpass` shows a limit of 2 GiB and usage below it.
-5. In the API terminal, set `$env:MapData__MainServer = "http://localhost:12345/"` and start the API with `dotnet run` (on Windows 10 too). Open step 3 for the Kaunas plan. Museums and cycling places are listed, with "Places updated at HH:MM" and no error. Generate the schedule. It uses those places.
+5. In the API terminal, set `$env:MapData__MainServer = "http://127.0.0.1:12345/"` and start the API with `dotnet run` (on Windows 10 too). Open step 3 for the Kaunas plan. Museums and cycling places are listed, with "Places updated at HH:MM" and no error. Generate the schedule. It uses those places.
 6. `.\scripts\local-map-data.ps1 stop`, then open step 3 for a **new** location (places for Kaunas are reused for 24 hours). It shows "Error: The map data service is unavailable. No places are shown." within 10 seconds. `.\scripts\local-map-data.ps1 start` makes it ready again without downloading.
 7. Windows 10 API container only: start the container from the README with `--network speklaiku-dev` and `-e "MapData__MainServer=http://speklaiku-overpass/"`. Step 3 lists places.
 8. Run Part 1 again with the local copy running and with it stopped. The results are the same (FR-017).
 
 ### 3. Fallback (User Story 1)
 
-1. API terminal: `$env:MapData__MainServer = "http://localhost:9/"` (nothing listens there, so it fails at once) and `$env:MapData__FallbackServer = "http://localhost:12345/"`. Start the API with the local copy running.
+1. API terminal: `$env:MapData__MainServer = "http://127.0.0.1:9/"` (nothing listens there, so it fails at once) and `$env:MapData__FallbackServer = "http://127.0.0.1:12345/"`. Start the API with the local copy running.
 2. Open step 3 for a location not used before. Places are listed without an error, and the page does not say which server answered.
 3. The API log shows one "Map data service failed: Network" warning that ends with "on the main server", without the address, the position or the tags.
 4. Generate the schedule. It uses the fallback's places.
 5. Stop the local copy and open step 3 for another new location. It shows the map data error with **Retry**, and the log shows one warning for the main server and one for the fallback.
-6. Clear `MapData__FallbackServer` and restart the API. With the main server still at `http://localhost:9/`, the error appears at once, without extra waiting.
+6. Clear `MapData__FallbackServer` and restart the API. With the main server still at `http://127.0.0.1:9/`, the error appears at once, without extra waiting.
 
 ### 4. Waiting time and deadline (User Story 3)
 
