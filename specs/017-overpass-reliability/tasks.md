@@ -72,21 +72,21 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 [P] Create `Api/Clients/MapDataServerRole.cs`:
+- [X] T003 [P] Create `Api/Clients/MapDataServerRole.cs`:
   - `public enum MapDataServerRole { Main, Fallback }`.
   - A static class `MapDataServerRoles` with `public static string ToLogName(this MapDataServerRole role)`, which returns `"main"` or `"fallback"`.
   - Doc comment: only this name is ever logged, never the address.
-- [ ] T004 [P] Create `Api/Clients/MapDataServer.cs`: `public sealed record MapDataServer(Uri Address, MapDataServerRole Role, TimeSpan Timeout);`. Doc comment: "Address is absolute and ends with `/`; the client sends to `new Uri(Address, "api/interpreter")`" (data-model.md).
-- [ ] T005 [P] In `Api/Clients/ExternalServiceJson.cs`:
+- [X] T004 [P] Create `Api/Clients/MapDataServer.cs`: `public sealed record MapDataServer(Uri Address, MapDataServerRole Role, TimeSpan Timeout);`. Doc comment: "Address is absolute and ends with `/`; the client sends to `new Uri(Address, "api/interpreter")`" (data-model.md).
+- [X] T005 [P] In `Api/Clients/ExternalServiceJson.cs`:
   - Add an optional last parameter `string? server = null` to `PostFormAsync`, to the private `SendAsync`, and to `Failure`.
   - Pass it through to every `Failure` call in `SendAsync`.
   - In `Failure`, when `server` is not null, log `"{Service} failed: {FailureKind} {StatusCode} on the {Server} server"`. Otherwise log the existing template, unchanged.
   - `GetAsync` and the Open-Meteo clients do not change.
-- [ ] T006 [P] In `Api/Clients/OverpassQuery.cs`:
+- [X] T006 [P] In `Api/Clients/OverpassQuery.cs`:
   - Remove the constant `TimeoutSeconds`.
   - Add a parameter `int timeoutSeconds` to `Build` and use it in `[out:json][timeout:{timeoutSeconds}]`.
   - Update the doc comment: it is the attempt time in whole seconds (research section 5).
-- [ ] T007 Change `Api/Clients/IMapPlacesClient.cs` and `Api/Clients/OverpassMapPlacesClient.cs` (research sections 5 and 9; depends on T003 to T006):
+- [X] T007 Change `Api/Clients/IMapPlacesClient.cs` and `Api/Clients/OverpassMapPlacesClient.cs` (research sections 5 and 9; depends on T003 to T006):
   - New signature: `Task<IReadOnlyList<MapElement>> FindAsync(MapDataServer server, TimeSpan timeout, double latitude, double longitude, int radiusKm, IReadOnlyList<string> tags, CancellationToken cancellationToken)`. Update the interface doc comment: the server and time are chosen by the caller.
   - Remove `BaseAddress`, `Path` stays `"api/interpreter"`.
   - `Timeout` becomes a 10-second backstop: `public static readonly TimeSpan BackstopTimeout = TimeSpan.FromSeconds(10);`. `Configure(HttpClient)` sets only that timeout and the user agent.
@@ -98,14 +98,14 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - The runtime-error remark and the missing-elements checks also pass the role.
     - A cancelled request (`cancellationToken` cancelled) still throws `OperationCanceledException`.
   - Update the class doc comment.
-- [ ] T008 Change `Api/Services/NearbyPlacesService.cs` to call the new signature with a private `static readonly MapDataServer PublicServer = new(new Uri("https://overpass-api.de/"), MapDataServerRole.Main, TimeSpan.FromSeconds(4));` and `PublicServer.Timeout`. T018 replaces this field with the `MapData` settings.
-- [ ] T009 [P] Update `UnitTests/RecordingMapPlacesClient.cs` to the new signature:
+- [X] T008 Change `Api/Services/NearbyPlacesService.cs` to call the new signature with a private `static readonly MapDataServer PublicServer = new(new Uri("https://overpass-api.de/"), MapDataServerRole.Main, TimeSpan.FromSeconds(4));` and `PublicServer.Timeout`. T018 replaces this field with the `MapData` settings.
+- [X] T009 [P] Update `UnitTests/RecordingMapPlacesClient.cs` to the new signature:
   - `Calls` also records `MapDataServer Server` and `TimeSpan Timeout` (as the first two tuple members).
   - Its behaviour is otherwise unchanged.
-- [ ] T010 [P] Update `IntegrationTests/FakeMapPlacesClient.cs` to the new signature:
+- [X] T010 [P] Update `IntegrationTests/FakeMapPlacesClient.cs` to the new signature:
   - Without role scripting it answers for any server, exactly as today.
   - Add `public MapDataServer? LastServer { get; }`, set on every call, so T021 can see which address was used.
-- [ ] T011 Update `UnitTests/OverpassMapPlacesClientTests.cs` for the new signature, with a helper server `new MapDataServer(new Uri("https://overpass.test/"), MapDataServerRole.Main, TimeSpan.FromSeconds(4))`:
+- [X] T011 Update `UnitTests/OverpassMapPlacesClientTests.cs` for the new signature, with a helper server `new MapDataServer(new Uri("https://overpass.test/"), MapDataServerRole.Main, TimeSpan.FromSeconds(4))`:
   - Replace the expected `[out:json][timeout:4]` with the timeout given in the call. This is the only existing assertion that changes; SC-007 allows it because FR-008 replaces the fixed wait.
   - New `FindAsync_PostsToTheServersInterpreter`: the request URI is `https://overpass.test/api/interpreter`.
   - New `FindAsync_KeepsThePathOfAnAddressWithAPath`: the address `https://mirror.test/overpass/` gives `https://mirror.test/overpass/api/interpreter`.
@@ -114,8 +114,14 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - New `SlowAnswerWithinTheAttemptTime_IsUsed`: the handler answers after 300 ms with valid elements, the attempt time is 2 s, and the elements are returned (spec SC-003 and User Story 3 scenario 1, scaled down).
   - New `CancelledRequest_IsNotATimeout`: a cancelled `cancellationToken` gives `OperationCanceledException`, and no warning is logged.
   - New `FailureWarning_NamesTheRoleAndNeverTheAddress`: for a 502 on a fallback server with the address `https://secret-user:secret-pass@mirror.test/`, the single warning contains "on the fallback server", and it contains neither "mirror.test" nor "secret".
-- [ ] T012 Update `IntegrationTests/PlanPlacesFailureTests.cs`: the client built with `OverpassMapPlacesClient.Configure(httpClient)` now needs no base address. No assertion changes.
-- [ ] T013 Run all checks (Shared notes). Everything passes. The test counts grow only by the new tests of T011.
+  - Result (2026-11-24): **no existing assertion changed.** The helper server keeps a 4-second time, so the existing `[timeout:4]` expectation is still right as written. `NoAnswerWithinTimeout_ThrowsTimeout` now passes a 200 ms attempt time; its assertions are the same. `FindAsync_PutsTheAttemptTimeInTheQuery` also covers 400 ms giving `[timeout:1]`.
+  - `RecordingMapPlacesClient` (T009) records each call as a small `Call` record instead of a tuple, because the six-member tuple did not fit `dotnet format`. Its users read the members by name and needed no change.
+- [X] T012 Update `IntegrationTests/PlanPlacesFailureTests.cs`: the client built with `OverpassMapPlacesClient.Configure(httpClient)` now needs no base address. No assertion changes.
+  - Result (2026-11-24): no edit was needed. The test only calls `Configure`, which still exists, and the client now sends to absolute addresses.
+- [X] T013 Run all checks (Shared notes). Everything passes. The test counts grow only by the new tests of T011.
+  - Result (2026-11-24), each step in the foreground:
+    - **Backend**: build with 0 warnings; `dotnet format` clean; 747 unit tests (T002: 739, +8, all from T011) and 428 integration tests (unchanged).
+    - **Frontend**: lint, `format:check` and build clean; 91 files and 1320 tests.
 
 **Checkpoint**: Same behaviour as before. The client takes a server and a time, and the warnings name the role.
 

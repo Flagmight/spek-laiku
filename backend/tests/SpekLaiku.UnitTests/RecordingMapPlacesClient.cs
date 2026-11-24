@@ -13,19 +13,21 @@ public sealed class RecordingMapPlacesClient : IMapPlacesClient
     /// <summary>When set, every call throws it, as the real client does for a service failure.</summary>
     public ExternalServiceException? Failure { get; set; }
 
-    public List<(double Latitude, double Longitude, int RadiusKm, IReadOnlyList<string> Tags)> Calls { get; } = [];
+    public List<Call> Calls { get; } = [];
 
     /// <summary>Makes every call fail like the real client does for <paramref name="kind"/>.</summary>
     public void Fail(FailureKind kind) => Failure = new ExternalServiceException(ExternalService.MapData, kind);
 
     public Task<IReadOnlyList<MapElement>> FindAsync(
+        MapDataServer server,
+        TimeSpan timeout,
         double latitude,
         double longitude,
         int radiusKm,
         IReadOnlyList<string> tags,
         CancellationToken cancellationToken)
     {
-        Calls.Add((latitude, longitude, radiusKm, tags.ToList()));
+        Calls.Add(new Call(server, timeout, latitude, longitude, radiusKm, tags.ToList()));
         if (Failure is not null)
         {
             throw Failure;
@@ -33,4 +35,13 @@ public sealed class RecordingMapPlacesClient : IMapPlacesClient
 
         return Task.FromResult(Answer);
     }
+
+    /// <summary>One recorded call: the server and attempt time chosen by the caller, and what was asked.</summary>
+    public sealed record Call(
+        MapDataServer Server,
+        TimeSpan Timeout,
+        double Latitude,
+        double Longitude,
+        int RadiusKm,
+        IReadOnlyList<string> Tags);
 }

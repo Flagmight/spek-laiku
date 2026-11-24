@@ -16,8 +16,12 @@ public sealed class FakeMapPlacesClient : IMapPlacesClient
     private readonly ConcurrentDictionary<(double, double), FailureKind> failures = new();
     private readonly ConcurrentDictionary<(double, double), IReadOnlyList<string>> lastTags = new();
     private int calls;
+    private MapDataServer? lastServer;
 
     public int Calls => calls;
+
+    /// <summary>The server of the last call, so tests can see which configured address was used.</summary>
+    public MapDataServer? LastServer => lastServer;
 
     /// <summary>A search around this position finds these elements (filtered by the requested tags).</summary>
     public void Script(double latitude, double longitude, IReadOnlyList<MapElement> elements) =>
@@ -35,6 +39,8 @@ public sealed class FakeMapPlacesClient : IMapPlacesClient
         lastTags.TryGetValue((latitude, longitude), out var tags) ? tags : null;
 
     public Task<IReadOnlyList<MapElement>> FindAsync(
+        MapDataServer server,
+        TimeSpan timeout,
         double latitude,
         double longitude,
         int radiusKm,
@@ -42,6 +48,7 @@ public sealed class FakeMapPlacesClient : IMapPlacesClient
         CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref calls);
+        Volatile.Write(ref lastServer, server);
         lastTags[(latitude, longitude)] = tags.ToList();
         if (failures.TryGetValue((latitude, longitude), out var kind))
         {

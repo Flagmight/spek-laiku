@@ -19,6 +19,10 @@ public sealed class NearbyPlacesService(
     ForecastPeriod forecastPeriod,
     IOptions<PlacesOptions> options)
 {
+    // Today's server and wait (feature 007). Feature 017 task T018 replaces this with the MapData settings.
+    private static readonly MapDataServer PublicServer =
+        new(new Uri("https://overpass-api.de/"), MapDataServerRole.Main, TimeSpan.FromSeconds(4));
+
     /// <summary>One entry per category, in the given order.</summary>
     public async Task<IReadOnlyList<ReceivedPlaces>> GetAsync(
         PlaceLocation location,
@@ -55,7 +59,13 @@ public sealed class NearbyPlacesService(
         {
             var tags = missing.SelectMany(index => categories[index].Tags).Distinct(StringComparer.Ordinal).ToList();
             var elements = await mapPlacesClient.FindAsync(
-                location.Latitude, location.Longitude, radiusKm, tags, cancellationToken);
+                PublicServer,
+                PublicServer.Timeout,
+                location.Latitude,
+                location.Longitude,
+                radiusKm,
+                tags,
+                cancellationToken);
 
             foreach (var index in missing)
             {
