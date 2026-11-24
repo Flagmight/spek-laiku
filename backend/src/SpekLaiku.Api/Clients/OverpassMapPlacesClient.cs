@@ -53,7 +53,7 @@ public sealed class OverpassMapPlacesClient(HttpClient httpClient, ILogger<Overp
             // Without badRequestMeansNotFound the answer is never null: every failure throws.
             answer = await ExternalServiceJson.PostFormAsync<OverpassResponse>(
                 httpClient,
-                new Uri(server.Address, Path).ToString(),
+                new Uri(server.Address, Path).AbsoluteUri,
                 [new("data", query)],
                 ExternalService.MapData,
                 logger,
