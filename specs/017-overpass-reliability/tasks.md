@@ -136,7 +136,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 - Start with no setting, and the public address is used.
 - Start with an invalid address, and the API refuses to start with a message that names the setting.
 
-- [ ] T014 [P] [US2] Create `Api/Services/MapDataOptions.cs` (data-model.md "MapDataOptions"):
+- [X] T014 [P] [US2] Create `Api/Services/MapDataOptions.cs` (data-model.md "MapDataOptions"):
   - `public const string SectionName = "MapData";`
   - `public const int ShortestTimeoutSeconds = 1;` and `public const int LongestTimeoutSeconds = 8;`
   - `public string MainServer { get; init; } = "https://overpass-api.de/";`
@@ -146,7 +146,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `public IReadOnlyList<MapDataServer> Servers()`. It returns the main server, then the fallback when `FallbackServer` is not empty or white space. Each address gets a trailing `/` when it has none. Call it only after validation.
   - `public static Uri ToAddress(string text)`, which adds the trailing `/` and returns the `Uri`. The validator and `Servers()` share it.
   - Doc comment like `PlacesOptions`: the settings can be changed with environment variables such as `MapData__MainServer`.
-- [ ] T015 [P] [US2] Create `Api/Services/MapDataOptionsValidator.cs`: `public sealed class MapDataOptionsValidator(IHostEnvironment environment) : IValidateOptions<MapDataOptions>` (research section 2).
+- [X] T015 [P] [US2] Create `Api/Services/MapDataOptionsValidator.cs`: `public sealed class MapDataOptionsValidator(IHostEnvironment environment) : IValidateOptions<MapDataOptions>` (research section 2).
   - Collect every failure and return `ValidateOptionsResult.Fail(failures)`, or `Success`.
   - Messages, verbatim, with `<Setting>` being `MainServer` or `FallbackServer` (the latter only when it is not empty):
     - `MapData:<Setting> must be an absolute http or https address.`: the value is not an absolute URI, or its scheme is not `http` or `https`.
@@ -154,18 +154,19 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - `MapData:FallbackServer must not be the same as MapData:MainServer.`: both addresses are valid and equal after `ToAddress`, compared with `StringComparison.OrdinalIgnoreCase`.
     - `MapData:MainTimeoutSeconds must be 1 to 8.` and `MapData:FallbackTimeoutSeconds must be 1 to 8.`: the value is outside `ShortestTimeoutSeconds` to `LongestTimeoutSeconds`. The fallback's time is checked even without a fallback.
   - No message ever contains a configured value.
-- [ ] T016 [US2] Create `Api/Clients/MapDataRegistration.cs`: `public static class MapDataRegistration` with `public static IServiceCollection AddMapData(this IServiceCollection services, IConfiguration configuration)`:
+- [X] T016 [US2] Create `Api/Clients/MapDataRegistration.cs`: `public static class MapDataRegistration` with `public static IServiceCollection AddMapData(this IServiceCollection services, IConfiguration configuration)`:
   - `services.AddOptions<MapDataOptions>().Bind(configuration.GetSection(MapDataOptions.SectionName)).ValidateOnStart();`
   - `services.AddSingleton<IValidateOptions<MapDataOptions>, MapDataOptionsValidator>();`
   - The existing `AddHttpClient<IMapPlacesClient, OverpassMapPlacesClient>(OverpassMapPlacesClient.Configure).RemoveAllLoggers()`, with its comment.
   - In `Api/Program.cs`, replace the map data client registration with `builder.Services.AddMapData(builder.Configuration);`. Keep the `PlacesOptions` registration where it is.
-- [ ] T017 [P] [US2] In `Api/appsettings.json`, add after `"Places"`: `"MapData": { "MainServer": "https://overpass-api.de/", "MainTimeoutSeconds": 4, "FallbackServer": "", "FallbackTimeoutSeconds": 4 }` (T048 raises both times to 6). No local value.
-- [ ] T018 [US2] In `Api/Services/NearbyPlacesService.cs`:
+- [X] T017 [P] [US2] In `Api/appsettings.json`, add after `"Places"`: `"MapData": { "MainServer": "https://overpass-api.de/", "MainTimeoutSeconds": 4, "FallbackServer": "", "FallbackTimeoutSeconds": 4 }` (T048 raises both times to 6). No local value.
+- [X] T018 [US2] In `Api/Services/NearbyPlacesService.cs`:
   - Remove the `PublicServer` field (T008).
   - Inject `IOptions<MapDataOptions> mapDataOptions`.
   - Call the client with `mapDataOptions.Value.Servers()[0]` and its `Timeout`.
   - Update the class doc comment.
-- [ ] T019 [P] [US2] Create `UnitTests/MapDataOptionsValidatorTests.cs`, with one test per rule and names that describe the scenario:
+  - Result (2026-11-24): done. The new constructor parameter meant `NearbyPlacesServiceTests` and `PlanPlacesServiceTests` had to pass `Options.Create(new MapDataOptions())` already now, not in T038. Only their construction lines changed; no assertion changed.
+- [X] T019 [P] [US2] Create `UnitTests/MapDataOptionsValidatorTests.cs`, with one test per rule and names that describe the scenario:
   - the defaults are valid in Production;
   - a relative address, `ftp://` and `not an address` fail with the address message;
   - `http://localhost:12345` is valid in Development and fails in Production with the http message, for both the main and the fallback setting;
@@ -176,10 +177,10 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - no message contains the configured value (use an address with `secret-user:secret-pass@`).
 
   Use a small `IHostEnvironment` stub with `EnvironmentName` set.
-- [ ] T020 [P] [US2] Create `UnitTests/MapDataOptionsTests.cs`:
+- [X] T020 [P] [US2] Create `UnitTests/MapDataOptionsTests.cs`:
   - `Servers()` gives only the main server when there is no fallback, and main then fallback when there is one, with the right roles and timeouts.
   - Addresses without a trailing `/` get one, and an address with a path keeps it.
-- [ ] T021 [US2] Create `IntegrationTests/MapDataConfigurationTests.cs` (SC-004, SC-005):
+- [X] T021 [US2] Create `IntegrationTests/MapDataConfigurationTests.cs` (SC-004, SC-005):
   - `DefaultSettings_UseThePublicServer`: a place request (copy the request shape from `PlanPlacesEndpointTests`) reaches `factory.MapPlaces` with `LastServer.Address == https://overpass-api.de/` and role `Main`.
   - `ConfiguredMainServer_IsUsedForPlaceRequests`: with `UseSetting("MapData:MainServer", "https://overpass.example.test/")`, `LastServer.Address` is that address.
   - `[Theory] WrongSetting_StopsTheApiAtStartUpAndNamesIt`, for:
@@ -190,13 +191,17 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
     Creating a client throws an exception whose message (including inner exceptions) contains the setting's name and not the value.
   - Do not start the test host in the Development environment. It would load the git-ignored `appsettings.Development.json` and user secrets, so the result would depend on the developer's machine (constitution III). "http is accepted in Development" is covered by the unit tests of T019, with a stub environment.
-- [ ] T022 [US2] Add the "Map data server" subsection to `README.md`, after the "Run the application" steps. Include:
+  - Result (2026-11-24): 6 tests. The configured address is given without a trailing `/` (`https://overpass.example.test`), so the test also shows that the slash is added. The value check is skipped for `12`, because two digits can appear in unrelated text.
+- [X] T022 [US2] Add the "Map data server" subsection to `README.md`, after the "Run the application" steps. Include:
   - the table of the four settings with defaults and environment variable names, taken from `contracts/map-data-configuration.md` (show the waiting times as 4 for now; T052 changes them);
   - that addresses are the server's root;
   - that `http` is allowed only in Development;
   - that the API refuses to start on a wrong setting and names it;
   - that local values go in environment variables, never in a committed file (FR-005).
-- [ ] T023 [US2] Run all checks (Shared notes).
+- [X] T023 [US2] Run all checks (Shared notes).
+  - Result (2026-11-24), each step in the foreground:
+    - **Backend**: build with 0 warnings; `dotnet format` clean; 786 unit tests (T013: 747, +39 from T019 and T020) and 434 integration tests (T013: 428, +6 from T021).
+    - **Frontend**: unchanged; lint, `format:check` and build clean; 91 files and 1320 tests.
 
 **Checkpoint**: The API can be pointed at another server by configuration alone, which is the precondition for US4.
 

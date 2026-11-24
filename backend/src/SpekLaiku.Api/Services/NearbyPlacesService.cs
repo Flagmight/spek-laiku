@@ -11,18 +11,16 @@ namespace SpekLaiku.Api.Services;
 /// the radius and the category's tags, so an administrator's tag change applies at once. The categories
 /// without usable places are searched together in one call to the map data service. The age is checked
 /// against <see cref="ForecastPeriod.GetNow"/>, the clock tests control. Failures are not cached: they reach
-/// <c>ApiExceptionHandler</c>, so no category's places are shown, and the next request asks again.
+/// <c>ApiExceptionHandler</c>, so no category's places are shown, and the next request asks again. The map data
+/// server and its waiting time come from the <c>MapData</c> settings (feature 017 spec FR-001).
 /// </summary>
 public sealed class NearbyPlacesService(
     IMapPlacesClient mapPlacesClient,
     IMemoryCache cache,
     ForecastPeriod forecastPeriod,
-    IOptions<PlacesOptions> options)
+    IOptions<PlacesOptions> options,
+    IOptions<MapDataOptions> mapDataOptions)
 {
-    // Today's server and wait (feature 007). Feature 017 task T018 replaces this with the MapData settings.
-    private static readonly MapDataServer PublicServer =
-        new(new Uri("https://overpass-api.de/"), MapDataServerRole.Main, TimeSpan.FromSeconds(4));
-
     /// <summary>One entry per category, in the given order.</summary>
     public async Task<IReadOnlyList<ReceivedPlaces>> GetAsync(
         PlaceLocation location,
@@ -58,9 +56,10 @@ public sealed class NearbyPlacesService(
         if (missing.Count > 0)
         {
             var tags = missing.SelectMany(index => categories[index].Tags).Distinct(StringComparer.Ordinal).ToList();
+            var server = mapDataOptions.Value.Servers()[0];
             var elements = await mapPlacesClient.FindAsync(
-                PublicServer,
-                PublicServer.Timeout,
+                server,
+                server.Timeout,
                 location.Latitude,
                 location.Longitude,
                 radiusKm,

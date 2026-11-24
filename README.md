@@ -101,6 +101,22 @@ npm run build
 
 The API needs outgoing HTTPS access to `geocoding-api.open-meteo.com` for the location search on Plan setup. The browser never calls it, and the automated tests never call it either: they use fake answers, so they pass without a network connection.
 
+#### Map data server
+
+Nearby places (step 3) and schedules come from an OpenStreetMap Overpass API server. Which server, and how long the API waits for it, are settings in the `MapData` section of `appsettings.json`:
+
+| Setting | Environment variable | Default | Allowed values |
+|---|---|---|---|
+| `MapData:MainServer` | `MapData__MainServer` | `https://overpass-api.de/` | An absolute `https` address; `http` only in the Development environment |
+| `MapData:MainTimeoutSeconds` | `MapData__MainTimeoutSeconds` | `4` | A whole number from 1 to 8 |
+| `MapData:FallbackServer` | `MapData__FallbackServer` | empty (no fallback) | Empty, or an address with the same rules, different from the main server |
+| `MapData:FallbackTimeoutSeconds` | `MapData__FallbackTimeoutSeconds` | `4` | A whole number from 1 to 8 |
+
+- An address is the server's root. The API sends its queries to `<address>api/interpreter`, and a missing trailing `/` is added.
+- Plain `http` is accepted only when the API runs in the Development environment (the `https` launch profile sets it). This is for a local copy of the map data service.
+- A wrong setting stops the API at start-up with a message that names the setting, for example `MapData:MainTimeoutSeconds must be 1 to 8.`. The message never repeats the value, so an address with a user name or password in it is not printed.
+- Put local values in environment variables in the terminal that runs the API (for example `$env:MapData__MainServer = "http://localhost:12345/"`), never in a committed file.
+
 #### Running the API on Windows 10
 
 `overpass-api.de` (nearby places, step 3) accepts only TLS 1.3, and Windows 10 cannot make TLS 1.3 connections. On Windows 10, an API started with `dotnet run` therefore shows "Error: The map data service is unavailable. No places are shown." on Places and forecast, and no schedule can be generated. This affects only the machine that runs the API: users' browsers never contact Overpass. Windows 11, macOS and Linux are not affected.

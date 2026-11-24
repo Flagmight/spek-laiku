@@ -133,9 +133,7 @@ public class Program
             .Bind(builder.Configuration.GetSection(PlacesOptions.SectionName))
             .Validate(PlacesOptions.IsValid, PlacesOptions.InvalidMessage)
             .ValidateOnStart();
-        builder.Services.AddHttpClient<IMapPlacesClient, OverpassMapPlacesClient>(OverpassMapPlacesClient.Configure)
-            // The request body holds the plan's position; only the client's own warning is logged.
-            .RemoveAllLoggers();
+        builder.Services.AddMapData(builder.Configuration);
         builder.Services.AddScoped<LocationSearchService>();
         builder.Services.AddScoped<PlanSetupService>();
         builder.Services.AddScoped<PlanActivityService>();

@@ -190,5 +190,10 @@ public sealed class NearbyPlacesServiceTests : IDisposable
         CreateService().GetAsync(Kaunas, RadiusKm, categories, CancellationToken.None);
 
     private NearbyPlacesService CreateService() =>
-        new(client, cache, new ForecastPeriod(clock), Options.Create(new PlacesOptions()));
+        new(
+            client,
+            cache,
+            new ForecastPeriod(clock),
+            Options.Create(new PlacesOptions()),
+            Options.Create(new MapDataOptions()));
 }

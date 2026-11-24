@@ -230,7 +230,7 @@ public sealed class PlanPlacesServiceTests : IDisposable
                 new PlanSetupService(new LocationSearchService(geocoding, cache), period),
                 new PlanActivityService(activities, new ActivityCategoryService(activities))),
             tagsContext ?? activitiesContext ?? context,
-            new NearbyPlacesService(mapPlaces, cache, period, options),
+            new NearbyPlacesService(mapPlaces, cache, period, options, Options.Create(new MapDataOptions())),
             options);
     }
 }
