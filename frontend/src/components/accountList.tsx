@@ -12,9 +12,14 @@ export function AccountList({ accounts }: { accounts: AdminAccount[] }) {
   const buttons = useRef(new Map<string, HTMLButtonElement>())
   const focusRequest = useAccountStatusStore((state) => state.focusRequest)
 
+  // Used once and then cleared, so a list shown again after a search or a reload does not take focus.
   useEffect(() => {
-    if (focusRequest) {
-      buttons.current.get(focusRequest.accountId)?.focus()
+    const button = focusRequest?.accountId
+      ? buttons.current.get(focusRequest.accountId)
+      : undefined
+    if (button) {
+      button.focus()
+      useAccountStatusStore.getState().focusHandled()
     }
   }, [focusRequest])
 

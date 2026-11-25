@@ -188,3 +188,39 @@ describe("useAdminAccountsStore: search", () => {
     expect(store().searchError).toBeNull()
   })
 })
+
+// Fixes from the feature 014 code review.
+describe("useAdminAccountsStore: code review fixes", () => {
+  const refused = () =>
+    jsonResponse(400, {
+      errors: { search: ["Search text can be at most 256 characters."] },
+    })
+
+  it("keeps the load error and Retry when a refused search follows a failed first load", async () => {
+    routeFetch({
+      [listRoute]: () => jsonResponse(500, {}),
+      "GET /api/admin/accounts?search=x": refused,
+    })
+    await store().load()
+
+    await store().load("x")
+
+    expect(store().status).toBe("error")
+    expect(store().searchError).toBe(
+      "Error: Search text can be at most 256 characters.",
+    )
+  })
+
+  it("clears an old search refusal when the next load starts", async () => {
+    routeFetch({
+      "GET /api/admin/accounts?search=x": refused,
+      "GET /api/admin/accounts?search=ana": () => jsonResponse(500, {}),
+    })
+    await store().load("x")
+
+    await store().load("ana")
+
+    expect(store().status).toBe("error")
+    expect(store().searchError).toBeNull()
+  })
+})

@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { AccountList } from "../components/accountList"
 import { AccountSearchForm } from "../components/accountSearchForm"
 import { usePageTitle } from "../hooks/usePageTitle"
@@ -25,6 +25,18 @@ export function UserAccountsPage() {
   const changeError = useAccountStatusStore((state) => state.error)
   const canRetryChange = useAccountStatusStore((state) => state.failed !== null)
 
+  const heading = useRef<HTMLHeadingElement>(null)
+  const focusRequest = useAccountStatusStore((state) => state.focusRequest)
+
+  // After a 404 or 409 the account's button is gone while the list loads again, so focus moves to the heading
+  // instead of being lost (feature 014 code review).
+  useEffect(() => {
+    if (focusRequest && focusRequest.accountId === null) {
+      heading.current?.focus()
+      useAccountStatusStore.getState().focusHandled()
+    }
+  }, [focusRequest])
+
   // The stores outlive the page, so leaving it aborts pending requests and the next visit starts fresh.
   useEffect(() => {
     void useAdminAccountsStore.getState().load("")
@@ -41,7 +53,9 @@ export function UserAccountsPage() {
 
   return (
     <>
-      <h1>User accounts</h1>
+      <h1 ref={heading} tabIndex={-1}>
+        User accounts
+      </h1>
       <p role="status">
         {status === "loading" ? loadingAccountsMessage : changeStatus}
       </p>

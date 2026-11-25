@@ -433,14 +433,34 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - **Migrations and packages**: nothing under `Migrations/`, no `package.json`, lock file or `.csproj` changed.
     - **Logging**: the only two logger calls (`AdminAccountService`, lines 107 and 112) pass the two account ids; no email.
     - **Exceptions**: no `catch` in the new backend code.
-- [ ] T045 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds change operations behind access control on user accounts. Record:
+- [x] T045 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds change operations behind access control on user accounts. Record:
   - the tool;
   - the important findings;
   - the changes made;
   - the findings not applied, each with a short reason.
   
   These go in the Pull Request description (constitution VII). Apply the accepted fixes, then run T046.
-- [ ] T046 Run all checks one step at a time in the foreground, and confirm they pass:
+  - Result (2026-11-25), tools: Claude Code `/code-review` (level high, `main...014-admin-accounts`) and `/security-review`.
+    - **`/security-review`**: no vulnerabilities found (none at confidence 8/10 or more). It checked:
+      - the class-level `ActiveAdministrator` policy, which reads the account on every request, with no `[AllowAnonymous]`;
+      - that the Registered-User-only rule is in the same `ExecuteUpdateAsync` as the change, so an Administrator account (also one's own) cannot be changed, and that the new `ConcurrencyStamp` makes a stale Identity update fail;
+      - injection: the search is a parameterized LINQ `Contains` (`strpos`, no `LIKE`), trimmed and capped at 256; the id is a bound parameter; no raw SQL;
+      - the exact `"Active"`/`"Suspended"` match and the one-field request DTO (no mass assignment);
+      - data exposure: the five-field projection and no `ApplicationUser` map, so no password hash, stamp or lockout field leaves the server;
+      - logging of account ids only; CSRF (JSON `PUT` with the `SameSite=Lax` cookie, as the other admin endpoints); React text rendering with no `dangerouslySetInnerHTML`; the URL-encoded id and search; logout clearing the account stores.
+    
+      No changes were needed.
+    - **`/code-review`**: 9 findings (4 important, 5 nits), all applied. Each new test below failed against the code before its fix (the production files were stashed and the new tests run, then the fixes restored), and passes with it.
+      1. *Important*: after one change, every later search or reload moved focus back to that account's button, because the focus request was never cleared and the remounted list used it again. The request is now cleared once used (`focusHandled`), and `change()` returns how it ended, so the Suspend button no longer compares focus requests. Test: "does not move focus to an account again when the list is shown after a later search"; store test "clears the focus request once it is handled".
+      2. *Important*: Cancel or Escape closed the dialog while the suspension was still running, and the change still went through, with focus lost on a disabled button. Cancel and Escape now do nothing while the request runs. Test: "keeps the dialog open on Cancel and Escape while the suspension runs".
+      3. *Important*: after a 404 or 409 the list was reloaded with the search on screen, aborting a newer search still loading. It now reloads with `requestedSearch`. Test: "reloads with the latest requested search after a 404, not the one on screen".
+      4. *Important*: a list answer read before a change and arriving after it could show the old status next to the success message. When a change succeeds while a list load is on its way, the list is loaded again. Test: "loads the list again when a change succeeds while a list load is on its way".
+      5. *Nit*: a refused search after a failed first load replaced the load error and its Retry with an empty page. It now keeps the error. Test: "keeps the load error and Retry when a refused search follows a failed first load".
+      6. *Nit*: an old search refusal stayed next to the field after a later load failed. It is now cleared when a load starts. Test: "clears an old search refusal when the next load starts".
+      7. *Nit*: Retry was offered after a 401 or 403, where repeating the request would be refused again. It is no longer offered. Test: "offers no Retry after 401" and "after 403".
+      8. *Nit*: a `PUT` with an empty or `null` body got the framework's "A non-empty request body is required." instead of the contract's `accountStatus` error. The body parameter is now optional. Test: `EmptyOrNullBody_Gets400WithTheStatusMessage` (both cases failed before the fix).
+      9. *Nit*: after a 404 or 409 on a confirmed suspension, focus was lost because the list unmounts to load again. Focus now moves to the page heading (`tabIndex={-1}`). Test: "moves focus to the heading when the account is gone and the list loads again".
+- [x] T046 Run all checks one step at a time in the foreground, and confirm they pass:
   - from the repository root: `dotnet build SpekLaiku.slnx`, `dotnet test SpekLaiku.slnx` and `dotnet format SpekLaiku.slnx --verify-no-changes`;
   - from `frontend/`: `npm run lint`, `npm run format:check`, `npm test` and `npm run build`.
   
@@ -450,6 +470,16 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `useLogoutStore.test.tsx`: the two stores are reset.
   
   No existing assertion may be removed or weakened. Record the results here.
+  - Result (2026-11-25), after the T045 fixes, each step run on its own in the foreground, all passing:
+    - **Backend**: build with 0 warnings and 0 errors; **824 unit** tests (T002: 812, +12) and **498 integration** tests (T002: 443, +55); `dotnet format --verify-no-changes` clean.
+    - **Frontend**: lint and `format:check` clean; **95 files** (T002: 91, +4) and **1409 tests** (T002: 1320, +89); build clean.
+    - **Changed existing assertions** (from `git diff main...HEAD` over the existing test files), all allowed above:
+      - `topNavigation.test.tsx`: the Active Administrator list now expects "Users" between Categories and Log out, with its link checked (test renamed "shows Home, Categories, Users and Log out to an Active Administrator"); "does not show Categories to %s" also checks that "Users" is absent (renamed "… Categories or Users …").
+      - `keyboard.test.tsx`: the Activity categories Tab order gains the Users link, and "creates a category using only the keyboard" tabs six times instead of five to reach Create category.
+      - `administratorOnly.test.tsx`, `accessibility.test.tsx`, `keyboard.test.tsx`, `responsive.test.tsx`, `useLogoutStore.test.tsx` and `formatSavedAt.test.ts`: cases added only.
+      - `setup.ts`: the two new stores are reset after each test.
+      
+      No existing assertion was removed or weakened.
 - [ ] T047 Walk through `specs/014-admin-accounts/quickstart.md` Part 2, scenarios 1 to 7, in the running app (README "Run the application"). Record which passed and any that could not be done. The prerequisite SQL promotes an account in the local development database only; ask the user before running it.
   - For spec SC-001 (find and suspend in under 1 minute), time from selecting **Users** to the "✓ Success: Account suspended." message, searching for the account by part of its email on the way, and record the time here. There is no automated timing test.
 - [ ] T048 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:

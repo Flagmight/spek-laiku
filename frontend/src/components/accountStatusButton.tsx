@@ -38,17 +38,25 @@ export function AccountStatusButton({
     )
   }
 
+  // Once Suspend is pressed in the dialog the request cannot be taken back, so Cancel and Escape wait for it
+  // instead of closing a dialog whose change still goes through (spec FR-004).
   function cancel() {
+    if (useAccountStatusStore.getState().pending) {
+      return
+    }
+
     setConfirming(false)
     suspendButton.current?.focus()
   }
 
   async function confirm() {
-    const focusBefore = useAccountStatusStore.getState().focusRequest
-    await useAccountStatusStore.getState().change(account, "Suspended")
+    const outcome = await useAccountStatusStore
+      .getState()
+      .change(account, "Suspended")
     setConfirming(false)
-    // On success the list focuses the new Reactivate button; otherwise focus returns to Suspend.
-    if (useAccountStatusStore.getState().focusRequest === focusBefore) {
+    // On success the list focuses the new Reactivate button, and after a reload the page focuses its heading;
+    // after a failure focus returns to Suspend, next to the error and its Retry.
+    if (outcome === "failed") {
       suspendButton.current?.focus()
     }
   }

@@ -486,3 +486,85 @@ describe("UserAccountsPage: search", () => {
     await waitFor(() => expect(status()).toHaveTextContent("Loading accounts…"))
   })
 })
+
+// Fixes from the feature 014 code review.
+describe("UserAccountsPage: code review fixes", () => {
+  it("does not move focus to an account again when the list is shown after a later search", async () => {
+    render({
+      [statusRoute(suspendedUser.id)]: () =>
+        jsonResponse(200, withStatus(suspendedUser, "Active")),
+      "GET /api/admin/accounts?search=bob": () =>
+        jsonResponse(200, accountList([withStatus(suspendedUser, "Active")])),
+    })
+    await table()
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reactivate bob@example.com" }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Suspend bob@example.com" }),
+      ).toHaveFocus(),
+    )
+
+    const field = screen.getByLabelText("Search by email")
+    await userEvent.type(field, "bob{Enter}")
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("table")).getAllByRole("row"),
+      ).toHaveLength(2),
+    )
+
+    expect(field).toHaveFocus()
+  })
+
+  it("keeps the dialog open on Cancel and Escape while the suspension runs", async () => {
+    let answer: (response: Response) => void = () => {}
+    render({
+      [statusRoute(activeUser.id)]: () =>
+        new Promise<Response>((resolve) => (answer = resolve)),
+    })
+    await table()
+    await userEvent.click(
+      screen.getByRole("button", { name: "Suspend ana@example.com" }),
+    )
+    const dialog = screen.getByRole("dialog")
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Suspend" }),
+    )
+    await waitFor(() =>
+      expect(status()).toHaveTextContent("Suspending account…"),
+    )
+
+    await userEvent.keyboard("{Escape}")
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    )
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+
+    answer(jsonResponse(200, withStatus(activeUser, "Suspended")))
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(status()).toHaveTextContent("✓ Success: Account suspended.")
+  })
+
+  it("moves focus to the heading when the account is gone and the list loads again", async () => {
+    render({
+      [statusRoute(activeUser.id)]: () => jsonResponse(404, {}),
+    })
+    await table()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Suspend ana@example.com" }),
+    )
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Suspend",
+      }),
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { level: 1, name: "User accounts" }),
+      ).toHaveFocus(),
+    )
+  })
+})

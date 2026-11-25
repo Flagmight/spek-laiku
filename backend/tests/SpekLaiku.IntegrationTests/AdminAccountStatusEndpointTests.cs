@@ -189,6 +189,24 @@ public class AdminAccountStatusEndpointTests(PostgreSqlApiFactory factory)
             "Administrator accounts cannot be suspended or reactivated here.", body.GetProperty("detail").GetString());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("null")]
+    public async Task EmptyOrNullBody_Gets400WithTheStatusMessage(string body)
+    {
+        using var admin = await factory.CreateSignedInClientAsync("Administrator");
+        var target = await factory.CreateUserAsync();
+        var before = await StoredAsync(factory, target.Id);
+        using var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+
+        using var response = await admin.PutAsync(StatusPath(target.Id), content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var errors = (await ReadAsync(response)).GetProperty("errors").GetProperty("accountStatus");
+        Assert.Equal("Select Active or Suspended.", Assert.Single(errors.EnumerateArray()).GetString());
+        Assert.Equal(before, await StoredAsync(factory, target.Id));
+    }
+
     // Identity's UpdateAsync writes every column. An update built from the account as it was before the suspension
     // (as counting a failed login does) must fail, not write "Active" back (research section 3).
     [Fact]

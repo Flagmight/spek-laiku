@@ -54,9 +54,16 @@ export const useAdminAccountsStore = create<AdminAccountsState>()(
     ...initialAdminAccountsState,
     load: async (search = "") => {
       const requested = search.trim()
+      // A refused search keeps the list shown before it; after a failed first load there is none to keep.
+      const hadList = get().status === "loaded" || get().accounts.length > 0
       get().controller?.abort()
       const abort = new AbortController()
-      set({ status: "loading", requestedSearch: requested, controller: abort })
+      set({
+        status: "loading",
+        requestedSearch: requested,
+        searchError: null,
+        controller: abort,
+      })
       const clearTimer = startTimeout(abort)
       let answer: AccountListAnswer | null = null
       let refused = false
@@ -91,9 +98,10 @@ export const useAdminAccountsStore = create<AdminAccountsState>()(
           controller: null,
         })
       } else if (answer?.kind === "invalidSearch") {
-        // The list shown before the search stays, with the message next to the field (spec Edge Cases).
+        // The list shown before the search stays, with the message next to the field (spec Edge Cases). If the
+        // first load had failed, its error and Retry stay instead of an empty page.
         set({
-          status: "loaded",
+          status: hadList ? "loaded" : "error",
           searchError: formatErrorMessage(answer.message),
           controller: null,
         })

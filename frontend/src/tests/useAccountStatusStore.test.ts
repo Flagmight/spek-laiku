@@ -211,3 +211,75 @@ describe("useAccountStatusStore: reactivate", () => {
     expect(statusMessage(store())).toBe("✓ Success: Account reactivated.")
   })
 })
+
+// Fixes from the feature 014 code review.
+describe("useAccountStatusStore: code review fixes", () => {
+  it("returns how each change ended", async () => {
+    routeFetch({
+      [listRoute]: () => jsonResponse(200, accountList([activeUser])),
+      [suspendRoute]: () =>
+        jsonResponse(200, withStatus(activeUser, "Suspended")),
+    })
+
+    expect(await store().change(activeUser, "Suspended")).toBe("changed")
+  })
+
+  it("reloads with the latest requested search after a 404, not the one on screen", async () => {
+    const { requests } = routeFetch({
+      [listRoute]: () => jsonResponse(200, accountList([activeUser])),
+      "GET /api/admin/accounts?search=carol": () =>
+        new Promise<Response>(() => {}),
+      [suspendRoute]: () => jsonResponse(404, {}),
+    })
+    await loadList()
+    void useAdminAccountsStore.getState().load("carol")
+
+    expect(await store().change(activeUser, "Suspended")).toBe("reloaded")
+
+    const gets = requests.filter((request) => request.method === "GET")
+    expect(gets.at(-1)?.path).toBe("/api/admin/accounts?search=carol")
+    expect(store().focusRequest?.accountId).toBeNull()
+  })
+
+  it("loads the list again when a change succeeds while a list load is on its way", async () => {
+    let listCalls = 0
+    routeFetch({
+      [listRoute]: () => {
+        listCalls++
+        return listCalls === 1
+          ? jsonResponse(200, accountList([activeUser]))
+          : new Promise<Response>(() => {})
+      },
+      [suspendRoute]: () =>
+        jsonResponse(200, withStatus(activeUser, "Suspended")),
+    })
+    await loadList()
+    void useAdminAccountsStore.getState().load()
+
+    await store().change(activeUser, "Suspended")
+
+    expect(listCalls).toBe(3)
+  })
+
+  it.each([401, 403])("offers no Retry after %i", async (status) => {
+    vi.spyOn(useCurrentUserStore.getState(), "refresh").mockResolvedValue()
+    routeFetch({ [suspendRoute]: () => jsonResponse(status, {}) })
+
+    expect(await store().change(activeUser, "Suspended")).toBe("failed")
+
+    expect(store().error).toBe(suspendFailedMessage)
+    expect(store().failed).toBeNull()
+  })
+
+  it("clears the focus request once it is handled", async () => {
+    routeFetch({
+      [suspendRoute]: () =>
+        jsonResponse(200, withStatus(activeUser, "Suspended")),
+    })
+    await store().change(activeUser, "Suspended")
+
+    store().focusHandled()
+
+    expect(store().focusRequest).toBeNull()
+  })
+})

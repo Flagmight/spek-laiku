@@ -60,13 +60,23 @@ export interface AccountStatusState {
   error: string | null
   // The change Retry repeats; null when Retry is not offered.
   failed: AccountChange | null
-  // Set after each successful change, so the page moves focus to the account's new button (spec FR-006).
-  focusRequest: { accountId: string; sequence: number } | null
+  // Where focus goes next: the account's new button after a successful change (spec FR-006), or the page heading
+  // (accountId null) when the list is loaded again after a 404 or 409, because the button is gone. The page or
+  // the list clears it with focusHandled() once used, so a list shown again later does not take focus.
+  focusRequest: { accountId: string | null; sequence: number } | null
   controller: AbortController | null
-  change: (account: AdminAccount, target: AccountStatus) => Promise<void>
-  retry: () => Promise<void>
+  change: (
+    account: AdminAccount,
+    target: AccountStatus,
+  ) => Promise<AccountChangeOutcome>
+  retry: () => Promise<AccountChangeOutcome>
+  focusHandled: () => void
   reset: () => void
 }
+
+// How a change ended: "reloaded" means the account was gone or an Administrator account and the list is loaded
+// again; "ignored" that another change was running or the page closed.
+export type AccountChangeOutcome = "changed" | "reloaded" | "failed" | "ignored"
 
 export const initialAccountStatusState: Pick<
   AccountStatusState,
@@ -91,20 +101,35 @@ export const useAccountStatusStore = create<AccountStatusState>()((
   set,
   get,
 ) => {
-  function settle(change: AccountChange, answer: AccountStatusAnswer | null) {
+  function focusOn(accountId: string | null) {
+    return { accountId, sequence: (get().focusRequest?.sequence ?? 0) + 1 }
+  }
+
+  // Loads the list again with the search the administrator asked for last, which may still be loading.
+  function reloadList() {
+    const accounts = useAdminAccountsStore.getState()
+    void accounts.load(accounts.requestedSearch)
+  }
+
+  function settle(
+    change: AccountChange,
+    answer: AccountStatusAnswer | null,
+  ): AccountChangeOutcome {
     const kind = changeKind(change.target)
     const done = { pending: null, controller: null }
     if (answer?.kind === "changed") {
-      useAdminAccountsStore.getState().replace(answer.account)
+      const accounts = useAdminAccountsStore.getState()
+      accounts.replace(answer.account)
+      // A list answer still on its way may have been read before this change, so it is asked for again.
+      if (accounts.status === "loading") {
+        reloadList()
+      }
       set({
         ...done,
         notice: messages[kind].done,
-        focusRequest: {
-          accountId: answer.account.id,
-          sequence: (get().focusRequest?.sequence ?? 0) + 1,
-        },
+        focusRequest: focusOn(answer.account.id),
       })
-      return
+      return "changed"
     }
 
     if (answer?.kind === "gone" || answer?.kind === "administrator") {
@@ -115,24 +140,29 @@ export const useAccountStatusStore = create<AccountStatusState>()((
           answer.kind === "gone"
             ? accountGoneMessage
             : administratorAccountMessage,
+        focusRequest: focusOn(null),
       })
-      const accounts = useAdminAccountsStore.getState()
-      void accounts.load(accounts.search)
-      return
+      reloadList()
+      return "reloaded"
     }
 
     if (answer) {
-      // The session ended or the account changed: the guards send the user on after the refresh.
+      // The session ended or the account changed: the guards send the user on after the refresh. Repeating the
+      // same request would be refused again, so no Retry.
       void useCurrentUserStore.getState().refresh()
+      set({ ...done, error: messages[kind].failed })
+      return "failed"
     }
+
     set({ ...done, error: messages[kind].failed, failed: change })
+    return "failed"
   }
 
   return {
     ...initialAccountStatusState,
     change: async (account, target) => {
       if (get().pending) {
-        return
+        return "ignored"
       }
 
       const change = { account, target }
@@ -155,16 +185,15 @@ export const useAccountStatusStore = create<AccountStatusState>()((
       }
 
       // After reset() the answer belongs to a closed page, so it is dropped.
-      if (get().controller === abort) {
-        settle(change, answer)
-      }
+      return get().controller === abort ? settle(change, answer) : "ignored"
     },
     retry: () => {
       const { failed } = get()
       return failed
         ? get().change(failed.account, failed.target)
-        : Promise.resolve()
+        : Promise.resolve("ignored")
     },
+    focusHandled: () => set({ focusRequest: null }),
     reset: () => {
       get().controller?.abort()
       set(initialAccountStatusState)

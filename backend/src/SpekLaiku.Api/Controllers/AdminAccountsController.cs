@@ -47,12 +47,14 @@ public sealed class AdminAccountsController(
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    // The body is optional, so a missing or null body reaches this check and gets the contract's message instead of
+    // the framework's "A non-empty request body is required." (feature 014 code review).
     public async Task<ActionResult<AdminAccountResponse>> SetStatus(
         string id,
-        AccountStatusRequest request,
+        AccountStatusRequest? request,
         CancellationToken cancellationToken)
     {
-        if (ParseStatus(request.AccountStatus) is not { } status)
+        if (ParseStatus(request?.AccountStatus) is not { } status)
         {
             return FieldError("accountStatus", InvalidStatusMessage);
         }
