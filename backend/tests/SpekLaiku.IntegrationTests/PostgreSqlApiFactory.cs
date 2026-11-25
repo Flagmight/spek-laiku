@@ -106,19 +106,32 @@ public sealed class PostgreSqlApiFactory : WebApplicationFactory<Program>, IAsyn
         AllowAutoRedirect = false
     });
 
+    /// <summary>
+    /// Creates an account through the real UserManager. Without an email it gets a unique
+    /// <c>user-&lt;guid&gt;@example.com</c>; without a date it is registered now. Feature 014 tests pass an email with a
+    /// marker unique to the test, because the shared database also holds other tests' accounts, and an explicit UTC
+    /// registration date where the list order matters (feature 014 research section 14).
+    /// </summary>
     public async Task<ApplicationUser> CreateUserAsync(
         AccountStatus status = AccountStatus.Active,
         string password = "Password123!",
-        string role = "Registered User")
+        string role = "Registered User",
+        string? email = null,
+        DateTime? registrationDate = null)
     {
-        var email = $"user-{Guid.NewGuid():N}@example.com";
+        if (registrationDate is { Kind: not DateTimeKind.Utc })
+        {
+            throw new ArgumentException("The registration date must be UTC.", nameof(registrationDate));
+        }
+
+        email ??= $"user-{Guid.NewGuid():N}@example.com";
         var user = new ApplicationUser
         {
             UserName = email,
             Email = email,
             Role = role,
             AccountStatus = status,
-            RegistrationDate = DateTime.UtcNow
+            RegistrationDate = registrationDate ?? DateTime.UtcNow
         };
         using var scope = Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();

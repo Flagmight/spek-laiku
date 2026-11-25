@@ -64,11 +64,11 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Purpose**: The pieces both the list and the status change use. No endpoint and no visible change yet.
 
-- [ ] T003 [P] Create the response DTOs (data-model.md "API types"):
+- [x] T003 [P] Create the response DTOs (data-model.md "API types"):
   - `backend/src/SpekLaiku.Api/DTOs/Responses/AdminAccountResponse.cs`: `public sealed record AdminAccountResponse(string Id, string Email, string Role, string AccountStatus, DateTime RegistrationDate);`. "Exactly these five properties".
   - `backend/src/SpekLaiku.Api/DTOs/Responses/AdminAccountListResponse.cs`: `public sealed record AdminAccountListResponse(IReadOnlyList<AdminAccountResponse> Accounts, bool HasMore);`. `Accounts` holds "at most 50"; `HasMore` "is true when more accounts match than are returned".
   - `backend/src/SpekLaiku.Api/Services/AdminAccountSummary.cs`: `public sealed record AdminAccountSummary(string Id, string Email, string Role, AccountStatus AccountStatus, DateTime RegistrationDate);`. The list query projects each row to it, so only these five columns are read, and `AccountStatus` stays the enum until it is mapped in memory, with no `ToString()` inside the database query (data-model.md "Service results").
-- [ ] T004 Create `backend/src/SpekLaiku.Api/Mapping/AdminAccountMappingProfile.cs`:
+- [x] T004 Create `backend/src/SpekLaiku.Api/Mapping/AdminAccountMappingProfile.cs`:
   - Map `AdminAccountSummary` → `AdminAccountResponse` member by member with `ForCtorParam`, as `CurrentUserMappingProfile` does: `Id`, `Email`, `Role`, `AccountStatus.ToString()` (`"Active"` or `"Suspended"`) and `RegistrationDate`. The mapping runs in memory, after the query.
   - Add a comment that only these five members may ever be mapped (spec FR-011). The profile has no map from `ApplicationUser`, so an entity cannot be returned by mistake.
   - Then add `backend/tests/SpekLaiku.UnitTests/AdminAccountMappingTests.cs`:
@@ -76,15 +76,15 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - `MapsSuspendedStatusAsItsName`.
     - `SerializedResponse_HasExactlyTheFiveProperties`: serialize a mapped response with the web defaults (`JsonSerializerDefaults.Web`); assert the property names are exactly `id`, `email`, `role`, `accountStatus` and `registrationDate` (spec SC-004). `AdminAccountsListEndpointTests` (T035) checks the same against a real user whose password hash and stamps are set.
     - The AutoMapper configuration validity test, as the other mapping tests do.
-- [ ] T005 [P] Extend `CreateUserAsync` in `backend/tests/SpekLaiku.IntegrationTests/PostgreSqlApiFactory.cs`:
+- [x] T005 [P] Extend `CreateUserAsync` in `backend/tests/SpekLaiku.IntegrationTests/PostgreSqlApiFactory.cs`:
   - Add optional `string? email = null` and `DateTime? registrationDate = null` parameters, after the existing ones, so current callers are unchanged.
   - A null email keeps `user-<guid>@example.com`. A null date keeps `DateTime.UtcNow`. A given date must be UTC.
   - Update its XML comment (research section 14).
-- [ ] T006 [P] Create `frontend/src/types/adminAccount.ts` (data-model.md "Frontend types and state"):
+- [x] T006 [P] Create `frontend/src/types/adminAccount.ts` (data-model.md "Frontend types and state"):
   - `AdminAccount { id: string; email: string; role: "Registered User" | "Administrator"; accountStatus: "Active" | "Suspended"; registrationDate: string }`
   - `AdminAccountList { accounts: AdminAccount[]; hasMore: boolean }`
   - `AccountStatus = AdminAccount["accountStatus"]`
-- [ ] T007 [P] Create `frontend/src/tests/adminAccountsFixtures.ts`:
+- [x] T007 [P] Create `frontend/src/tests/adminAccountsFixtures.ts`:
   - **Accounts**:
     - `activeUser`: "ana@example.com", Active Registered User.
     - `suspendedUser`: "bob@example.com", Suspended Registered User.
@@ -94,7 +94,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - `accountList(accounts, hasMore = false)`.
     - `withStatus(account, status)`.
   - Dates in November 2026, UTC.
-- [ ] T008 [P] Add `formatRegistrationDate(iso: string): string` to `frontend/src/helpers/formatSavedAt.ts`, sharing its Lithuanian-time formatter:
+- [x] T008 [P] Add `formatRegistrationDate(iso: string): string` to `frontend/src/helpers/formatSavedAt.ts`, sharing its Lithuanian-time formatter:
   - A date only, for example "Sat 21 Nov 2026" (research section 13).
   - Test it in the existing `frontend/src/tests/formatSavedAt.test.ts`. Include an instant that is 23:30 UTC, which is already the next day in Vilnius.
 
