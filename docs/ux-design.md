@@ -42,7 +42,7 @@ must be explicitly justified.
 | Profile | Edit profile and preferences, delete account. | Registered User |
 | Admin: Service Status | Shows Open-Meteo and Overpass availability and error logs. | Administrator |
 | Admin: Activity Categories | Create and edit categories, their default weather limits and their OSM place mapping. | Administrator |
-| Admin: User Accounts | Lists accounts, with suspend, reactivate and delete. | Administrator |
+| Admin: User Accounts | Lists accounts, with suspend, reactivate and delete (feature 014 adds the list, the email search, suspend and reactivate for Registered User accounts; delete comes after the MVP). | Administrator |
 | Access Denied (403) and Not Found (404) | Handles forbidden or missing pages and plans. | All users |
 | Account Suspended | Explains that the account is suspended and that features needing an active account are blocked. | Suspended Registered User |
 
@@ -424,8 +424,13 @@ area.
 |  | Forbidden | A non-administrator gets Access Denied. |
 | Admin: Service Status | Loading | "Checking services…" |
 |  | Server error | "Error: Service status could not be read." with Retry. |
-| Admin: User Accounts | Empty | "No accounts match your search." |
+| Admin: User Accounts | Loading | "Loading accounts…" (feature 014). |
+|  | Empty | "No accounts match your search." with **Clear search**. |
+|  | Server error | "Error: Accounts could not be loaded." with Retry (feature 014). |
 |  | Confirmation | "Suspend email@example? They will lose access until reactivated." and the same style for delete. |
+|  | Pending | "Suspending account…" / "Reactivating account…" (feature 014). |
+|  | Success | "✓ Success: Account suspended." / "✓ Success: Account reactivated." (feature 014). |
+|  | Administrator account | "Error: Administrator accounts cannot be suspended or reactivated here." (feature 014). |
 | Account Suspended | Shown when | A suspended user logs in, or tries to use a feature that needs an active account. |
 | 403 / 404 | Normal | Messages and links as in the wireframes plan: Home, My plans. |
 

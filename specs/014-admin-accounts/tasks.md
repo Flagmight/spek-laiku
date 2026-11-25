@@ -400,7 +400,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Purpose**: Documentation, full verification, review. No new behaviour.
 
-- [ ] T043 [P] Update the documentation:
+- [x] T043 [P] Update the documentation:
   - **`README.md`**:
     - **New "User accounts" section**, after "Activity categories". It says:
       - an Active Administrator selects **Users** to list accounts (newest first, at most 50, with a search by email);
@@ -416,7 +416,8 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     
     Change nothing else.
   - **`docs/architecture.md`**: check for statements that now contradict the implementation, and correct only what is wrong.
-- [ ] T044 Review `git diff main...HEAD` and confirm:
+  - Result (2026-11-25): README has a new "User accounts" section after "Activity categories" with every point above, "Testing an Administrator or Suspended account" now points to the page for Registered User accounts and keeps the SQL for Administrator accounts, and "Run the application" says "Features 012 and 014 add no migration". `docs/ux-design.md` has the Admin: User Accounts row (delete after the MVP) and the five new states; the Empty state also names **Clear search**. `docs/architecture.md` already matches (its Services row names accounts and its feature table describes 014 as built), so it is unchanged.
+- [x] T044 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus the README, docs and spec files, changed;
   - there is no debug code, commented-out code or temporary file;
   - every new C# class is under 200 lines (`AdminAccountService`, `AdminAccountsController`), and `UserAccountsPage.tsx`, `accountList.tsx`, `useAdminAccountsStore.ts` and `useAccountStatusStore.ts` are each under about 200 lines;
@@ -425,6 +426,13 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `AdminAccountService` and `AdminAccountsController` catch no exception, so a technical failure reaches `ApiExceptionHandler` and is logged there (spec FR-021).
   
   Record the result here.
+  - Result (2026-11-25): 54 files changed against `main` before the T043 docs (56 with them).
+    - **Files**: every production file is in plan.md "Source Code"; the test files are under the `tests/` folders it names, plus the two test-support files recorded in Phase 3 (`AdminAccountRequests.cs`, the reset list in `setup.ts`); the rest are the README, `docs/ux-design.md` and this feature's spec files.
+    - **Leftovers**: no `console.`, `debugger`, `Console.Write`, `TODO`, `FIXME`, `.only(` or commented-out code in the added lines, and no temporary file.
+    - **Sizes**: `AdminAccountService` 118 and `AdminAccountsController` 87 lines; `UserAccountsPage.tsx` 87, `accountList.tsx` 72, `accountStatusButton.tsx` 81, `accountSearchForm.tsx` 56, `useAdminAccountsStore.ts` 115 and `useAccountStatusStore.ts` 173.
+    - **Migrations and packages**: nothing under `Migrations/`, no `package.json`, lock file or `.csproj` changed.
+    - **Logging**: the only two logger calls (`AdminAccountService`, lines 107 and 112) pass the two account ids; no email.
+    - **Exceptions**: no `catch` in the new backend code.
 - [ ] T045 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds change operations behind access control on user accounts. Record:
   - the tool;
   - the important findings;

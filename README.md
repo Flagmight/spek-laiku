@@ -76,7 +76,7 @@ npm run build
    dotnet ef database update --project .\backend\src\SpekLaiku.Api
    ```
 
-   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Features 004 to 009 add no migration. Feature 010 adds `AddSavedPlans`, which creates the `SavedPlans` and `GeneratedSchedules` tables. Feature 011 adds `AddSavedPlanCreatedAt`, which adds the `CreatedAtUtc` column to `SavedPlans` and fills it from each plan's saved time. Feature 012 adds no migration.
+   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Features 004 to 009 add no migration. Feature 010 adds `AddSavedPlans`, which creates the `SavedPlans` and `GeneratedSchedules` tables. Feature 011 adds `AddSavedPlanCreatedAt`, which adds the `CreatedAtUtc` column to `SavedPlans` and fills it from each plan's saved time. Features 012 and 014 add no migration.
 
 3. Trust the ASP.NET Core development certificate once per machine. The sign-in cookie is `Secure`, so the API runs over https:
 
@@ -224,7 +224,7 @@ To keep the public server as the main one and use the copy only when it fails, s
 
 ### Testing an Administrator or Suspended account
 
-There is no user administration page yet, so change a registered account directly in the database (table `AspNetUsers`), then log in again:
+An Active Administrator suspends and reactivates Registered User accounts on the User accounts page (see "User accounts" below). Making an account an Administrator, and changing an Administrator account, is still done directly in the database (table `AspNetUsers`), then log in again:
 
 ```sql
 -- Administrator
@@ -251,6 +251,16 @@ The application reads the role and status from the database on each page load, b
 - **Who can open it**: only a signed-in Active Administrator. A visitor is sent to Log in, a Registered User sees "Access denied", and a Suspended user opens the Account Suspended page. The API refuses everyone else with `401` or `403` and reads the account on every request, so a suspension applies at once.
 
 To try it, make an account an Administrator with the SQL in "Testing an Administrator or Suspended account" above, log in again and select **Categories**. The manual checks for a release are in `specs/003-activity-categories/quickstart.md`.
+
+## User accounts
+
+- **Page** (`/admin/users`, "Users" in the navigation, after "Categories"): lists the accounts newest registration first, at most 50, with each account's email, role, status and registration date. "Search by email" lists only the accounts whose email contains the text, ignoring letter case; when more than 50 accounts match, the page says so. No password or other sign-in secret is ever shown or sent to the browser.
+- **Suspend and reactivate**: only Registered User accounts have a button. **Suspend** asks "Suspend <email>? They will lose access until reactivated." first; **Reactivate** needs no confirmation. A suspension applies on the user's next request, without them logging out: features that need an active account send them to the Account Suspended page. Their saved plans are kept, and after a reactivation they have the same access and plans as before.
+- **Administrator accounts**, including your own, cannot be suspended or reactivated here (the API answers `409`). Promote, suspend or restore them with the SQL in "Testing an Administrator or Suspended account".
+- **Log**: each change writes one Information entry, for example `Account <id> suspended by administrator <id>.`, with the two account ids and no email.
+- **Who can open it**: only a signed-in Active Administrator, with the same rules as Activity categories (Log in, "Access denied", Account Suspended). The API refuses everyone else with `401` or `403` and no account data.
+
+Feature 014 adds no migration. Deleting accounts is not part of it. The manual checks for a release are in `specs/014-admin-accounts/quickstart.md`.
 
 ## Plan setup
 
