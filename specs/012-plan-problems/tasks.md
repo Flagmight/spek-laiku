@@ -649,6 +649,15 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 - [x] T067 Walk through `specs/012-plan-problems/quickstart.md` Part 2, scenarios 1 to 7, in the running app (README "Run the application"). Record which passed and any that could not be done (for example, a plan could not be created because Overpass was unavailable; then use an existing or duplicated plan). Step 2's SQL changes only the local development database; ask the user before running it.
   - For spec SC-001 (result within 5 seconds), note in scenarios 1 and 3 how long the check takes from opening the plan or selecting **Recalculate** until the result is shown. Use the browser's network tab: the duration of `GET /api/plans/<id>/check`, once with a forecast that is not cached and once with a cached one. Record both times here. There is no automated load test (analysis finding C1).
   - Result (2026-11-22): **marked done at the user's request; the walkthrough was not performed.** No scenario was run in the app, and the SC-001 times were not measured. The automated tests cover each scenario's behaviour (T024–T025, T035, T038–T039, T045, T047, T049–T052, T055, T057, T059–T060, T063), but not the real Open-Meteo service, NVDA or a real 320 px screen.
+  - Walkthrough (2026-11-25), API part: run with `curl` against the API (`dotnet run` on Windows 10, the real Open-Meteo service, the local map data copy of feature 017). The plans belong to a local test account B: "Problem test" and "Past test", both Kaunas on 2026-11-26 with Heritage site (Outdoor) first and Museum second. Only Heritage site was scheduled. The quickstart's SQL was run with the user's approval, on B's two plans only: "Problem test" got a wind limit of 0 m/s, and "Past test" got the date 2026-11-20 (in `Dates`, the setup and each scheduled entry).
+    - **Scenario 1 (a plan that still fits)**: passed. Before the SQL, the check answered `checked` with no problems, the latest weather and `forecastUpdatedAt` "14:16".
+    - **Scenario 2 (a plan with problems)**: passed. The check answered one `wind` problem: 2.8 m/s at 12:00, the worst hour of the entry, over the limit of 0 m/s.
+    - **Scenario 4 (the weather service fails)**: passed. The API was restarted with `HTTPS_PROXY` set to a closed local port (and `NO_PROXY` for the local map data copy), so every call to Open-Meteo failed. The check answered 503 with `"service":"forecast"` in 2.5 s. The API log has "Forecast service failed: Network (null)" and no user name or email. After a normal restart, the same check answered `checked` again.
+    - **Scenario 5 (a plan in the past)**: passed. The check answered `allPast` with no `forecastUpdatedAt`, each entry `past` with no weather.
+    - **Scenario 6 (access)**: passed for the check endpoint. Signed out 401; B on another user's plan 403 with the generic "Forbidden" body; the Administrator and the Suspended user 403; an unknown id 404 "This plan no longer exists.".
+    - **SC-001 (result within 5 seconds)**: `GET /api/plans/<id>/check` took 2.4 s with a forecast that was not cached (the first check after a restart) and 0.06 to 0.12 s with a cached one.
+    - **SC-006 (checks change nothing)**: every saved plan's `Name`, `SavedAtUtc`, `CreatedAtUtc` and snapshot hash were identical before and after five checks.
+    - **Page checks**: skipped at the user's request. What the page shows in Scenarios 1, 2, 4 and 5, Recalculate in Scenario 3 (the action order, disabled while checking, one request on a double click), the log-in redirect in Scenario 6 and the 320 px and NVDA checks of Scenario 7 were not walked through in the app. The automated tests listed in Result (2026-11-22) cover them.
 - [x] T068 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus the README, docs and spec files, changed;
   - there is no debug code, commented-out code or temporary file;
@@ -695,6 +704,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   
   Keep the images outside the repository unless the README already stores screenshots.
   - Result (2026-11-22): **marked done at the user's request; no screenshots were captured.** The Pull Request description says so.
+  - Result (2026-11-25): still no screenshots. The page checks of T067 were skipped at the user's request.
 - [x] T071 Prepare the Pull Request description for the user. Include:
   - a link to `specs/012-plan-problems/spec.md`;
   - a summary of the change;
