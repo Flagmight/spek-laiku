@@ -10,6 +10,7 @@ import { PlanDetailsPage } from "../pages/PlanDetailsPage"
 import { PlanSetupPage } from "../pages/PlanSetupPage"
 import { ScheduleOverviewPage } from "../pages/ScheduleOverviewPage"
 import { RegisterPage } from "../pages/RegisterPage"
+import { UserAccountsPage } from "../pages/UserAccountsPage"
 import { AdministratorOnly } from "./administratorOnly"
 import { Layout } from "./layout"
 import { PlanCreatorOnly } from "./planCreatorOnly"
@@ -97,6 +98,16 @@ export function AppRoutes() {
             <SignedInOnly>
               <AdministratorOnly>
                 <ActivityCategoriesPage />
+              </AdministratorOnly>
+            </SignedInOnly>
+          }
+        />
+        <Route
+          path="admin/users"
+          element={
+            <SignedInOnly>
+              <AdministratorOnly>
+                <UserAccountsPage />
               </AdministratorOnly>
             </SignedInOnly>
           }

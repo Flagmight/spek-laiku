@@ -153,6 +153,7 @@ public class Program
         builder.Services.AddScoped<CurrentUserService>();
         builder.Services.AddScoped<LoginService>();
         builder.Services.AddScoped<ActivityCategoryService>();
+        builder.Services.AddScoped<AdminAccountService>();
 
         var app = builder.Build();
 

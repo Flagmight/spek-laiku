@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   formatPlanDates,
+  formatRegistrationDate,
   formatSavedAt,
   formatSavedDate,
 } from "../helpers/formatSavedAt"
@@ -20,6 +21,20 @@ describe("formatSavedAt", () => {
 
   it("shows the date alone for the plan page's note", () => {
     expect(formatSavedDate("2026-11-21T12:05:00Z")).toBe("Sat 21 Nov 2026")
+  })
+})
+
+describe("formatRegistrationDate", () => {
+  it("shows the registration date alone, in Lithuanian time", () => {
+    expect(formatRegistrationDate("2026-11-21T12:05:00Z")).toBe(
+      "Sat 21 Nov 2026",
+    )
+  })
+
+  it("shows the next day for a late evening in UTC, which is after midnight in Vilnius", () => {
+    expect(formatRegistrationDate("2026-11-21T23:30:00Z")).toBe(
+      "Sun 22 Nov 2026",
+    )
   })
 })
 

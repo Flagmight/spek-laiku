@@ -12,6 +12,7 @@ import {
   signedInUser,
   stubFetch,
 } from "./renderApp"
+import { accountList, activeUser, suspendedUser } from "./adminAccountsFixtures"
 import { openCategories } from "./planCategories"
 import {
   acceptMuseumPlan,
@@ -1510,5 +1511,89 @@ describe("Plan check accessibility", () => {
       "✗ Problem",
     )
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+  })
+})
+
+// The User accounts page (feature 014 spec FR-003, FR-014, FR-018, FR-019).
+describe("User accounts accessibility", () => {
+  function stubAccounts(search: () => Response = () => jsonResponse(200, {})) {
+    return routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(200, signedInUser("Administrator")),
+      "GET /api/admin/accounts": () =>
+        jsonResponse(200, accountList([activeUser, suspendedUser])),
+      [`GET /api/admin/accounts?search=${"a".repeat(257)}`]: search,
+    })
+  }
+
+  it("has one h1, the tab title and the status and search regions", async () => {
+    stubAccounts()
+    document.title = ""
+    renderApp("/admin/users")
+
+    await screen.findByRole("table", { name: "User accounts" })
+
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+    expect(document.title).toBe("User accounts - Spėk laiku")
+    expect(
+      within(screen.getByRole("main")).getByRole("status"),
+    ).toBeInTheDocument()
+    expect(screen.getByRole("search")).toBeInTheDocument()
+    expect(screen.getByLabelText("Search by email")).toHaveAttribute(
+      "type",
+      "search",
+    )
+  })
+
+  it("names every account button after its account", async () => {
+    stubAccounts()
+    renderApp("/admin/users")
+
+    const table = await screen.findByRole("table", { name: "User accounts" })
+
+    expect(
+      within(table)
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label")),
+    ).toEqual(["Suspend ana@example.com", "Reactivate bob@example.com"])
+  })
+
+  it("makes the suspend confirmation a named modal dialog with focus inside", async () => {
+    stubAccounts()
+    const user = userEvent.setup()
+    renderApp("/admin/users")
+    await user.click(
+      await screen.findByRole("button", { name: "Suspend ana@example.com" }),
+    )
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Suspend ana@example.com? They will lose access until reactivated.",
+    })
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(
+      within(dialog).getByRole("button", { name: "Suspend" }),
+    ).toHaveFocus()
+  })
+
+  it("ties a search error to the field as text, not colour alone", async () => {
+    stubAccounts(() =>
+      jsonResponse(400, {
+        errors: { search: ["Search text can be at most 256 characters."] },
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp("/admin/users")
+    await screen.findByRole("table", { name: "User accounts" })
+    const field = screen.getByLabelText("Search by email")
+
+    await user.click(field)
+    await user.paste("a".repeat(257))
+    await user.keyboard("{Enter}")
+
+    await screen.findByText("Error: Search text can be at most 256 characters.")
+    expect(field).toHaveAttribute("aria-invalid", "true")
+    expect(descriptionsOf(field)).toEqual([
+      "Error: Search text can be at most 256 characters.",
+    ])
   })
 })

@@ -1,5 +1,7 @@
 import { create } from "zustand"
 import { logout } from "../api/authApi"
+import { useAccountStatusStore } from "./useAccountStatusStore"
+import { useAdminAccountsStore } from "./useAdminAccountsStore"
 import { useCurrentUserStore } from "./useCurrentUserStore"
 import { useKeptScheduleStore } from "./useKeptScheduleStore"
 import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
@@ -63,6 +65,9 @@ export const useLogoutStore = create<LogoutState>()((set, get) => ({
       useKeptScheduleStore.getState().clear()
       // And an edit of a saved plan with the saved marker (feature 011, spec FR-013).
       usePlanEditStore.getState().clearAll()
+      // And the administrator's account list and any status change in progress (feature 014).
+      useAdminAccountsStore.getState().reset()
+      useAccountStatusStore.getState().reset()
     }
 
     set({ status: succeeded ? "idle" : "serverError", controller: null })

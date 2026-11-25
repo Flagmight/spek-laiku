@@ -7,6 +7,7 @@ import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import styles from "../styles.css?inline"
 import type { PlanCategory } from "../types/planActivity"
 import { jsonResponse, renderApp, routeFetch, signedInUser } from "./renderApp"
+import { accountList, activeUser, suspendedUser } from "./adminAccountsFixtures"
 import { openCategories } from "./planCategories"
 import {
   acceptMuseumPlan,
@@ -1259,5 +1260,64 @@ describe("Plan check actions", () => {
     expect(getComputedStyle(recalculate).backgroundColor).toBe(
       "rgb(154, 165, 177)",
     )
+  })
+})
+
+// Feature 014 User Story 5 scenario 5: User accounts at 320 px. jsdom does no layout, so these check the CSS rules.
+describe("User accounts at 320 px", () => {
+  const longEmail = `${"long-name.".repeat(8)}user@example.com`
+
+  function stubAccounts() {
+    routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(200, signedInUser("Administrator")),
+      "GET /api/admin/accounts": () =>
+        jsonResponse(
+          200,
+          accountList([{ ...activeUser, email: longEmail }, suspendedUser]),
+        ),
+    })
+  }
+
+  it("shows each account as a card with labelled values that wrap a long email", async () => {
+    stubAccounts()
+    renderApp("/admin/users")
+
+    const table = await screen.findByRole("table", { name: "User accounts" })
+    expect(getComputedStyle(table).display).toBe("block")
+    const row = within(table).getAllByRole("row")[1]!
+    expect(getComputedStyle(row).display).toBe("block")
+    const email = within(row).getByRole("rowheader")
+    expect(email).toHaveTextContent(longEmail)
+    expect(getComputedStyle(email).overflowWrap).toBe("anywhere")
+    for (const label of ["Role:", "Status:", "Registered:"]) {
+      expect(within(row).getByText(label)).toBeVisible()
+    }
+    // The status is a word, never a colour alone.
+    expect(row).toHaveTextContent("Status: Active")
+  })
+
+  it("makes the account buttons full width and at least 44 × 44 px", async () => {
+    stubAccounts()
+    renderApp("/admin/users")
+
+    const table = await screen.findByRole("table", { name: "User accounts" })
+    for (const button of within(table).getAllByRole("button")) {
+      expect(getComputedStyle(button).width).toBe("100%")
+      expectTouchTarget(button)
+    }
+  })
+
+  it("makes the search field full width with 16 px text and Search full width", async () => {
+    stubAccounts()
+    renderApp("/admin/users")
+    await screen.findByRole("table", { name: "User accounts" })
+
+    const field = getComputedStyle(screen.getByLabelText("Search by email"))
+    expect(field.width).toBe("100%")
+    expect(px(field.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
+    const search = screen.getByRole("button", { name: "Search" })
+    expect(getComputedStyle(search).width).toBe("100%")
+    expectTouchTarget(search)
   })
 })

@@ -117,3 +117,81 @@ describe("/admin/categories access", () => {
     ).toBeInTheDocument()
   })
 })
+
+// The User accounts page uses the same guards (feature 014 spec FR-017, User Story 4 scenarios 3 to 5).
+describe("/admin/users access", () => {
+  const usersPage = "/admin/users"
+
+  function accountRequests(requests: { path: string }[]) {
+    return requests.filter((request) =>
+      request.path.startsWith("/api/admin/accounts"),
+    )
+  }
+
+  it("sends a visitor to log in, then opens the page after an administrator logs in", async () => {
+    const administrator = signedInUser("Administrator")
+    let signedIn = false
+    routeFetch({
+      "GET /api/auth/me": () =>
+        signedIn ? jsonResponse(200, administrator) : jsonResponse(401),
+      "POST /api/auth/login": () => {
+        signedIn = true
+        return jsonResponse(200, administrator)
+      },
+      "GET /api/admin/accounts": () =>
+        jsonResponse(200, { accounts: [], hasMore: false }),
+    })
+    const { currentLocation } = renderAppWithLocation(usersPage)
+
+    expect(await screen.findByText("Log in to continue.")).toBeInTheDocument()
+    expect(currentLocation()).toBe("/login?returnTo=%2Fadmin%2Fusers")
+
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText("Email"), administrator.email)
+    await user.type(screen.getByLabelText("Password"), "Password123!")
+    await user.click(screen.getByRole("button", { name: "Log in" }))
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "User accounts" }),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe(usersPage)
+  })
+
+  it("shows Access denied to an Active Registered User and asks for no accounts", async () => {
+    const { requests } = routeFetch({
+      "GET /api/auth/me": () => jsonResponse(200, signedInUser()),
+    })
+    const { currentLocation } = renderAppWithLocation(usersPage)
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Access denied" }),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe(usersPage)
+    expect(
+      screen.queryByRole("heading", { name: "User accounts" }),
+    ).not.toBeInTheDocument()
+    expect(accountRequests(requests)).toHaveLength(0)
+  })
+
+  it.each([
+    ["Registered User", "Suspended"],
+    ["Administrator", "Suspended"],
+  ] as const)(
+    "sends a %s %s user to the Account Suspended page",
+    async (role, accountStatus) => {
+      const { requests } = routeFetch({
+        "GET /api/auth/me": () =>
+          jsonResponse(200, signedInUser(role, accountStatus)),
+      })
+      renderAppWithLocation(usersPage)
+
+      expect(
+        await screen.findByRole("heading", {
+          level: 1,
+          name: "Account suspended",
+        }),
+      ).toBeInTheDocument()
+      expect(accountRequests(requests)).toHaveLength(0)
+    },
+  )
+})

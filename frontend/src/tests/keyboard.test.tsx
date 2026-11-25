@@ -11,6 +11,12 @@ import {
   routeFetch,
   signedInUser as routeSignedInUser,
 } from "./renderApp"
+import {
+  accountList,
+  activeUser,
+  suspendedUser,
+  withStatus,
+} from "./adminAccountsFixtures"
 import { openCategories } from "./planCategories"
 import {
   acceptMuseumPlan,
@@ -307,6 +313,7 @@ describe("keyboard use of the Activity categories page", () => {
       screen.getByRole("link", { name: "Skip to main content" }),
       screen.getByRole("link", { name: "Home" }),
       screen.getByRole("link", { name: "Categories" }),
+      screen.getByRole("link", { name: "Users" }),
       screen.getByRole("button", { name: "Log out" }),
       screen.getByRole("button", { name: "Create category" }),
       screen.getByRole("button", { name: "Edit Kayaking" }),
@@ -357,7 +364,8 @@ describe("keyboard use of the Activity categories page", () => {
     const user = userEvent.setup()
     renderApp("/admin/categories")
     await screen.findByRole("button", { name: "Edit Museum" })
-    for (let step = 0; step < 5; step++) {
+    // Skip link, Home, Categories, Users (feature 014), Log out, then Create category.
+    for (let step = 0; step < 6; step++) {
       await user.tab()
     }
     expect(
@@ -1234,5 +1242,90 @@ describe("keyboard use of the plan check", () => {
     await waitFor(() => expect(recalculate).toHaveFocus())
     await user.tab()
     expect(screen.getByRole("button", { name: "Rename" })).toHaveFocus()
+  })
+})
+
+// The User accounts page by keyboard (feature 014 spec User Story 5 scenarios 1 and 2, FR-018).
+describe("keyboard use of the User accounts page", () => {
+  function stubAccounts() {
+    return routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(200, routeSignedInUser("Administrator")),
+      "GET /api/admin/accounts": () =>
+        jsonResponse(200, accountList([activeUser, suspendedUser])),
+      [`PUT /api/admin/accounts/${suspendedUser.id}/status`]: () =>
+        jsonResponse(200, withStatus(suspendedUser, "Active")),
+    })
+  }
+
+  it("reaches the skip link, the navigation, the search and each account's button in that order", async () => {
+    stubAccounts()
+    const user = userEvent.setup()
+    renderApp("/admin/users")
+    await screen.findByRole("button", { name: "Reactivate bob@example.com" })
+
+    const expected = [
+      screen.getByRole("link", { name: "Skip to main content" }),
+      screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Categories" }),
+      screen.getByRole("link", { name: "Users" }),
+      screen.getByRole("button", { name: "Log out" }),
+      screen.getByLabelText("Search by email"),
+      screen.getByRole("button", { name: "Search" }),
+      screen.getByRole("button", { name: "Suspend ana@example.com" }),
+      screen.getByRole("button", { name: "Reactivate bob@example.com" }),
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+  })
+
+  it("keeps Tab inside the suspend dialog, closes it with Escape and returns focus", async () => {
+    const { requests } = stubAccounts()
+    const user = userEvent.setup()
+    renderApp("/admin/users")
+    const suspend = await screen.findByRole("button", {
+      name: "Suspend ana@example.com",
+    })
+
+    suspend.focus()
+    await user.keyboard("{Enter}")
+    const dialog = screen.getByRole("dialog")
+    const confirm = within(dialog).getByRole("button", { name: "Suspend" })
+    const cancel = within(dialog).getByRole("button", { name: "Cancel" })
+    expect(confirm).toHaveFocus()
+    await user.tab()
+    expect(cancel).toHaveFocus()
+    await user.tab()
+    expect(confirm).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(cancel).toHaveFocus()
+    await user.keyboard("{Escape}")
+
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(suspend).toHaveFocus()
+    expect(requests.filter((request) => request.method === "PUT")).toEqual([])
+  })
+
+  it("reactivates with Enter", async () => {
+    const { requests } = stubAccounts()
+    const user = userEvent.setup()
+    renderApp("/admin/users")
+    const reactivate = await screen.findByRole("button", {
+      name: "Reactivate bob@example.com",
+    })
+
+    reactivate.focus()
+    await user.keyboard("{Enter}")
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Suspend bob@example.com" }),
+      ).toHaveFocus(),
+    )
+    expect(requests.filter((request) => request.method === "PUT")).toHaveLength(
+      1,
+    )
   })
 })

@@ -29,6 +29,12 @@ export function formatSavedDate(iso: string): string {
   return savedAtText(iso).date
 }
 
+// An account's registration date alone, "Sat 21 Nov 2026", in Lithuanian time like every date in the app (feature 014
+// research section 13). Display only.
+export function formatRegistrationDate(iso: string): string {
+  return savedAtText(iso).date
+}
+
 // "2026-11-21T12:05:00Z" → "Saved on Sat 21 Nov 2026 at 14:05". Display only.
 export function formatSavedAt(iso: string): string {
   const { date, time } = savedAtText(iso)
