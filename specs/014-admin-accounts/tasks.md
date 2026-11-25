@@ -265,20 +265,24 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: The spec's User Story 2 independent test passes in `AccountSuspensionEffectTests` and `UserAccountsPage.test.tsx`.
 
-- [ ] T025 [US2] Replace the placeholder in `frontend/src/components/accountStatusButton.tsx` with "Reactivate" (`aria-label` "Reactivate <email>"). It calls `onChange(account, "Active")` at once, with no dialog (spec FR-005).
-- [ ] T026 [US2] Add the reactivate paths to `frontend/src/tests/useAccountStatusStore.test.ts`: the success message "✓ Success: Account reactivated.", the pending message "Reactivating account…", and the error "Error: Account could not be reactivated. Try again." with Retry.
-- [ ] T027 [US2] Add to `backend/tests/SpekLaiku.IntegrationTests/AdminAccountStatusEndpointTests.cs`:
+- [x] T025 [US2] Replace the placeholder in `frontend/src/components/accountStatusButton.tsx` with "Reactivate" (`aria-label` "Reactivate <email>"). It calls `onChange(account, "Active")` at once, with no dialog (spec FR-005).
+- [x] T026 [US2] Add the reactivate paths to `frontend/src/tests/useAccountStatusStore.test.ts`: the success message "✓ Success: Account reactivated.", the pending message "Reactivating account…", and the error "Error: Account could not be reactivated. Try again." with Retry.
+- [x] T027 [US2] Add to `backend/tests/SpekLaiku.IntegrationTests/AdminAccountStatusEndpointTests.cs`:
   - `Reactivate_Answers200WithTheActiveAccount`.
   - `ReactivateAnActiveAccount_Answers200WithNoChange`.
-- [ ] T028 [US2] Add `ReactivatedUser_HasTheSameAccessAndPlans` to `backend/tests/SpekLaiku.IntegrationTests/AccountSuspensionEffectTests.cs`:
+- [x] T028 [US2] Add `ReactivatedUser_HasTheSameAccessAndPlans` to `backend/tests/SpekLaiku.IntegrationTests/AccountSuspensionEffectTests.cs`:
   - The user saves two plans first. Insert them with `SavedPlanSeed`, as the feature 012 tests do.
   - Suspend, then reactivate through the endpoint.
   - The same client then gets 200 from `GET /api/plans` with the same ids, names and `savedAt`, and each plan's stored snapshot is unchanged (spec SC-005).
-- [ ] T029 [US2] Add `Reactivation_LogsBothIdsAndNoEmail` to `backend/tests/SpekLaiku.IntegrationTests/AdminAccountLogTests.cs`.
-- [ ] T030 [US2] Add to `frontend/src/tests/UserAccountsPage.test.tsx`:
+- [x] T029 [US2] Add `Reactivation_LogsBothIdsAndNoEmail` to `backend/tests/SpekLaiku.IntegrationTests/AdminAccountLogTests.cs`.
+- [x] T030 [US2] Add to `frontend/src/tests/UserAccountsPage.test.tsx`:
   - "Reactivate bob@example.com" sends one `PUT` with `{"accountStatus":"Active"}` without a dialog, announces "✓ Success: Account reactivated.", shows "Active", and moves focus to "Suspend bob@example.com".
   - "Reactivating account…" while pending.
   - The error with Retry.
+- Result of Phase 4 (2026-11-25):
+  - **T025**: Reactivate was already built in T019 together with Suspend (`accountStatusButton.tsx`), instead of a placeholder replaced here, so this task only needed its tests.
+  - **T028**: the two plans are inserted with `SavedPlanSeed`, and the raw `GET /api/plans` body and each stored snapshot are compared byte for byte before the suspension and after the reactivation.
+  - **Checks**: the 20 account integration tests pass (+4: two reactivate endpoint tests, the plans test and the reactivation log test); the store and page test files pass (29 tests, +6); lint and `dotnet format` clean.
 
 **Checkpoint**: Suspend and reactivate both work, and plans survive both.
 

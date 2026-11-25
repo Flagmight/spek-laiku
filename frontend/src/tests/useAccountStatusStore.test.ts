@@ -143,7 +143,7 @@ describe("useAccountStatusStore: suspend", () => {
     },
   )
 
-  it("drops a late answer after reset", async () => {
+  it("drops a late answer after reset (suspend)", async () => {
     let answer: (response: Response) => void = () => {}
     routeFetch({
       [suspendRoute]: () =>
@@ -157,5 +157,57 @@ describe("useAccountStatusStore: suspend", () => {
 
     expect(store().notice).toBeNull()
     expect(store().focusRequest).toBeNull()
+  })
+})
+
+// Reactivating an account (feature 014 spec FR-005, FR-006, FR-013).
+describe("useAccountStatusStore: reactivate", () => {
+  const reactivateRoute = `PUT /api/admin/accounts/${suspendedUser.id}/status`
+
+  it("reactivates and shows the success text", async () => {
+    const { requests } = routeFetch({
+      [reactivateRoute]: () =>
+        jsonResponse(200, withStatus(suspendedUser, "Active")),
+    })
+
+    await store().change(suspendedUser, "Active")
+
+    expect(requests[0]?.body).toEqual({ accountStatus: "Active" })
+    expect(statusMessage(store())).toBe("✓ Success: Account reactivated.")
+    expect(store().focusRequest?.accountId).toBe(suspendedUser.id)
+  })
+
+  it("shows the reactivating text while the request runs", async () => {
+    let answer: (response: Response) => void = () => {}
+    routeFetch({
+      [reactivateRoute]: () =>
+        new Promise<Response>((resolve) => (answer = resolve)),
+    })
+
+    const changing = store().change(suspendedUser, "Active")
+    expect(statusMessage(store())).toBe("Reactivating account…")
+    answer(jsonResponse(200, withStatus(suspendedUser, "Active")))
+    await changing
+  })
+
+  it("shows the reactivate error with Retry", async () => {
+    let fail = true
+    const { requests } = routeFetch({
+      [reactivateRoute]: () =>
+        fail
+          ? jsonResponse(500, {})
+          : jsonResponse(200, withStatus(suspendedUser, "Active")),
+    })
+
+    await store().change(suspendedUser, "Active")
+    expect(store().error).toBe(
+      "Error: Account could not be reactivated. Try again.",
+    )
+
+    fail = false
+    await store().retry()
+
+    expect(requests).toHaveLength(2)
+    expect(statusMessage(store())).toBe("✓ Success: Account reactivated.")
   })
 })

@@ -320,3 +320,71 @@ describe("UserAccountsPage: suspend", () => {
     expect(suspendedUser.accountStatus).toBe("Suspended")
   })
 })
+
+// Reactivating on the page (feature 014 spec User Story 2, FR-005, FR-006, FR-013).
+describe("UserAccountsPage: reactivate", () => {
+  it("reactivates without a dialog, announces it and moves focus to Suspend", async () => {
+    const { requests } = render({
+      [statusRoute(suspendedUser.id)]: () =>
+        jsonResponse(200, withStatus(suspendedUser, "Active")),
+    })
+    await table()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reactivate bob@example.com" }),
+    )
+
+    expect(screen.queryByRole("dialog")).toBeNull()
+    await waitFor(() =>
+      expect(status()).toHaveTextContent("✓ Success: Account reactivated."),
+    )
+    const puts = requests.filter((request) => request.method === "PUT")
+    expect(puts).toHaveLength(1)
+    expect(puts[0]?.body).toEqual({ accountStatus: "Active" })
+    const row = within(await table()).getAllByRole("row")[2]!
+    expect(row).toHaveTextContent("Active")
+    await waitFor(() =>
+      expect(
+        within(row).getByRole("button", { name: "Suspend bob@example.com" }),
+      ).toHaveFocus(),
+    )
+  })
+
+  it("announces the reactivating text while the change runs", async () => {
+    render({
+      [statusRoute(suspendedUser.id)]: () => new Promise<Response>(() => {}),
+    })
+    await table()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reactivate bob@example.com" }),
+    )
+
+    await waitFor(() =>
+      expect(status()).toHaveTextContent("Reactivating account…"),
+    )
+    expect(
+      screen.getByRole("button", { name: "Suspend ana@example.com" }),
+    ).toBeDisabled()
+  })
+
+  it("shows the reactivate error with Retry", async () => {
+    render({
+      [statusRoute(suspendedUser.id)]: () => jsonResponse(500, {}),
+    })
+    await table()
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reactivate bob@example.com" }),
+    )
+
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent(
+      "Error: Account could not be reactivated. Try again.",
+    )
+    expect(within(alert).getByRole("button", { name: "Retry" })).toBeEnabled()
+    expect(within(await table()).getAllByRole("row")[2]).toHaveTextContent(
+      "Suspended",
+    )
+  })
+})

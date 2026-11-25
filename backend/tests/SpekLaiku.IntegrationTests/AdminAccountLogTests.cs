@@ -38,6 +38,26 @@ public class AdminAccountLogTests(PostgreSqlApiFactory factory)
     }
 
     [Fact]
+    public async Task Reactivation_LogsBothIdsAndNoEmail()
+    {
+        var logs = new CapturingLoggerProvider();
+        await using var host = CreateHost(logs);
+        var admin = await factory.CreateUserAsync(role: "Administrator");
+        var target = await factory.CreateUserAsync(AccountStatus.Suspended);
+        using var client = await SignedInClientAsync(host, admin.Email!);
+
+        using var response = await SetStatusAsync(client, target.Id, "Active");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var entry = Assert.Single(EntriesOf(logs));
+        Assert.Contains("reactivated by administrator", entry);
+        Assert.Contains(target.Id, entry);
+        Assert.Contains(admin.Id, entry);
+        Assert.DoesNotContain(target.Email!, entry);
+        Assert.DoesNotContain(admin.Email!, entry);
+    }
+
+    [Fact]
     public async Task RepeatedSuspension_WritesNoEntry()
     {
         var logs = new CapturingLoggerProvider();

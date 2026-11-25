@@ -79,6 +79,33 @@ public class AdminAccountStatusEndpointTests(PostgreSqlApiFactory factory)
     }
 
     [Fact]
+    public async Task Reactivate_Answers200WithTheActiveAccount()
+    {
+        using var admin = await factory.CreateSignedInClientAsync("Administrator");
+        var target = await factory.CreateUserAsync(AccountStatus.Suspended);
+
+        using var response = await SetStatusAsync(admin, target.Id, "Active");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Active", (await ReadAsync(response)).GetProperty("accountStatus").GetString());
+        Assert.Equal(AccountStatus.Active, (await StoredAsync(factory, target.Id)).AccountStatus);
+    }
+
+    [Fact]
+    public async Task ReactivateAnActiveAccount_Answers200WithNoChange()
+    {
+        using var admin = await factory.CreateSignedInClientAsync("Administrator");
+        var target = await factory.CreateUserAsync();
+        var before = await StoredAsync(factory, target.Id);
+
+        using var response = await SetStatusAsync(admin, target.Id, "Active");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Active", (await ReadAsync(response)).GetProperty("accountStatus").GetString());
+        Assert.Equal(before, await StoredAsync(factory, target.Id));
+    }
+
+    [Fact]
     public async Task UnknownId_Gets404WithTheMessage()
     {
         using var admin = await factory.CreateSignedInClientAsync("Administrator");
