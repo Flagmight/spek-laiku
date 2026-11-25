@@ -204,7 +204,7 @@ An Active Administrator can see the user accounts, find one by email, suspend a 
 | IV. Identity, server-side authorization, validation | ✓ | Identity accounts. The policy is on the server, the target role check is in the same statement as the change, and the search and status are validated on the server. |
 | IV. Central error handling, no details leaked | ✓ | Unexpected errors go through `ApiExceptionHandler`. A 403 carries no account data, and a 409 or 404 carries only its fixed message. |
 | IV. Secrets and logging | ✓ | No password, hash or stamp is read for display or returned (an exact-property test). Log entries carry ids only, and a test checks that no email is logged. |
-| IV. OWASP | ✓ | **Broken access control**: the policy plus the target role rule, with tests. **Injection**: EF Core parameters; `Contains` becomes `strpos`, so no `LIKE` patterns. **CSRF**: the `SameSite=Lax` session cookie and the JSON `PUT`, as the other admin endpoints. **Sensitive data exposure**: five fields only. |
+| IV. OWASP | ✓ | **Broken access control**: the policy plus the target role rule, with tests. **Injection**: EF Core parameters; `Contains` becomes `LIKE` with a parameter in which EF Core escapes `%` and `_`, so the text is matched literally (research section 5). **CSRF**: the `SameSite=Lax` session cookie and the JSON `PUT`, as the other admin endpoints. **Sensitive data exposure**: five fields only. |
 | V. Version control | ✓ | Feature branch `014-admin-accounts` from an updated `main`. |
 | VI. Documentation | ✓ | README and `docs/ux-design.md` updates are planned. The spec was aligned during planning. |
 | VII. AI-assisted development | ✓ | The spec and plan are done before any implementation. |

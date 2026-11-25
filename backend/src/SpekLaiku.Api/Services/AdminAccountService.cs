@@ -31,8 +31,8 @@ public sealed class AdminAccountService(
     /// <summary>
     /// Accounts whose email contains <paramref name="search"/>, ignoring letter case, or every account when it is empty;
     /// newest registration first, at most <see cref="PageSize"/> (research sections 5 and 6). The text must already be
-    /// checked by <see cref="AdminAccountSearch"/>. Npgsql turns <c>Contains</c> into <c>strpos</c>, not <c>LIKE</c>, so
-    /// "%" and "_" are matched literally.
+    /// checked by <see cref="AdminAccountSearch"/>. EF Core turns <c>Contains</c> into <c>LIKE</c> with a parameter whose
+    /// wildcards are escaped, so "%" and "_" are matched literally (AdminAccountsListEndpointTests).
     /// </summary>
     public async Task<AdminAccountListing> ListAsync(string search, CancellationToken cancellationToken)
     {

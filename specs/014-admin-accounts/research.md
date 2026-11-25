@@ -61,7 +61,7 @@ Each section records a decision, why it was chosen and the alternatives consider
   - **Validation**: a small `AdminAccountSearch` helper in `Services/`, covered by unit tests.
 - **Rationale**:
   - **Letter case**: comparing normalized values ignores letter case without a database collation or `ILIKE` (spec FR-002).
-  - **No wildcards**: Npgsql translates `string.Contains` with a parameter to `strpos(...) > 0`, not `LIKE`, so `%` and `_` in the text are matched literally and need no escaping. A test searches for `_` to prove it.
+  - **No wildcards**: EF Core translates `string.Contains` with a parameter to `LIKE @normalized_contains`, and builds that parameter itself: it escapes the wildcards in the text and adds the `%` around it. So `%` and `_` are matched literally and the service needs no escaping of its own. `AdminAccountsListEndpointTests` proves it for `_` and `%` against PostgreSQL. (Corrected during the T047 walkthrough: the plan first said the translation was `strpos`; the API log showed `LIKE`, and the behaviour is the same.)
 - **Alternatives considered**:
   - `EF.Functions.ILike`: needs wildcard escaping and ties the query to PostgreSQL.
   - Searching in the browser over a full list: the browser would receive every account's email, which spec FR-001 limits to 50.

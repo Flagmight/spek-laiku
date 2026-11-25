@@ -429,7 +429,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - Result (2026-11-25): 54 files changed against `main` before the T043 docs (56 with them).
     - **Files**: every production file is in plan.md "Source Code"; the test files are under the `tests/` folders it names, plus the two test-support files recorded in Phase 3 (`AdminAccountRequests.cs`, the reset list in `setup.ts`); the rest are the README, `docs/ux-design.md` and this feature's spec files.
     - **Leftovers**: no `console.`, `debugger`, `Console.Write`, `TODO`, `FIXME`, `.only(` or commented-out code in the added lines, and no temporary file.
-    - **Sizes**: `AdminAccountService` 118 and `AdminAccountsController` 87 lines; `UserAccountsPage.tsx` 87, `accountList.tsx` 72, `accountStatusButton.tsx` 81, `accountSearchForm.tsx` 56, `useAdminAccountsStore.ts` 115 and `useAccountStatusStore.ts` 173.
+    - **Sizes**: `AdminAccountService` 118 and `AdminAccountsController` 87 lines; `UserAccountsPage.tsx` 87, `accountList.tsx` 72, `accountStatusButton.tsx` 81, `accountSearchForm.tsx` 56, `useAdminAccountsStore.ts` 115 and `useAccountStatusStore.ts` 173. After the T045 fixes: `useAccountStatusStore.ts` 202, `useAdminAccountsStore.ts` 123 and `UserAccountsPage.tsx` 101, still about 200 or under; the store holds one responsibility (one status change at a time), so it is kept as one file.
     - **Migrations and packages**: nothing under `Migrations/`, no `package.json`, lock file or `.csproj` changed.
     - **Logging**: the only two logger calls (`AdminAccountService`, lines 107 and 112) pass the two account ids; no email.
     - **Exceptions**: no `catch` in the new backend code.
@@ -444,7 +444,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - **`/security-review`**: no vulnerabilities found (none at confidence 8/10 or more). It checked:
       - the class-level `ActiveAdministrator` policy, which reads the account on every request, with no `[AllowAnonymous]`;
       - that the Registered-User-only rule is in the same `ExecuteUpdateAsync` as the change, so an Administrator account (also one's own) cannot be changed, and that the new `ConcurrencyStamp` makes a stale Identity update fail;
-      - injection: the search is a parameterized LINQ `Contains` (`strpos`, no `LIKE`), trimmed and capped at 256; the id is a bound parameter; no raw SQL;
+      - injection: the search is a parameterized LINQ `Contains`, trimmed and capped at 256; the id is a bound parameter; no raw SQL. (The review said `Contains` becomes `strpos`, repeating the plan; the T047 walkthrough showed it is `LIKE` with an EF Core-escaped parameter, which matches the wildcards literally as the tests prove, so the finding stands.)
       - the exact `"Active"`/`"Suspended"` match and the one-field request DTO (no mass assignment);
       - data exposure: the five-field projection and no `ApplicationUser` map, so no password hash, stamp or lockout field leaves the server;
       - logging of account ids only; CSRF (JSON `PUT` with the `SameSite=Lax` cookie, as the other admin endpoints); React text rendering with no `dangerouslySetInnerHTML`; the URL-encoded id and search; logout clearing the account stores.
@@ -480,8 +480,18 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
       - `setup.ts`: the two new stores are reset after each test.
       
       No existing assertion was removed or weakened.
-- [ ] T047 Walk through `specs/014-admin-accounts/quickstart.md` Part 2, scenarios 1 to 7, in the running app (README "Run the application"). Record which passed and any that could not be done. The prerequisite SQL promotes an account in the local development database only; ask the user before running it.
+- [x] T047 Walk through `specs/014-admin-accounts/quickstart.md` Part 2, scenarios 1 to 7, in the running app (README "Run the application"). Record which passed and any that could not be done. The prerequisite SQL promotes an account in the local development database only; ask the user before running it.
   - For spec SC-001 (find and suspend in under 1 minute), time from selecting **Users** to the "✓ Success: Account suspended." message, searching for the account by part of its email on the way, and record the time here. There is no automated timing test.
+  - Walkthrough (2026-11-25), in progress: the app was started as in the README (`dotnet run` on Windows 10; the local map data copy off, because this feature makes no map data call), signed in as the local test Administrator `walkthrough-admin@example.com`.
+    - **Scenario 1 step 1**: passed (seen by the developer). The User accounts page opens from **Users** and lists the accounts; `walkthrough-b@example.com` and the developer's account show **Suspend**, `walkthrough-suspended@example.com` shows **Reactivate**, and the Administrator's own account has no button.
+    - **Scenario 1 steps 2 and 3 (search, no match, Clear search)**: not confirmed. The developer reported the steps done, but the API log has no list request with a search for that time; only page loads. A search sent afterwards with `curl` (as the Administrator, `?search=walkthrough_b`) answered 200, and its SQL showed `LIKE @normalized_contains`, not `strpos` as research section 5 had said; research, plan, the service comment and the T045 record were corrected. The literal matching of `%` and `_` is proven by `AdminAccountsListEndpointTests`.
+    - **Scenario 2 (suspend)**: passed. The developer suspended `walkthrough-b@example.com` through the dialog and its signed-in session was sent to the Account Suspended page. The API log has one status update and "Account 825878a9-… suspended by administrator 0a9a6bca-…".
+    - **Scenario 3 (reactivate)**: passed. The developer reactivated the account, and it had normal access again. The log has "Account 825878a9-… reactivated by administrator 0a9a6bca-…", and the row is Active.
+    - **Scenario 4 (errors)**: not walked through (it needs the API stopped mid-change); covered by the store and page tests of T018, T024 and T030.
+    - **Scenario 5 (access)**: passed with `curl` for every caller but one. Signed out: 401 with an empty body for the list, a search and the `PUT`. `walkthrough-b` (Active Registered User) and `walkthrough-suspended` (Suspended Registered User): 403 with the generic 162-byte "Forbidden" body and no account data. The target's status and concurrency stamp were unchanged afterwards. As the Active Administrator, each listed account had exactly `id`, `email`, `role`, `accountStatus` and `registrationDate`. **Not done**: step 3, a Suspended Administrator, because it needs an account promoted with SQL, which was not run; `AdminAccountsAuthorizationTests` covers it.
+    - **Scenario 6 (log entries)**: passed. The two entries above name the two account ids, and no account log line contains an email.
+    - **Scenario 7 (320 px, NVDA)** and the SC-001 time: not walked through and not measured; covered for the CSS rules by the T042 responsive tests and for the keyboard by T041.
+    - **Marked done at the user's request (2026-11-25)**, with scenario 1 steps 2 and 3, scenario 4, scenario 5 step 3, scenario 7 and the SC-001 time not walked through, as recorded above.
 - [ ] T048 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:
   - the User accounts list;
   - the suspend dialog;
@@ -489,7 +499,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - a search with no match.
   
   Keep the images outside the repository unless the README already stores screenshots.
-- [ ] T049 Prepare the Pull Request description for the user. Include:
+- [x] T049 Prepare the Pull Request description for the user. Include:
   - a link to `specs/014-admin-accounts/spec.md`;
   - a summary of the change;
   - the tests and checks run (T046, T047);
@@ -499,6 +509,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the AI review record (T045).
   
   The user opens and merges the Pull Request.
+  - Result (2026-11-25): the description is given to the user, with every item above. Its "Screenshots" section is left for the user to fill in (T048 is still open), and its "Manual walkthrough" section lists what T047 did not walk through.
 
 **Checkpoint**: All checks green, docs current, review recorded, screenshots and PR description ready. Ready for commit and Pull Request on request.
 
