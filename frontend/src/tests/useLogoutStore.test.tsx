@@ -1,10 +1,19 @@
 import { act, renderHook } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  initialAccountStatusState,
+  useAccountStatusStore,
+} from "../stores/useAccountStatusStore"
+import {
+  initialAdminAccountsState,
+  useAdminAccountsStore,
+} from "../stores/useAdminAccountsStore"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { useKeptScheduleStore } from "../stores/useKeptScheduleStore"
 import { logoutTimeoutMs, useLogoutStore } from "../stores/useLogoutStore"
 import { usePlanEditStore } from "../stores/usePlanEditStore"
 import type { CurrentUser } from "../types/currentUser"
+import { activeUser } from "./adminAccountsFixtures"
 import { jsonResponse, stubFetch } from "./renderApp"
 
 const signedInUser: CurrentUser = {
@@ -119,6 +128,28 @@ describe("useLogoutStore", () => {
 
     expect(usePlanEditStore.getState().edit).toBeNull()
     expect(usePlanEditStore.getState().savedPlanKey).toBeNull()
+  })
+
+  it("resets the account list and any status change (feature 014)", async () => {
+    stubFetch(() => new Response(null, { status: 204 }))
+    useAdminAccountsStore.setState({
+      status: "loaded",
+      accounts: [activeUser],
+      search: "ana",
+    })
+    useAccountStatusStore.setState({ notice: "✓ Success: Account suspended." })
+    const { result } = renderHook(() => useLogoutStore())
+
+    await act(async () => {
+      await result.current.submit()
+    })
+
+    expect(useAdminAccountsStore.getState()).toMatchObject(
+      initialAdminAccountsState,
+    )
+    expect(useAccountStatusStore.getState()).toMatchObject(
+      initialAccountStatusState,
+    )
   })
 
   it("ignores a second submit while a request is pending", async () => {

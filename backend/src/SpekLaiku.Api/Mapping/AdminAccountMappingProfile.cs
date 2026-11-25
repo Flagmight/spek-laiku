@@ -23,5 +23,9 @@ public sealed class AdminAccountMappingProfile : Profile
             .ForCtorParam(
                 nameof(AdminAccountResponse.RegistrationDate),
                 options => options.MapFrom(source => source.RegistrationDate));
+
+        CreateMap<AdminAccountListing, AdminAccountListResponse>()
+            .ForCtorParam(nameof(AdminAccountListResponse.Accounts), options => options.MapFrom(source => source.Accounts))
+            .ForCtorParam(nameof(AdminAccountListResponse.HasMore), options => options.MapFrom(source => source.HasMore));
     }
 }

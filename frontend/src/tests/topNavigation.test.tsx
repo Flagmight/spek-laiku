@@ -147,7 +147,7 @@ describe("top navigation", () => {
 })
 
 describe("top navigation for administrators", () => {
-  it("shows Home, Categories and Log out to an Active Administrator", async () => {
+  it("shows Home, Categories, Users and Log out to an Active Administrator", async () => {
     stubFetch(() =>
       jsonResponse(200, { ...signedInUser, role: "Administrator" }),
     )
@@ -160,7 +160,12 @@ describe("top navigation for administrators", () => {
       navigation()
         .getAllByRole("listitem")
         .map((item) => item.textContent),
-    ).toEqual(["Home", "Categories", "Log out"])
+    ).toEqual(["Home", "Categories", "Users", "Log out"])
+    // Users comes right after Categories (feature 014 spec FR-016).
+    expect(navigation().getByRole("link", { name: "Users" })).toHaveAttribute(
+      "href",
+      "/admin/users",
+    )
   })
 
   it.each([

@@ -110,12 +110,12 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Backend for User Story 1
 
-- [ ] T009 [P] [US1] Create `backend/src/SpekLaiku.Api/DTOs/Requests/AccountStatusRequest.cs`: `public sealed record AccountStatusRequest(string? AccountStatus);`. It is nullable, so a missing value reaches the validation in T012 instead of the generic model error, as `RegistrationRequest` does.
-- [ ] T010 [P] [US1] Create the service results in `backend/src/SpekLaiku.Api/Services/`:
+- [x] T009 [P] [US1] Create `backend/src/SpekLaiku.Api/DTOs/Requests/AccountStatusRequest.cs`: `public sealed record AccountStatusRequest(string? AccountStatus);`. It is nullable, so a missing value reaches the validation in T012 instead of the generic model error, as `RegistrationRequest` does.
+- [x] T010 [P] [US1] Create the service results in `backend/src/SpekLaiku.Api/Services/`:
   - `AdminAccountListing.cs`: `public sealed record AdminAccountListing(IReadOnlyList<AdminAccountSummary> Accounts, bool HasMore);`.
   - `AccountStatusChange.cs`: a result record with the four outcomes of data-model.md: `Changed(account)`, `Unchanged(account)`, `NotFound`, `AdministratorAccount`, where `account` is an `AdminAccountSummary`. Static factory methods and an `Account` property, in the style of `SavedPlanChange`.
   - Add `AdminAccountListing` → `AdminAccountListResponse` to `backend/src/SpekLaiku.Api/Mapping/AdminAccountMappingProfile.cs`, using the summary map of T004 for `Accounts`, and a `MapsTheListingWithHasMore` case to `AdminAccountMappingTests.cs`.
-- [ ] T011 [US1] Create `backend/src/SpekLaiku.Api/Services/AdminAccountService.cs` (`ApplicationDbContext`, `UserManager<ApplicationUser>` for `NormalizeEmail` only, `IMapper`, `ILogger<AdminAccountService>`). About 110 lines; must stay under 200.
+- [x] T011 [US1] Create `backend/src/SpekLaiku.Api/Services/AdminAccountService.cs` (`ApplicationDbContext`, `UserManager<ApplicationUser>` for `NormalizeEmail` only, `IMapper`, `ILogger<AdminAccountService>`). About 110 lines; must stay under 200.
   - **`ListAsync(string search, CancellationToken)`**:
     - Filter: when `search` is not empty, keep `NormalizedEmail` containing `userManager.NormalizeEmail(search)`. US1 always passes `""`; US3 adds the search tests.
     - Order: `RegistrationDate` descending, then `Id`.
@@ -129,7 +129,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - Never log an email (spec FR-021).
     - Technical failures are not caught (`ApiExceptionHandler`, as in `ActivityCategoryService`).
     - Add an XML comment that names research section 3: the atomic role check, and why the concurrency stamp changes.
-- [ ] T012 [US1] Create `backend/src/SpekLaiku.Api/Controllers/AdminAccountsController.cs`:
+- [x] T012 [US1] Create `backend/src/SpekLaiku.Api/Controllers/AdminAccountsController.cs`:
   - Route `api/admin/accounts`, `[Authorize(Policy = AuthorizationPolicies.ActiveAdministrator)]`, and the same `ProducesResponseType` attributes as `AdminCategoriesController`. Keep it thin.
   - **`GET`** `List([FromQuery] string? search, CancellationToken)`: in this phase it passes `""`, and T034 adds the validation. It answers 200 `AdminAccountListResponse`.
   - **`PUT {id}/status`** `SetStatus(string id, AccountStatusRequest request, CancellationToken)`:
@@ -137,7 +137,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - Call the service with `userManager.GetUserId(User)!`.
     - Map the result: `Changed` and `Unchanged` → 200 with the account mapped from its `AdminAccountSummary`; `NotFound` → 404, title "Not found.", detail "This account no longer exists."; `AdministratorAccount` → 409, title "Administrator account.", detail "Administrator accounts cannot be suspended or reactivated here." (contracts/admin-accounts-api.md).
   - Register `AdminAccountService` as scoped in `backend/src/SpekLaiku.Api/Program.cs`, next to `ActivityCategoryService`.
-- [ ] T013 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AdminAccountStatusEndpointTests.cs` for suspending:
+- [x] T013 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AdminAccountStatusEndpointTests.cs` for suspending:
   - `Suspend_Answers200WithTheSuspendedAccount`: the contract body; the row's `AccountStatus` is `Suspended`.
   - `Suspend_ChangesTheConcurrencyStamp`.
   - `Suspend_KeepsEmailRoleRegistrationDateAndPasswordHash`.
@@ -145,10 +145,10 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `UnknownId_Gets404WithTheMessage`, and a 451-character id gives 404.
   - `MissingOrInvalidStatus_Gets400`: a missing value, `""`, `"suspended"`, `"1"` and `"Deleted"` each give `errors.accountStatus` "Select Active or Suspended.", and the row is unchanged.
   - `StaleIdentityUpdate_DoesNotUndoTheSuspension`: load the user through `UserManager` in a scope, suspend it through the endpoint, then call `userManager.UpdateAsync` with the stale object. The result fails with `ConcurrencyFailure`, and the row is still `Suspended` (research section 3).
-- [ ] T014 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountSuspensionEffectTests.cs`, part 1:
+- [x] T014 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountSuspensionEffectTests.cs`, part 1:
   - `SuspendedUser_IsRefusedOnTheNextRequest`: a signed-in Registered User (`CreateSignedInUserAsync`) gets 200 from `GET /api/plans`. After an administrator suspends them through `PUT /api/admin/accounts/{id}/status`, the same client gets 403 from `GET /api/plans` and from `POST /api/plan-setup/check`, and `GET /api/auth/me` returns `"accountStatus": "Suspended"`. The client never logged out (spec SC-002).
   - `SuspendedUser_CanStillLogOut`: after the suspension, `POST /api/auth/logout` gives 204 for the same client, and its next `GET /api/auth/me` gives 401 (spec FR-009: Log out stays available).
-- [ ] T015 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AdminAccountLogTests.cs`:
+- [x] T015 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AdminAccountLogTests.cs`:
   - `Suspension_LogsBothIdsAndNoEmail`: exactly one entry containing "suspended by administrator", the target's id and the administrator's id, and neither email.
   - `RepeatedSuspension_WritesNoEntry`.
   
@@ -158,7 +158,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Frontend for User Story 1
 
-- [ ] T016 [P] [US1] Create `frontend/src/api/adminAccountsApi.ts`, using `apiFetch` and `ApiError` as `activityCategoriesApi.ts` does:
+- [x] T016 [P] [US1] Create `frontend/src/api/adminAccountsApi.ts`, using `apiFetch` and `ApiError` as `activityCategoriesApi.ts` does:
   - **`listAccounts(search: string, signal?)`**: returns `{ kind: "loaded"; list: AdminAccountList }` or `{ kind: "invalidSearch"; message: string }` (400 `errors.search[0]`).
     - It sends `?search=` URL-encoded, only when the search is not empty.
     - 401, 403 and any other status throw `ApiError`.
@@ -166,7 +166,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - `PUT /api/admin/accounts/${encodeURIComponent(id)}/status` with the JSON body.
     - Returns `{ kind: "changed"; account }`, `{ kind: "gone" }` (404), `{ kind: "administrator" }` (409), `{ kind: "sessionEnded" }` (401) or `{ kind: "forbidden" }` (403). Any other status throws `ApiError`.
   - Test both in `frontend/src/tests/adminAccountsApi.test.ts`: every status above, the URL encoding of a search with `&` and of an id, and that an empty search sends no query string.
-- [ ] T017 [US1] Create `frontend/src/stores/useAdminAccountsStore.ts`:
+- [x] T017 [US1] Create `frontend/src/stores/useAdminAccountsStore.ts`:
   - **State**: `status` (`"idle" | "loading" | "loaded" | "error"`), `accounts`, `hasMore`, `search`, `searchError`.
   - **`load(search = "")`**:
     - It sets `loading`, aborts the previous request's `AbortController` and starts `startTimeout` from `helpers/timedRequest.ts`.
@@ -183,7 +183,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - 401 and 403 refresh the current user;
     - `replace`;
     - `reset` drops a late answer.
-- [ ] T018 [US1] Create `frontend/src/stores/useAccountStatusStore.ts`, modelled on `usePlanActionsStore.ts`:
+- [x] T018 [US1] Create `frontend/src/stores/useAccountStatusStore.ts`, modelled on `usePlanActionsStore.ts`:
   - **State**: `pending` (`{ accountId, change: "suspend" | "reactivate" } | null`), `message`, `failed`.
   - **`change(account, target)`**:
     - Ignored while `pending` is set.
@@ -210,30 +210,30 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - 404 and 409 show their message and reload;
     - 500, timeout and Retry;
     - 401 and 403 refresh the current user.
-- [ ] T019 [P] [US1] Create `frontend/src/components/accountStatusButton.tsx`:
+- [x] T019 [P] [US1] Create `frontend/src/components/accountStatusButton.tsx`:
   - **No button** for an Administrator account (spec FR-003).
   - **Active Registered User**: "Suspend" with `aria-label` "Suspend <email>". It opens `ConfirmDialog` with the question "Suspend <email>? They will lose access until reactivated.", confirm label "Suspend" and cancel label "Cancel".
     - Confirm calls `onChange(account, "Suspended")`.
     - Cancel and Escape close it and return focus to the button (spec FR-004, FR-018).
   - **Suspended Registered User**: a disabled placeholder for now; US2 adds Reactivate.
   - Props: `account`, `disabled`, `onChange`, and a `buttonRef` callback so the list can focus it.
-- [ ] T020 [US1] Create `frontend/src/components/accountList.tsx`:
+- [x] T020 [US1] Create `frontend/src/components/accountList.tsx`:
   - **Table**: `className="accounts"`, with a visually hidden caption "User accounts" and the columns Email, Role, Status, Registered and a hidden "Actions".
   - **Cells**: the status as the word "Active" or "Suspended", and the date through `formatRegistrationDate`. Cells carry `cell-label` spans for the cards, as `savedPlanList.tsx` does.
   - **Focus**: keeps a `Map<id, HTMLButtonElement>` of the buttons and exposes `focusAccount(id)` through a ref or an `onReady` callback, so the page can move focus after a change (spec FR-006).
-- [ ] T021 [US1] Create `frontend/src/pages/UserAccountsPage.tsx`:
+- [x] T021 [US1] Create `frontend/src/pages/UserAccountsPage.tsx`:
   - **Page**: `usePageTitle("User accounts")`, one `h1` "User accounts", and a status region (`role="status"`, `aria-live="polite"`) for the store messages. "Error:" messages go in an alert region, with Retry when `failed` is set.
   - **States**: loading shows `loadingAccountsMessage`; a load error shows `accountsLoadFailedMessage` with a Retry button.
   - **List**: `AccountList` with `disabled` while any change is pending.
   - **After a successful change**: focus the account's new button.
   - **Lifecycle**: calls `load("")` on mount, and `reset()` on both stores on unmount.
   - Keep it under about 150 lines.
-- [ ] T022 [US1] Wire the page:
+- [x] T022 [US1] Wire the page:
   - In `frontend/src/components/appRoutes.tsx`, add `path="admin/users"` with `<AdministratorOnly><UserAccountsPage /></AdministratorOnly>`, as `admin/categories` is.
   - In `frontend/src/components/topNavigation.tsx`, add `<li><NavLink to="/admin/users">Users</NavLink></li>` right after Categories, inside the same `showAdministratorLinks` condition. Update the component's comment to name feature 014 (spec FR-016).
   - In `frontend/src/stores/useLogoutStore.ts`, reset `useAdminAccountsStore` and `useAccountStatusStore` with the other stores. Add a case to `frontend/src/tests/useLogoutStore.test.tsx`: after a successful logout, both stores are back to their initial state, and a late list answer is dropped.
-- [ ] T023 [US1] Add the base styles to `frontend/src/styles.css`: the `accounts` table, with the same wide-screen layout and phone card rules as `.saved-plans`, and the action button in the last column. US5 verifies 320 px.
-- [ ] T024 [US1] Create `frontend/src/tests/UserAccountsPage.test.tsx`, part 1:
+- [x] T023 [US1] Add the base styles to `frontend/src/styles.css`: the `accounts` table, with the same wide-screen layout and phone card rules as `.saved-plans`, and the action button in the last column. US5 verifies 320 px.
+- [x] T024 [US1] Create `frontend/src/tests/UserAccountsPage.test.tsx`, part 1:
   - The heading and tab title "User accounts - Spėk laiku".
   - The columns, the status words and the formatted date.
   - "Suspend" only on the Active Registered User, and no button on either Administrator account.
@@ -245,6 +245,15 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - 404 and 409 show their messages and reload the list.
   - A 403 on the status change refreshes `GET /api/auth/me`. When that answers `"accountStatus": "Suspended"`, the Account Suspended page is shown (spec edge case: the administrator is suspended while the page is open).
   - Loading, and the load error with Retry.
+- Result of Phase 3 (2026-11-25):
+  - **Checks**: backend build with 0 warnings; 817 unit (T002: 812, +5) and 459 integration tests (T002: 443, +16), all passing; `dotnet format` clean. Frontend lint and Prettier clean; the new and changed test files pass (14 page tests, 25 API and store tests, the logout case).
+  - **Mutation check of T013**: with the `ConcurrencyStamp` update removed from `SetStatusAsync`, `StaleIdentityUpdate_DoesNotUndoTheSuspension` and `Suspend_ChangesTheConcurrencyStamp` both failed; with it restored, both pass.
+  - **Differences from the task text**:
+    - T017: a list answer of 401 or 403 refreshes the current user **and** shows the load error with Retry, instead of leaving the status as it was, so the page is never left on "Loading accounts…" if the refresh does not redirect.
+    - T022: the "late list answer is dropped" part of the logout case is covered by `useAdminAccountsStore.test.ts` ("drops a late answer after reset"); the logout case checks both stores are back to their initial state.
+    - T023: the table has both classes `saved-plans accounts`, so it reuses the saved plans table and card rules instead of copying them; `.accounts` adds only the full-width button on phones and the inline button on wider screens.
+    - Added `backend/tests/SpekLaiku.IntegrationTests/AdminAccountRequests.cs`, the request and stored-row helpers shared by the account tests, and the two new stores to the reset list in `frontend/src/tests/setup.ts`. Neither is in plan.md "Source Code"; both are test support.
+  - **Existing tests changed** (allowed by T046, because "Users" is added on purpose): `topNavigation.test.tsx` "shows Home, Categories and Log out to an Active Administrator" now expects "Users" between Categories and Log out (renamed accordingly, with its link checked); `keyboard.test.tsx` "reaches the skip link, the navigation, Create category and each Edit button in that order" gains the Users link in the Tab order, and "creates a category using only the keyboard" tabs six times instead of five to reach Create category. No assertion was removed or weakened.
 
 **Checkpoint**: An administrator can suspend an account on the page, and the suspended user is blocked on the next request. MVP reached.
 

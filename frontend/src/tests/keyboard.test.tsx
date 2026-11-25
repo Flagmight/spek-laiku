@@ -307,6 +307,7 @@ describe("keyboard use of the Activity categories page", () => {
       screen.getByRole("link", { name: "Skip to main content" }),
       screen.getByRole("link", { name: "Home" }),
       screen.getByRole("link", { name: "Categories" }),
+      screen.getByRole("link", { name: "Users" }),
       screen.getByRole("button", { name: "Log out" }),
       screen.getByRole("button", { name: "Create category" }),
       screen.getByRole("button", { name: "Edit Kayaking" }),
@@ -357,7 +358,8 @@ describe("keyboard use of the Activity categories page", () => {
     const user = userEvent.setup()
     renderApp("/admin/categories")
     await screen.findByRole("button", { name: "Edit Museum" })
-    for (let step = 0; step < 5; step++) {
+    // Skip link, Home, Categories, Users (feature 014), Log out, then Create category.
+    for (let step = 0; step < 6; step++) {
       await user.tab()
     }
     expect(

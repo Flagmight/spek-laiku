@@ -723,6 +723,14 @@ fieldset.plan-activity h3 {
   color: #1d4ed8;
 }
 
+/* User accounts (feature 014). The list reuses the saved plans table and cards above; on phones each account's
+   Suspend or Reactivate button is full width below its values (spec FR-020). */
+.accounts td button {
+  display: block;
+  width: 100%;
+  margin: 4px 0 0;
+}
+
 /* "Editing '<name>'": the framed notice of the planning steps, with Cancel editing below the text. */
 .editing-notice p {
   margin: 0;
@@ -993,6 +1001,13 @@ fieldset.plan-activity h3 {
 
   .cell-label {
     display: none;
+  }
+
+  /* In the accounts table the button fits its cell instead of filling it. */
+  .accounts td button {
+    display: inline-block;
+    width: auto;
+    margin: 0;
   }
 }
 

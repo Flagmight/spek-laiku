@@ -57,6 +57,19 @@ public sealed class AdminAccountMappingTests : IDisposable
     }
 
     [Fact]
+    public void MapsTheListingWithHasMore()
+    {
+        var listing = new AdminAccountListing(
+            [new AdminAccountSummary("id", "ana@example.com", "Registered User", AccountStatus.Active, Registered)],
+            HasMore: true);
+
+        var response = mapper.Map<AdminAccountListResponse>(listing);
+
+        Assert.True(response.HasMore);
+        Assert.Equal("ana@example.com", Assert.Single(response.Accounts).Email);
+    }
+
+    [Fact]
     public void SerializedResponse_HasExactlyTheFiveProperties()
     {
         var summary = new AdminAccountSummary("id", "ana@example.com", "Administrator", AccountStatus.Active, Registered);
