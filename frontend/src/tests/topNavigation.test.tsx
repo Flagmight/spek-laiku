@@ -176,19 +176,25 @@ describe("top navigation for administrators", () => {
       200,
       { ...signedInUser, role: "Administrator", accountStatus: "Suspended" },
     ],
-  ])("does not show Categories to %s", async (_caller, status, body) => {
-    stubFetch(() => jsonResponse(status, body))
-    renderApp("/")
+  ])(
+    "does not show Categories or Users to %s",
+    async (_caller, status, body) => {
+      stubFetch(() => jsonResponse(status, body))
+      renderApp("/")
 
-    await screen.findByRole("heading", { level: 1 })
-    await vi.waitFor(() =>
+      await screen.findByRole("heading", { level: 1 })
+      await vi.waitFor(() =>
+        expect(
+          navigation().queryByRole("link", { name: /^(Register|Log out)$/ }) ??
+            navigation().queryByRole("button", { name: "Log out" }),
+        ).not.toBeNull(),
+      )
       expect(
-        navigation().queryByRole("link", { name: /^(Register|Log out)$/ }) ??
-          navigation().queryByRole("button", { name: "Log out" }),
-      ).not.toBeNull(),
-    )
-    expect(navigation().queryByRole("link", { name: "Categories" })).toBeNull()
-  })
+        navigation().queryByRole("link", { name: "Categories" }),
+      ).toBeNull()
+      expect(navigation().queryByRole("link", { name: "Users" })).toBeNull()
+    },
+  )
 })
 
 describe("Create plan in the navigation", () => {

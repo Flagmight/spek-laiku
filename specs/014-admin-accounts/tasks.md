@@ -294,19 +294,21 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: The spec's User Story 4 independent test passes in `AdminAccountsAuthorizationTests` and `AdminAccountStatusEndpointTests`.
 
-- [ ] T031 [US4] Create `backend/tests/SpekLaiku.IntegrationTests/AdminAccountsAuthorizationTests.cs`, in the style of `AdminCategoriesAuthorizationTests.cs`. Endpoints: `"GET list"`, `"GET search"` (`?search=x`) and `"PUT status"`.
+- [x] T031 [US4] Create `backend/tests/SpekLaiku.IntegrationTests/AdminAccountsAuthorizationTests.cs`, in the style of `AdminCategoriesAuthorizationTests.cs`. Endpoints: `"GET list"`, `"GET search"` (`?search=x`) and `"PUT status"`.
   - `Visitor_Gets401WithEmptyBody` (theory over the endpoints).
   - `OtherSignedInUser_Gets403WithoutAccountData`: a theory over Active Registered User, Suspended Registered User and Suspended Administrator. The body contains no target email and no `accounts` property.
   - `RefusedPut_LeavesTheTargetUnchanged`, for every caller above: the target's status and concurrency stamp are unchanged.
   - `ActiveAdministrator_Gets200` for both endpoints.
   
   This covers constitution III (an authorization test for each protected operation).
-- [ ] T032 [US4] Add the Administrator-target tests to `backend/tests/SpekLaiku.IntegrationTests/AdminAccountStatusEndpointTests.cs` (spec FR-007, User Story 4 scenario 8):
+- [x] T032 [US4] Add the Administrator-target tests to `backend/tests/SpekLaiku.IntegrationTests/AdminAccountStatusEndpointTests.cs` (spec FR-007, User Story 4 scenario 8):
   - `ActiveAdministratorTarget_Gets409Unchanged` and `SuspendedAdministratorTarget_Gets409Unchanged` (reactivate), each with the detail "Administrator accounts cannot be suspended or reactivated here.".
   - `OwnAccount_Gets409Unchanged`: the caller suspends themselves; afterwards the same client still gets 200 from `GET /api/admin/accounts`.
-- [ ] T033 [US4] Add to the frontend tests:
+- [x] T033 [US4] Add to the frontend tests:
   - In `frontend/src/tests/topNavigation.test.tsx`: "Users" comes right after "Categories" for an Active Administrator, and is absent for a visitor, an Active Registered User, a Suspended Registered User and a Suspended Administrator.
   - In `frontend/src/tests/administratorOnly.test.tsx`: `/admin/users` for a visitor goes to Log in with "Log in to continue." and back after logging in as an Active Administrator; for an Active Registered User it shows Access denied and sends no accounts request; for a Suspended user it shows the Account Suspended page (spec FR-017).
+
+- Result of Phase 5 (2026-11-25): `AdminAccountsAuthorizationTests` (22 cases: visitor 401 with an empty body for the three endpoints; 403 without account data for each refused caller and endpoint; refused PUTs by each caller, and by a visitor, leave both an Active and a Suspended target unchanged; an Active Administrator gets 200) and the three Administrator-target tests pass, with the 36 status and authorization tests in total. T032's `AdministratorAccounts_AreListedWithTheirRole` was moved to T035 after `/speckit-analyze` (finding I2). Frontend: "does not show Categories to %s" now also checks that "Users" is absent (renamed "does not show Categories or Users to %s"); `administratorOnly.test.tsx` gains a `/admin/users access` block (Log in and back, Access denied with no accounts request, Account Suspended for both suspended roles). Lint and `dotnet format` clean.
 
 **Checkpoint**: The access rules are verified for both endpoints and the page.
 

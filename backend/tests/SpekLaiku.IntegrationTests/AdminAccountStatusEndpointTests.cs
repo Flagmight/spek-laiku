@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using SpekLaiku.Api.Entities;
@@ -146,6 +147,46 @@ public class AdminAccountStatusEndpointTests(PostgreSqlApiFactory factory)
         var errors = (await ReadAsync(response)).GetProperty("errors").GetProperty("accountStatus");
         Assert.Equal("Select Active or Suspended.", Assert.Single(errors.EnumerateArray()).GetString());
         Assert.Equal(before, await StoredAsync(factory, target.Id));
+    }
+
+    [Theory]
+    [InlineData(nameof(AccountStatus.Active), "Suspended")]
+    [InlineData(nameof(AccountStatus.Suspended), "Active")]
+    public async Task AdministratorTarget_Gets409Unchanged(string targetStatus, string requested)
+    {
+        using var admin = await factory.CreateSignedInClientAsync("Administrator");
+        var target = await factory.CreateUserAsync(Enum.Parse<AccountStatus>(targetStatus), role: "Administrator");
+        var before = await StoredAsync(factory, target.Id);
+
+        using var response = await SetStatusAsync(admin, target.Id, requested);
+
+        AssertAdministratorAccountRefused(response, await ReadAsync(response));
+        Assert.Equal(before, await StoredAsync(factory, target.Id));
+    }
+
+    [Fact]
+    public async Task OwnAccount_Gets409Unchanged()
+    {
+        var (self, admin) = await factory.CreateSignedInUserAsync("Administrator");
+        using (admin)
+        {
+            var before = await StoredAsync(factory, self.Id);
+
+            using var response = await SetStatusAsync(admin, self.Id, "Suspended");
+
+            AssertAdministratorAccountRefused(response, await ReadAsync(response));
+            Assert.Equal(before, await StoredAsync(factory, self.Id));
+            using var list = await admin.GetAsync(ListPath);
+            Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        }
+    }
+
+    private static void AssertAdministratorAccountRefused(HttpResponseMessage response, JsonElement body)
+    {
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("Administrator account.", body.GetProperty("title").GetString());
+        Assert.Equal(
+            "Administrator accounts cannot be suspended or reactivated here.", body.GetProperty("detail").GetString());
     }
 
     // Identity's UpdateAsync writes every column. An update built from the account as it was before the suspension
