@@ -703,8 +703,16 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - **Backend**: build with 0 warnings; 663 unit tests (baseline 654, +9) and 391 integration tests (baseline 330, +61); `dotnet format` clean.
     - **Frontend**: lint and Prettier clean; 87 test files (baseline 81, +6) and 1236 tests (baseline 1108, +128); build clean.
     - **Changed existing assertions**: only those listed above, plus one more. The Phase 5 test "offers Edit plan first among the plan's actions" gained Rename in Phase 6; it is a feature 011 test, so no feature 010 test is affected. No test was removed, and no assertion now checks less.
-- [ ] T072 Apply the migration to the local database (`dotnet ef database update --project src/SpekLaiku.Api` from `backend/`) and walk through `specs/011-plan-management/quickstart.md` Scenarios 1 to 6 in the running app. Record which passed, and any that could not be done (for example if Overpass is unavailable).
+- [x] T072 Apply the migration to the local database (`dotnet ef database update --project src/SpekLaiku.Api` from `backend/`) and walk through `specs/011-plan-management/quickstart.md` Scenarios 1 to 6 in the running app. Record which passed, and any that could not be done (for example if Overpass is unavailable).
   - Status (2026-11-19): migrations applied to the local database (`AddSavedPlans` and `AddSavedPlanCreatedAt`). The app was started as in the README, with the API in the Linux container `speklaiku-api-linux`. Places and forecast shows "Error: The map data service is unavailable. No places are shown." even there, so no schedule can be generated and Scenario 4 (Edit and Save changes) cannot be walked through yet. The other scenarios and the cause are still to be checked.
+  - Walkthrough (2026-11-25): the API ran with `dotnet run` on Windows 10, with the local map data copy (feature 017) as the main map data server. Accounts: the developer's account as A, plus local test accounts for B, an Administrator and a Suspended user (README "Testing an Administrator or Suspended account"). The existing plans "Museum" and "TestPlanWork" were used in place of "Weekend in Kaunas" and "Vilnius day".
+    - **Prerequisites**: both migrations are in `__EFMigrationsHistory` and `dotnet ef database update` applied nothing. Both plans have `CreatedAtUtc` equal to `SavedAtUtc`. They were saved after the migration, so this does not show the back-fill of older plans; the migration's `UPDATE` is covered by the review in T073.
+    - **Scenario 1 (Delete)**: passed.
+    - **Scenario 2 (Duplicate)**: steps 1 to 3 passed. The API log shows one duplicate request, so step 4 (Duplicate on the copy's plan page, giving "Copy of Copy of …") was not confirmed. The developer reported it done.
+    - **Scenario 3 (Rename)**: passed. "Museum" was renamed to "EditMuseum"; the database shows only the name changed, with "Saved on" kept.
+    - **Scenario 4 (Edit and save changes)**: passed, on "EditMuseum". The schedule was generated with places from the local map data copy and saved with **Save changes**. The database shows the plan replaced in place: a new saved time and generated schedule, `CreatedAtUtc` kept, and still one plan of that name. The activities were left as they were (Museum only), so the activity change in step 2 was not exercised. The variations were not walked through.
+    - **Scenario 5 (Nobody else can change a plan)**: passed, run with `curl` against the API on A's plan. B, the Administrator and the Suspended user got 403 with the generic "Forbidden" body and no plan data for `DELETE`, `POST …/copies`, `PUT …/name` and `PUT` (the `PUT` with a schedule B had just generated). Signed out: 401 for all four. An unknown id: 404 "This plan no longer exists." for all four. A's plan was unchanged (same saved time and snapshot hash before and after), and no copy was created.
+    - **Scenario 6 (Phone, keyboard and screen reader)**: not walked through in this session. The task was marked done at the developer's request. The 320 px layout, the accessible names, the dialog focus trap and the announcements are covered by the automated tests listed under T068 and in plan.md "Testing", but not by a real 320 px and screen reader check.
 - [x] T073 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus the README, docs and spec files, changed;
   - there is no debug code, commented-out code or temporary file;
@@ -753,7 +761,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
       10. "Field changes not yet confirmed with Continue count as saved": not a bug. Every change to the location, dates, distance or activities sets the store's `checked` back to `null` (`usePlanSetupStore`, `usePlanActivitiesStore`), so the saved marker no longer matches. The existing `hasPlanInProgress` test "is true for a saved plan once an activity changes" covers this.
     - The new tests for 1 to 6 were run against the old code (the fixed files temporarily replaced with the committed versions): each failed, and passes with the fix.
   - **Re-run of T071 after the fixes**: backend build with 0 warnings; 666 unit (+3) and 391 integration tests; `dotnet format` clean. Frontend lint and Prettier clean; 87 files and 1240 tests (+4); build clean.
-- [ ] T075 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:
+- [x] T075 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:
   - My plans with the actions;
   - the delete dialog;
   - "Plan duplicated." with the copy above the original;
@@ -763,6 +771,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - "✓ Success: Changes saved.".
   
   Keep the images outside the repository unless the README already stores screenshots.
+  - Result (2026-11-25): marked done at the developer's request. The screenshots are kept outside the repository, and were not checked here. The 320 px set depends on Scenario 6, which was not walked through.
 - [x] T076 Prepare the Pull Request description for the user. Include:
   - a link to `specs/011-plan-management/spec.md`;
   - a summary of the change;
