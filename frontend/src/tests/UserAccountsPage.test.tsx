@@ -388,3 +388,101 @@ describe("UserAccountsPage: reactivate", () => {
     )
   })
 })
+
+// Finding an account (feature 014 spec User Story 3, FR-001, FR-002, FR-012, FR-014).
+describe("UserAccountsPage: search", () => {
+  it("searches with Enter and lists only the answer", async () => {
+    render({
+      "GET /api/admin/accounts?search=ana": () =>
+        jsonResponse(200, accountList([activeUser])),
+    })
+    await table()
+
+    await userEvent.type(screen.getByLabelText("Search by email"), "ana{Enter}")
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole("table")).getAllByRole("row"),
+      ).toHaveLength(2),
+    )
+    expect(screen.getByRole("table")).toHaveTextContent("ana@example.com")
+  })
+
+  it("shows no match with Clear search, which lists every account again", async () => {
+    const { requests } = render({
+      "GET /api/admin/accounts?search=nobody": () =>
+        jsonResponse(200, accountList([])),
+    })
+    await table()
+
+    await userEvent.type(screen.getByLabelText("Search by email"), "nobody")
+    await userEvent.click(screen.getByRole("button", { name: "Search" }))
+
+    expect(
+      await screen.findByText("No accounts match your search."),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("table")).toBeNull()
+    await userEvent.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect(await table()).toBeInTheDocument()
+    expect(screen.getByLabelText("Search by email")).toHaveValue("")
+    expect(requests.at(-1)?.path).toBe("/api/admin/accounts")
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+  })
+
+  it("explains the 50-account limit when more accounts match", async () => {
+    render({
+      [listRoute]: () => jsonResponse(200, accountList([activeUser], true)),
+    })
+
+    expect(
+      await screen.findByText(
+        "Showing the 50 most recently registered accounts. Search by email to find others.",
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it("does not explain the limit when every account is shown", async () => {
+    render()
+    await table()
+
+    expect(
+      screen.queryByText(/Showing the 50 most recently registered accounts/),
+    ).toBeNull()
+  })
+
+  it("shows the server's refusal next to the field and keeps the list", async () => {
+    const tooLong = "a".repeat(257)
+    render({
+      [`GET /api/admin/accounts?search=${tooLong}`]: () =>
+        jsonResponse(400, {
+          errors: { search: ["Search text can be at most 256 characters."] },
+        }),
+    })
+    await table()
+
+    const field = screen.getByLabelText("Search by email")
+    await userEvent.click(field)
+    await userEvent.paste(tooLong)
+    await userEvent.keyboard("{Enter}")
+
+    const error = await screen.findByText(
+      "Error: Search text can be at most 256 characters.",
+    )
+    expect(field).toHaveAttribute("aria-invalid", "true")
+    expect(field).toHaveAttribute("aria-describedby", error.id)
+    expect(await table()).toBeInTheDocument()
+  })
+
+  it("announces Loading accounts… during a search", async () => {
+    render({
+      "GET /api/admin/accounts?search=ana": () =>
+        new Promise<Response>(() => {}),
+    })
+    await table()
+
+    await userEvent.type(screen.getByLabelText("Search by email"), "ana{Enter}")
+
+    await waitFor(() => expect(status()).toHaveTextContent("Loading accounts…"))
+  })
+})

@@ -32,7 +32,13 @@ public sealed class AdminAccountsController(
         [FromQuery] string? search,
         CancellationToken cancellationToken)
     {
-        var listing = await accountService.ListAsync(string.Empty, cancellationToken);
+        var (text, error) = AdminAccountSearch.Validate(search);
+        if (error is not null)
+        {
+            return FieldError("search", error);
+        }
+
+        var listing = await accountService.ListAsync(text, cancellationToken);
         return mapper.Map<AdminAccountListResponse>(listing);
     }
 

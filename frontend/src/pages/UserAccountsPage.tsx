@@ -1,5 +1,6 @@
 import { useEffect } from "react"
 import { AccountList } from "../components/accountList"
+import { AccountSearchForm } from "../components/accountSearchForm"
 import { usePageTitle } from "../hooks/usePageTitle"
 import {
   statusMessage,
@@ -18,6 +19,8 @@ export function UserAccountsPage() {
   usePageTitle("User accounts")
   const status = useAdminAccountsStore((state) => state.status)
   const accounts = useAdminAccountsStore((state) => state.accounts)
+  const hasMore = useAdminAccountsStore((state) => state.hasMore)
+  const search = useAdminAccountsStore((state) => state.search)
   const changeStatus = useAccountStatusStore(statusMessage)
   const changeError = useAccountStatusStore((state) => state.error)
   const canRetryChange = useAccountStatusStore((state) => state.failed !== null)
@@ -66,7 +69,19 @@ export function UserAccountsPage() {
           </button>
         </div>
       )}
-      {status === "loaded" && <AccountList accounts={accounts} />}
+      <AccountSearchForm />
+      {status === "loaded" && hasMore && (
+        <p>
+          Showing the 50 most recently registered accounts. Search by email to
+          find others.
+        </p>
+      )}
+      {status === "loaded" && accounts.length === 0 && search && (
+        <p>No accounts match your search.</p>
+      )}
+      {status === "loaded" && accounts.length > 0 && (
+        <AccountList accounts={accounts} />
+      )}
     </>
   )
 }

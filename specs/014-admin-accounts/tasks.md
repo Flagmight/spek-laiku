@@ -308,7 +308,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - In `frontend/src/tests/topNavigation.test.tsx`: "Users" comes right after "Categories" for an Active Administrator, and is absent for a visitor, an Active Registered User, a Suspended Registered User and a Suspended Administrator.
   - In `frontend/src/tests/administratorOnly.test.tsx`: `/admin/users` for a visitor goes to Log in with "Log in to continue." and back after logging in as an Active Administrator; for an Active Registered User it shows Access denied and sends no accounts request; for a Suspended user it shows the Account Suspended page (spec FR-017).
 
-- Result of Phase 5 (2026-11-25): `AdminAccountsAuthorizationTests` (22 cases: visitor 401 with an empty body for the three endpoints; 403 without account data for each refused caller and endpoint; refused PUTs by each caller, and by a visitor, leave both an Active and a Suspended target unchanged; an Active Administrator gets 200) and the three Administrator-target tests pass, with the 36 status and authorization tests in total. T032's `AdministratorAccounts_AreListedWithTheirRole` was moved to T035 after `/speckit-analyze` (finding I2). Frontend: "does not show Categories to %s" now also checks that "Users" is absent (renamed "does not show Categories or Users to %s"); `administratorOnly.test.tsx` gains a `/admin/users access` block (Log in and back, Access denied with no accounts request, Account Suspended for both suspended roles). Lint and `dotnet format` clean.
+- Result of Phase 5 (2026-11-25): `AdminAccountsAuthorizationTests` (19 cases: visitor 401 with an empty body for the three endpoints; 403 without account data for each refused caller and endpoint; refused PUTs by each caller, and by a visitor, leave both an Active and a Suspended target unchanged; an Active Administrator gets 200) and the three Administrator-target tests pass, with the 36 status and authorization tests in total. T032's `AdministratorAccounts_AreListedWithTheirRole` was moved to T035 after `/speckit-analyze` (finding I2). Frontend: "does not show Categories to %s" now also checks that "Users" is absent (renamed "does not show Categories or Users to %s"); `administratorOnly.test.tsx` gains a `/admin/users access` block (Log in and back, Access denied with no accounts request, Account Suspended for both suspended roles). Lint and `dotnet format` clean.
 
 **Checkpoint**: The access rules are verified for both endpoints and the page.
 
@@ -320,11 +320,11 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: The spec's User Story 3 independent test passes in `AdminAccountsListEndpointTests` and `UserAccountsPage.test.tsx`.
 
-- [ ] T034 [US3] Create `backend/src/SpekLaiku.Api/Services/AdminAccountSearch.cs` (static), with `Validate(string? search)`:
+- [x] T034 [US3] Create `backend/src/SpekLaiku.Api/Services/AdminAccountSearch.cs` (static), with `Validate(string? search)`:
   - It returns the trimmed text, empty for null or only spaces, or the error "Search text can be at most 256 characters." when the trimmed text is longer than 256 characters (spec FR-002).
   - Use it in `AdminAccountsController.List`: an error answers 400 `ValidationProblemDetails` with `errors.search`; otherwise it passes the text to `ListAsync`.
   - Test it in `backend/tests/SpekLaiku.UnitTests/AdminAccountSearchTests.cs`: null, `""` and `"   "` give `""`; `"  ana  "` gives `"ana"`; exactly 256 characters is accepted; 257 is refused with the message; 256 characters plus spaces around them is accepted.
-- [ ] T035 [US3] Create `backend/tests/SpekLaiku.IntegrationTests/AdminAccountsListEndpointTests.cs` (shared test notes, unique markers):
+- [x] T035 [US3] Create `backend/tests/SpekLaiku.IntegrationTests/AdminAccountsListEndpointTests.cs` (shared test notes, unique markers):
   - `Search_MatchesAnyPartOfTheEmailIgnoringCase`: a search for the upper-case marker finds the lower-case emails.
   - `Search_TrimsSpaces`.
   - `Search_MatchesUnderscoreAndPercentLiterally`: an email containing `_` is found by `_`, and a search for `%` finds only emails containing `%`, not every account (research section 5).
@@ -334,30 +334,32 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `TooLongSearch_Gets400`: 257 characters give `errors.search` "Search text can be at most 256 characters.".
   - `List_ReturnsOnlyTheFiveFields`: each account object has exactly the five properties, and the raw body contains neither the account's password hash nor its security stamp, read from the database (spec SC-004).
   - `AdministratorAccounts_AreListedWithTheirRole`: an Active and a Suspended Administrator account with the marker are in the list with `role` "Administrator" and their status (spec FR-003).
-- [ ] T036 [P] [US3] Create `frontend/src/components/accountSearchForm.tsx`:
+- [x] T036 [P] [US3] Create `frontend/src/components/accountSearchForm.tsx`:
   - A form with a visible label "Search by email" and a "Search" submit button, so Enter also searches.
   - The input is `type="search"`, full width on phones, with 16 px text.
   - A "Clear search" button when a search is shown.
   - The error, prefixed with "Error:", next to the field and linked by `aria-describedby`, with `aria-invalid` set.
   - It calls `onSearch(text)` and `onClear()`.
-- [ ] T037 [US3] Extend `frontend/src/stores/useAdminAccountsStore.ts`:
+- [x] T037 [US3] Extend `frontend/src/stores/useAdminAccountsStore.ts`:
   - `load(search)` trims the text.
   - An answer of `invalidSearch` sets `searchError` to "Error: Search text can be at most 256 characters." and keeps the shown list.
   - `search` holds the text of the shown result.
   - Add to `frontend/src/tests/useAdminAccountsStore.test.ts`: the latest search wins (a slow first answer after a fast second is ignored, and the first request's signal is aborted); `invalidSearch` sets the error; a successful search clears it.
-- [ ] T038 [US3] Extend `frontend/src/pages/UserAccountsPage.tsx`:
+- [x] T038 [US3] Extend `frontend/src/pages/UserAccountsPage.tsx`:
   - `AccountSearchForm` above the list.
   - When `hasMore` is set: "Showing the 50 most recently registered accounts. Search by email to find others.".
   - When a search has no match: "No accounts match your search." with "Clear search".
   - "Clear search" empties the field and calls `load("")`.
   - After a reload triggered by a 404 or 409, keep the current search.
-- [ ] T039 [US3] Add to `frontend/src/tests/UserAccountsPage.test.tsx`:
+- [x] T039 [US3] Add to `frontend/src/tests/UserAccountsPage.test.tsx`:
   - Enter in the field sends `?search=ana`.
   - The list shows only the answer.
   - No match shows the message and "Clear search", which reloads the full list.
   - The `hasMore` notice.
   - The 256-character error next to the field, with the list kept.
   - "Loading accounts…" during a search.
+
+- Result of Phase 6 (2026-11-25): `AdminAccountSearchTests` (7) and `AdminAccountsListEndpointTests` (11, including `_` and `%` matched literally: each test creates one account with the character and one where a LIKE pattern would also match, and only the first is found) pass, with the 19 authorization tests still green. Frontend: 34 store and page tests pass. **Difference from the task text**: there is one "Clear search" button, in the search form, shown whenever a search result is on screen (with no match too), instead of a second one next to "No accounts match your search."; spec FR-002 and User Story 3 scenarios 4 and 5 are met by it. The search buttons are full width on phones like the account buttons (spec FR-020). Lint, Prettier and `dotnet format` clean.
 
 **Checkpoint**: Search, the empty state and the limit notice work.
 
