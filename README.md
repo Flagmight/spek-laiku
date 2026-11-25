@@ -121,9 +121,15 @@ Nearby places (step 3) and schedules come from an OpenStreetMap Overpass API ser
 
 #### Running the API on Windows 10
 
-`overpass-api.de` (nearby places, step 3) accepts only TLS 1.3, and Windows 10 cannot make TLS 1.3 connections. On Windows 10, an API started with `dotnet run` therefore shows "Error: The map data service is unavailable. No places are shown." on Places and forecast, and no schedule can be generated. This affects only the machine that runs the API: users' browsers never contact Overpass. Windows 11, macOS and Linux are not affected.
+Windows 10 cannot make TLS 1.3 connections. In November 2026 `overpass-api.de` (nearby places, step 3) accepted only TLS 1.3, so an API started with `dotnet run` on Windows 10 showed "Error: The map data service is unavailable. No places are shown." on Places and forecast, and no schedule could be generated. On 2026-11-25 the server accepted TLS 1.2 again, so `dotnet run` on Windows 10 can reach it. This affects only the machine that runs the API: users' browsers never contact Overpass. Windows 11, macOS and Linux are not affected.
 
-There are two ways around it on Windows 10:
+To check whether the server still accepts TLS 1.2, run this in PowerShell:
+
+```powershell
+curl.exe -sS -o NUL -w "%{http_code}`n" --tlsv1.2 --tls-max 1.2 https://overpass-api.de/api/status
+```
+
+Any HTTP status code, even an error such as `406` or `502`, means TLS 1.2 works. `curl: (35) ... SEC_E_ALGORITHM_MISMATCH` means the server accepts only TLS 1.3 again. In that case there are two ways around it on Windows 10:
 
 - Use the [local map data copy](#local-map-data-copy) as the map data server. The API reaches it over plain `http`, so no TLS 1.3 is needed and `dotnet run` works as in step 4.
 - Or run the API in a Linux container (Linux .NET uses OpenSSL, which supports TLS 1.3). Keep the database and the frontend as above, and replace step 4 with:
@@ -323,7 +329,7 @@ Feature 010 adds the migration `AddSavedPlans` and feature 011 the migration `Ad
 ## Deployment notes
 
 - **Behind a reverse proxy**: the plan setup request limit counts requests per client network address. Behind a reverse proxy every request arrives from the proxy's address, so all users would share one limit. Configure the ASP.NET Core forwarded-headers middleware for the trusted proxy before going live.
-- **Outgoing access**: the API host needs outgoing HTTPS access to `geocoding-api.open-meteo.com` (location search), `api.open-meteo.com` (forecast) and `overpass-api.de` (nearby places). The map data server can be changed with `MapData:MainServer`, and a second one added with `MapData:FallbackServer` (see [Map data server](#map-data-server)); the API host then needs access to those instead. `overpass-api.de` accepts only TLS 1.3, so the API host's operating system must support it: Linux (the Linux .NET images), Windows Server 2022 or later, or Windows 11. Windows 10 and Windows Server 2019 cannot reach it (see "Running the API on Windows 10").
+- **Outgoing access**: the API host needs outgoing HTTPS access to `geocoding-api.open-meteo.com` (location search), `api.open-meteo.com` (forecast) and `overpass-api.de` (nearby places). The map data server can be changed with `MapData:MainServer`, and a second one added with `MapData:FallbackServer` (see [Map data server](#map-data-server)); the API host then needs access to those instead. `overpass-api.de` accepted only TLS 1.3 for a time in November 2026 and accepted TLS 1.2 again on 2026-11-25. Prefer a host whose operating system supports TLS 1.3: Linux (the Linux .NET images), Windows Server 2022 or later, or Windows 11. Windows 10 and Windows Server 2019 reach it only while it accepts TLS 1.2 (see "Running the API on Windows 10").
 - **Forecast and places cache**: forecasts are kept in the API's memory for up to `Forecast:MaxAgeMinutes`, and places for up to `Places:MaxAgeHours`. With more than one API instance each keeps its own copy, which only means a few more calls to Open-Meteo and Overpass. The public Overpass service gives each address only a few requests at a time, so a busy deployment may need its own Overpass instance, set as `MapData:MainServer`, with the public service as `MapData:FallbackServer` if wanted.
 - **Generated schedules**: each generated schedule is kept for 30 minutes in the `GeneratedSchedules` table so it can be saved; expired rows are deleted when the next schedule is generated, so no cleanup job is needed. Because they are in the database, saving also works with more than one API instance and after a restart.
 - **Time zone data**: the date limits use the `Europe/Vilnius` time zone, so the API host needs time zone data. Slim Linux container images need the `tzdata` package; Windows needs ICU, so do not turn on invariant globalization mode.

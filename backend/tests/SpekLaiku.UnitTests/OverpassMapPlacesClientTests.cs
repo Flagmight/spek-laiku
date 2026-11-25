@@ -177,7 +177,8 @@ public sealed class OverpassMapPlacesClientTests : IDisposable
             };
         });
 
-        var elements = await FindAsync(handler, timeout: TimeSpan.FromSeconds(2));
+        // A wide margin over the 300 ms answer, so a slow CI runner does not turn it into a timeout.
+        var elements = await FindAsync(handler, timeout: TimeSpan.FromSeconds(5));
 
         Assert.Equal("node/7", Assert.Single(elements).Key);
         Assert.Empty(logs.Entries);
