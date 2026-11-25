@@ -371,24 +371,26 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: The spec's User Story 5 independent test passes in the accessibility, keyboard and responsive tests.
 
-- [ ] T040 [P] [US5] Add the User accounts page to `frontend/src/tests/accessibility.test.tsx`:
+- [x] T040 [P] [US5] Add the User accounts page to `frontend/src/tests/accessibility.test.tsx`:
   - one `h1`;
   - the skip link is the first focusable item;
   - every button has a name that includes the email;
   - the search field has its label;
   - the status and alert regions exist;
   - an error is linked to the field.
-- [ ] T041 [P] [US5] Add to `frontend/src/tests/keyboard.test.tsx`:
+- [x] T041 [P] [US5] Add to `frontend/src/tests/keyboard.test.tsx`:
   - Tab order: skip link, navigation, search field, Search, then each account's button in list order.
   - The suspend dialog keeps Tab and Shift+Tab inside, Escape closes it, and focus returns to the button.
   - Enter on "Reactivate …" reactivates.
-- [ ] T042 [US5] Add to `frontend/src/tests/responsive.test.tsx`, using the same style checks as the existing My plans rules:
+- [x] T042 [US5] Add to `frontend/src/tests/responsive.test.tsx`, using the same style checks as the existing My plans rules:
   - At 320 px the accounts render as cards with labelled values.
   - The status is a word.
   - Buttons and the search field are full width, buttons are at least 44 × 44 px, and input text is at least 16 px.
   - Nothing is wider than the viewport.
   
   Adjust the `accounts` rules in `frontend/src/styles.css` if a check fails (spec FR-020).
+
+- Result of Phase 7 (2026-11-25): "User accounts accessibility" (4 tests), "keyboard use of the User accounts page" (3) and "User accounts at 320 px" (3) pass; no CSS change was needed, because the rules added in T023 and T036 already make the buttons and the search field full width with 44 px targets and 16 px text. Full frontend run: 95 files and 1398 tests (T002: 91 and 1320, +4 and +78), all passing; lint, Prettier and the build clean.
 
 **Checkpoint**: All stories done.
 
