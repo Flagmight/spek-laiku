@@ -385,7 +385,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the dialog with the lock message.
   
   Keep the images outside the repository unless the README already stores screenshots.
-- [ ] T035 Prepare the Pull Request description for the user. Include:
+- [x] T035 Prepare the Pull Request description for the user. Include:
   - a link to `specs/016-account-deletion/spec.md`;
   - a summary of the change;
   - the tests and checks run (T032, T033);
@@ -395,6 +395,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the AI review record (T031).
   
   The user opens and merges the Pull Request.
+  - Result (2026-11-26): the branch is pushed and the description is given to the user, with every item above. Its "Screenshots" section is left for the user to fill in (T034 is still open), and its "Manual walkthrough" section lists what T033 did not walk through.
 
 **Checkpoint**: All checks green, docs current, review recorded, screenshots and PR description ready. Ready for commit and Pull Request on request.
 
