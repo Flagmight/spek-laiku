@@ -298,3 +298,51 @@ describe("My plans by role", () => {
     expect(navigation().queryByRole("link", { name: "My plans" })).toBeNull()
   })
 })
+
+// Feature 016 spec FR-010: Account is shown to Active Registered Users only, right after My plans.
+describe("Account by role", () => {
+  it("is shown right after My plans to an Active Registered User and opens the Account page", async () => {
+    stubFetch(() => jsonResponse(200, signedInUser))
+    renderApp("/")
+
+    const account = await navigation().findByRole("link", { name: "Account" })
+
+    expect(account).toHaveAttribute("href", "/account")
+    const names = navigation()
+      .getAllByRole("link")
+      .map((link) => link.textContent)
+    expect(names.indexOf("Account")).toBe(names.indexOf("My plans") + 1)
+  })
+
+  it.each([
+    [
+      "a Suspended Registered User",
+      { ...signedInUser, accountStatus: "Suspended" },
+    ],
+    ["an Active Administrator", { ...signedInUser, role: "Administrator" }],
+    [
+      "a Suspended Administrator",
+      { ...signedInUser, role: "Administrator", accountStatus: "Suspended" },
+    ],
+  ])("is not shown to %s", async (_who, user) => {
+    stubFetch(() => jsonResponse(200, user))
+    renderApp("/")
+
+    await vi.waitFor(() =>
+      expect(
+        navigation().queryByRole("button", { name: "Log out" }),
+      ).not.toBeNull(),
+    )
+
+    expect(navigation().queryByRole("link", { name: "Account" })).toBeNull()
+  })
+
+  it("is not shown to a Visitor", async () => {
+    stubFetch(() => jsonResponse(401))
+    renderApp("/")
+
+    await navigation().findByRole("link", { name: "Log in" })
+
+    expect(navigation().queryByRole("link", { name: "Account" })).toBeNull()
+  })
+})

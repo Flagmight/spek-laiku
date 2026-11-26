@@ -238,16 +238,20 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Independent Test**: The spec's User Story 2 independent test passes in `AccountDeletionAuthorizationTests`.
 
-- [ ] T022 [US2] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionAuthorizationTests.cs` (constitution III):
+- [x] T022 [US2] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionAuthorizationTests.cs` (constitution III):
   - `Visitor_Gets401WithEmptyBody`.
   - `RefusedCallers_Get403WithTheCorrectPassword` as a `[Theory]` over a Suspended Registered User, an Active Administrator and a Suspended Administrator, each signed in with `CreateSignedInUserAsync(role, status)` and sending `"Password123!"`: 403, no account data in the body, the account row and a seeded plan unchanged, and `AccessFailedCount` still 0 (the password was never checked, research section 3).
   - `RequestCannotNameAnotherAccount`: a body `{ "password": "Password123!", "id": "<other user's id>", "userId": "<other user's id>" }` from an Active Registered User deletes the caller's own account only; the other account and its plan are unchanged.
-- [ ] T023 [P] [US2] Add cases to `frontend/src/tests/topNavigation.test.tsx`: "Account" right after "My plans" for an Active Registered User, linking to `/account`; no "Account" for a visitor, an Active or Suspended Administrator and a Suspended Registered User.
-- [ ] T024 [P] [US2] Add cases to `frontend/src/tests/registeredUserOnly.test.tsx` for `/account`: a visitor is sent to Log in with "Log in to continue." and, after logging in as an Active Registered User, lands on the Account page; a Suspended user lands on the Account Suspended page; an Administrator sees Access denied. No `POST /api/account/delete` is sent in any case.
-- [ ] T025 [US2] Add to `frontend/src/tests/AccountPage.test.tsx`:
+- [x] T023 [P] [US2] Add cases to `frontend/src/tests/topNavigation.test.tsx`: "Account" right after "My plans" for an Active Registered User, linking to `/account`; no "Account" for a visitor, an Active or Suspended Administrator and a Suspended Registered User.
+- [x] T024 [P] [US2] Add cases to `frontend/src/tests/registeredUserOnly.test.tsx` for `/account`: a visitor is sent to Log in with "Log in to continue." and, after logging in as an Active Registered User, lands on the Account page; a Suspended user lands on the Account Suspended page; an Administrator sees Access denied. No `POST /api/account/delete` is sent in any case.
+- [x] T025 [US2] Add to `frontend/src/tests/AccountPage.test.tsx`:
   - 401 on confirm: the Log in page with "Your session has expired. Log in again.", and after logging in the Account page opens again (spec Edge Cases).
   - 403 on confirm with `/api/auth/me` now answering Suspended: the Account Suspended page (spec Edge Cases).
   - 403 on confirm with `/api/auth/me` now answering 401 (a lost 204 or another tab): the Log in page with "Your session has expired. Log in again." (research section 13).
+- Result (2026-11-26), Phase 4: only tests were added; no production code changed.
+  - `AccountDeletionAuthorizationTests` (5 tests): visitor 401 with an empty body; Suspended Registered User, Active and Suspended Administrator 403 with the correct password, nothing deleted and `AccessFailedCount` 0; a body that also names another account's `id`, `userId` and `email` deletes the caller's own account only.
+  - `topNavigation.test.tsx`: a new "Account by role" block (shown right after My plans to an Active Registered User, linking to `/account`; hidden for the three other signed-in cases and a visitor). `registeredUserOnly.test.tsx`: a new block for `/account` (page shown, visitor to Log in with `returnTo=%2Faccount`, Administrator Access denied, Suspended to Account Suspended) and a visitor who logs in and lands on the Account page. `AccountPage.test.tsx`: the three cases above.
+  - **Checks**: the new and changed test files only (5 backend, 53 frontend tests in the three files), all passing; the full suite runs at the end of Phase 5.
 
 **Checkpoint**: Every caller other than the owner is refused, on the server and in the browser. All tests green.
 

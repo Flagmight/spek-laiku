@@ -244,3 +244,80 @@ describe("AccountPage", () => {
     await waitFor(() => expect(currentLocation()).toBe("/"))
   })
 })
+
+// When the session ended or the account changed before the confirmation (feature 016 spec Edge Cases, research
+// section 13).
+describe("AccountPage: session ended or account changed", () => {
+  it("sends the user to Log in as expired on 401, and back to the Account page after logging in", async () => {
+    let signedIn = true
+    const { currentLocation } = render(
+      {
+        [deleteRoute]: () => {
+          signedIn = false
+          return jsonResponse(401)
+        },
+        "POST /api/auth/login": () => {
+          signedIn = true
+          return jsonResponse(200, user())
+        },
+      },
+      () => (signedIn ? jsonResponse(200, user()) : jsonResponse(401)),
+    )
+    const { events, dialog } = await openDialog()
+    await events.type(passwordField(), password)
+
+    await events.click(confirmButton(dialog))
+
+    expect(
+      await screen.findByText("Your session has expired. Log in again."),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe("/login?returnTo=%2Faccount")
+    await events.type(screen.getByLabelText("Email"), "user@example.com")
+    await events.type(screen.getByLabelText("Password"), password)
+    await events.click(screen.getByRole("button", { name: "Log in" }))
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Account" }),
+    ).toBeInTheDocument()
+  })
+
+  it("sends a user suspended meanwhile to the Account suspended page on 403", async () => {
+    let suspended = false
+    const { currentLocation } = render(
+      {
+        [deleteRoute]: () => {
+          suspended = true
+          return jsonResponse(403)
+        },
+      },
+      () => jsonResponse(200, user(suspended ? "Suspended" : "Active")),
+    )
+    const { events, dialog } = await openDialog()
+    await events.type(passwordField(), password)
+
+    await events.click(confirmButton(dialog))
+
+    await waitFor(() => expect(currentLocation()).toBe("/account-suspended"))
+  })
+
+  it("sends the user to Log in as expired on 403 when the account is already gone", async () => {
+    let gone = false
+    const { currentLocation } = render(
+      {
+        [deleteRoute]: () => {
+          gone = true
+          return jsonResponse(403)
+        },
+      },
+      () => (gone ? jsonResponse(401) : jsonResponse(200, user())),
+    )
+    const { events, dialog } = await openDialog()
+    await events.type(passwordField(), password)
+
+    await events.click(confirmButton(dialog))
+
+    expect(
+      await screen.findByText("Your session has expired. Log in again."),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe("/login?returnTo=%2Faccount")
+  })
+})
