@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest"
 import { cleanup } from "@testing-library/react"
 import { afterEach, vi } from "vitest"
+import { useAccountDeletionStore } from "../stores/useAccountDeletionStore"
 import { useAccountStatusStore } from "../stores/useAccountStatusStore"
 import { useActivityCategoriesStore } from "../stores/useActivityCategoriesStore"
 import { useAdminAccountsStore } from "../stores/useAdminAccountsStore"
@@ -66,6 +67,7 @@ afterEach(() => {
   useRenamePlanStore.getState().reset()
   useAdminAccountsStore.getState().reset()
   useAccountStatusStore.getState().reset()
+  useAccountDeletionStore.getState().reset()
   // The plan setup store saves itself to sessionStorage; nothing may carry over to the next test.
   sessionStorage.clear()
   vi.restoreAllMocks()

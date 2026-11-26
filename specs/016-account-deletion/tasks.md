@@ -104,7 +104,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 ### Backend for User Story 1
 
-- [ ] T008 [US1] Create `backend/src/SpekLaiku.Api/Services/AccountDeletionService.cs` (`ApplicationDbContext`, `UserManager<ApplicationUser>`, `SignInManager<ApplicationUser>`, `ILogger<AccountDeletionService>`). About 100 lines; must stay under 200. One method, `DeleteAsync(ClaimsPrincipal principal, AccountDeletionRequest request, CancellationToken cancellationToken)`:
+- [x] T008 [US1] Create `backend/src/SpekLaiku.Api/Services/AccountDeletionService.cs` (`ApplicationDbContext`, `UserManager<ApplicationUser>`, `SignInManager<ApplicationUser>`, `ILogger<AccountDeletionService>`). About 100 lines; must stay under 200. One method, `DeleteAsync(ClaimsPrincipal principal, AccountDeletionRequest request, CancellationToken cancellationToken)`:
   1. `AccountDeletionValidator.Validate(request)`; any error returns `Invalid(errors)` before the account is read, so nothing is counted.
   2. `var user = await userManager.GetUserAsync(principal)`. If it is null, or not `{ Role: PlanCreatorHandler.RegisteredUserRole, AccountStatus: AccountStatus.Active }`, return `NotAllowed()`. (The policy already checked this; the account may have changed since.)
   3. If `await userManager.IsLockedOutAsync(user)`, return `LockedOut()` (already locked: the correct password is refused too, and nothing is logged).
@@ -120,7 +120,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - Never pass the email or the password to the logger (spec FR-015).
   - Catch no exception: a technical failure reaches `ApiExceptionHandler`, which logs it, and the open transaction is rolled back when it is disposed.
   - Add an XML comment naming research sections 4 and 5: the shared lock, and why the delete is conditional and in one transaction instead of `UserManager.DeleteAsync`.
-- [ ] T009 [US1] Create `backend/src/SpekLaiku.Api/Controllers/AccountController.cs`:
+- [x] T009 [US1] Create `backend/src/SpekLaiku.Api/Controllers/AccountController.cs`:
   - Route `api/account`, `[ApiController]`, `[Authorize(Policy = AuthorizationPolicies.ActiveRegisteredUser)]` on the class, `ProducesResponseType` attributes for 204, 400, 401, 403, 429 and 500 as in `AuthController`. Keep it thin.
   - `[HttpPost("delete")] Delete(AccountDeletionRequest request, CancellationToken cancellationToken)` calls the service and maps the outcome (contracts/account-deletion-api.md):
     - `Deleted` → `await signInManager.SignOutAsync()`, then `NoContent()` (research section 6).
@@ -130,14 +130,14 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - `NotAllowed` → `Forbid()`, which gives the same empty 403 as a refused policy.
   - A missing or unreadable body gets the existing `InvalidModelStateResponseFactory` answer (`errors.request`).
   - Register `AccountDeletionService` as scoped in `backend/src/SpekLaiku.Api/Program.cs`, next to `AdminAccountService`.
-- [ ] T010 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionEndpointTests.cs`:
+- [x] T010 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionEndpointTests.cs`:
   - `CorrectPassword_Answers204AndRemovesTheSessionCookie`: the answer has a `Set-Cookie` for the Identity application cookie with an expiry in the past.
   - `CorrectPassword_DeletesTheAccountAndAllItsPlans`: seed two plans for the caller; afterwards neither the `AspNetUsers` row nor any `SavedPlans` row with that `OwnerId` exists.
   - `Deletion_LeavesOtherAccountsAndTheirPlansUnchanged`: another user with one plan; its row and plan are unchanged (spec SC-003).
   - `AccountWithNoPlans_IsDeleted`.
   - `AfterDeletion_SameClientGets401FromMe`.
   - `EmptyJsonObject_Gets400EnterYourPassword` and `MissingBody_Gets400RequestError` (`errors.request`, "The request is invalid.").
-- [ ] T011 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionPasswordTests.cs` (spec FR-002, FR-016):
+- [x] T011 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionPasswordTests.cs` (spec FR-002, FR-016):
   - `EmptyPassword_Gets400AndCountsNoAttempt`: `errors.password` is `["Enter your password."]`; `AccessFailedCount` stays 0.
   - `WrongPassword_Gets400PasswordIsIncorrect`: `errors.password` is `["Password is incorrect."]`; `AccessFailedCount` is 1; the account and its plan still exist.
   - `PasswordWithAddedSpace_IsWrong`: `"Password123! "` gives "Password is incorrect." (never trimmed).
@@ -145,25 +145,25 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `WhileLocked_CorrectPasswordGets429AndDeletesNothing`.
   - `LockIsShared_WrongLoginsCountInTheDialog`: four wrong `POST /api/auth/login` for the account (from a signed-out client), then one wrong dialog attempt gives 429.
   - `LockIsShared_DialogLockRefusesLogin`: after a lock made in the dialog, `POST /api/auth/login` with the correct password from a signed-out client gives 401 "Incorrect email or password.".
-- [ ] T012 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/DeletedAccountSessionTests.cs` (spec FR-005, FR-006, SC-002, SC-005, research section 7). Two clients signed in to the same account (shared test notes); client A deletes it:
+- [x] T012 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/DeletedAccountSessionTests.cs` (spec FR-005, FR-006, SC-002, SC-005, research section 7). Two clients signed in to the same account (shared test notes); client A deletes it:
   - `OtherSession_IsRefusedEverywhere`: client B gets 403 from `GET /api/plans`, 403 from `GET /api/plans/{id}` of a deleted plan, 403 from `POST /api/account/delete` with the correct password, and 401 from `GET /api/auth/me`.
   - `OldDetails_CannotLogIn`: `POST /api/auth/login` with the old email and password gives 401 with the detail "Incorrect email or password.".
   - `SameEmail_CanRegisterAgainWithNoPlans`: `POST /api/registration` with the same email (in another letter case too) gives 201; signing in as the new account, `GET /api/plans` returns an empty list; the new account's id differs from the old one.
-- [ ] T013 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionAtomicityTests.cs` (spec SC-004, research section 16):
+- [x] T013 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionAtomicityTests.cs` (spec SC-004, research section 16):
   - A private `DbCommandInterceptor` that throws `InvalidOperationException` from `NonQueryExecutingAsync` (and `ReaderExecutingAsync`) when `command.CommandText` contains `DELETE FROM "AspNetUsers"`. Add it through `factory.WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddSingleton<IInterceptor>(...)))` together with an `AddDbContext` options callback, or by replacing the `DbContextOptions<ApplicationDbContext>` registration with one that adds the interceptor; use whichever works with the factory's existing setup and note it in a comment.
   - `FailureAfterThePlansWereDeleted_KeepsTheAccountAndAllPlans`: seed two plans; the answer is 500 with no technical details; the account row and both plans still exist; the same client still gets 200 from `GET /api/auth/me`.
-- [ ] T014 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionLogTests.cs` (spec FR-015):
+- [x] T014 [US1] Create `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionLogTests.cs` (spec FR-015):
   - `Deletion_LogsTheIdAndPlanCountAndNoEmail`: exactly one entry containing "deleted with 2 saved plans" and the account id, and no entry containing the email.
   - `WrongPassword_WritesNoEntry`: no entry from `AccountDeletionService`.
   - `Lock_LogsOneWarningWithTheIdOnly`: after the fifth wrong password, exactly one Warning containing "locked after repeated failed password checks" and the id, and no email; no entry contains the password.
 
 ### Frontend for User Story 1
 
-- [ ] T015 [P] [US1] Create `frontend/src/api/accountApi.ts` with `deleteAccount(password: string, signal: AbortSignal): Promise<AccountDeletionAnswer>`:
+- [x] T015 [P] [US1] Create `frontend/src/api/accountApi.ts` with `deleteAccount(password: string, signal: AbortSignal): Promise<AccountDeletionAnswer>`:
   - `apiFetch("/api/account/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }), signal })`. The password is sent exactly as entered.
   - Map the status as in contracts/account-deletion-api.md: 204 → `deleted`; 400 → `invalid` with the first message of `errors.password` (if there is none, throw `ApiError(400)`); 429 → `locked`; 401 → `signedOut`; 403 → `forbidden`; anything else → throw `ApiError(status)`.
   - Then add `frontend/src/tests/accountApi.test.ts`: each status above; the request method, path and body `{ password: "  spaced  " }` unchanged; a 500 throws `ApiError` with status 500.
-- [ ] T016 [US1] Create `frontend/src/stores/useAccountDeletionStore.ts` (data-model.md "Browser state", research sections 13 and 14). Export the messages as constants:
+- [x] T016 [US1] Create `frontend/src/stores/useAccountDeletionStore.ts` (data-model.md "Browser state", research sections 13 and 14). Export the messages as constants:
   - `deletingAccountMessage = "Deleting your account…"`
   - `deleteFailedMessage = formatErrorMessage("Account could not be deleted. Try again.")`
   - `accountLockedMessage = formatErrorMessage("Too many incorrect passwords. Try again in 15 minutes.")`
@@ -192,7 +192,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   Add `useAccountDeletionStore.getState().reset()` to `clearSignedInData()` in `frontend/src/helpers/clearSignedInData.ts` (so logout also empties it), and to `frontend/src/tests/setup.ts`.
 
   Then add `frontend/src/tests/useAccountDeletionStore.test.ts`: open and close; close empties the password; close while pending is ignored; empty password without a request; pending blocks a second submit (one request recorded); deleted clears the plan in progress and sets the current user signed out; wrong password (field error, password emptied, focus request); locked; 401 marks the session ended; 403 refreshes the current user and offers no Retry; 500, network error and the 10-second timeout (fake timers) give `serverError`; Retry sends the same password; `reset` aborts.
-- [ ] T017 [P] [US1] Create `frontend/src/components/deleteAccountDialog.tsx` (research section 10). Props: `email: string`, `onClose: () => void`, `onDeleted: () => void`. It reads and drives `useAccountDeletionStore`. About 120 lines.
+- [x] T017 [P] [US1] Create `frontend/src/components/deleteAccountDialog.tsx` (research section 10). Props: `email: string`, `onClose: () => void`, `onDeleted: () => void`. It reads and drives `useAccountDeletionStore`. About 120 lines.
   - The same outer markup as `ConfirmDialog`: `div.confirm-backdrop` > `div.confirm-dialog` with `role="dialog"`, `aria-modal="true"` and `aria-labelledby` the question's id.
   - The question as plain text: `` `Delete your account ${email}? All your saved plans will be deleted. This cannot be undone.` ``.
   - A `<form noValidate>` whose submit calls `submit()` and, on `"deleted"`, `onDeleted()`. Inside it:
@@ -203,15 +203,15 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - Focus moves to the field when the dialog opens, and again whenever `focusRequest` changes (then `focusHandled()`).
   - Keyboard: Escape calls `onClose` (ignored while pending, as `close()` is). Tab from the last enabled control goes to the field; Shift+Tab from the field goes to the last enabled control (Cancel, or Retry when shown last).
   - Comment why it is not `ConfirmDialog` (research section 10).
-- [ ] T018 [US1] Create `frontend/src/components/deleteAccountSection.tsx`:
+- [x] T018 [US1] Create `frontend/src/components/deleteAccountSection.tsx`:
   - A `<section aria-labelledby>` with the heading "Delete account" (`h2`), the text "Deleting your account also deletes all your saved plans. This cannot be undone." and a "Delete account" button that calls `open()`.
   - Renders `DeleteAccountDialog` while `dialogOpen`, with `onClose` = `close()` then focus back to the button (a ref), and `onDeleted` = `navigate("/", { state: { successMessage: accountDeletedMessage } })`, as `logoutButton.tsx` navigates after logout (research section 12).
-- [ ] T019 [US1] Create `frontend/src/pages/AccountPage.tsx`: `usePageTitle("Account")`, `<h1>Account</h1>`, a paragraph "Email: <email>" with the email in a `span.account-email`, from `useCurrentUserStore`, and `DeleteAccountSection`. Under about 80 lines.
-- [ ] T020 [US1] Wire the page in:
+- [x] T019 [US1] Create `frontend/src/pages/AccountPage.tsx`: `usePageTitle("Account")`, `<h1>Account</h1>`, a paragraph "Email: <email>" with the email in a `span.account-email`, from `useCurrentUserStore`, and `DeleteAccountSection`. Under about 80 lines.
+- [x] T020 [US1] Wire the page in:
   - `frontend/src/components/appRoutes.tsx`: `path="account"` wrapped in `SignedInOnly` and `RegisteredUserOnly`, after `plans/:planId` (research section 17).
   - `frontend/src/components/topNavigation.tsx`: `<NavLink to="/account">Account</NavLink>` right after "My plans", with the same `canViewSavedPlans(status, user)` condition. Update the header comment: "an Active Registered User also sees Account after My plans (feature 016, spec FR-010)".
   - `frontend/src/styles.css`: `.account-email { overflow-wrap: anywhere; }`, and full-width `.confirm-dialog .form-field input` (the 320 px rules are checked in US3).
-- [ ] T021 [US1] Create `frontend/src/tests/AccountPage.test.tsx` with `renderApp("/account")` as an Active Registered User:
+- [x] T021 [US1] Create `frontend/src/tests/AccountPage.test.tsx` with `renderApp("/account")` as an Active Registered User:
   - The heading "Account", the tab title "Account - Spėk laiku", "user@example.com" and the warning text.
   - "Delete account" opens the dialog with the question including the email; the "Password" field has focus.
   - Cancel and Escape close it, send nothing, and return focus to "Delete account"; reopening shows an empty field.
@@ -222,6 +222,11 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - 500: "Error: Account could not be deleted. Try again." with Retry; Retry sends the same password; a 204 then lands on Home.
   - 204: Home with "✓ Success: Your account has been deleted.", the visitor navigation (Log in, Register) and no "Account" link; a plan in progress set in `usePlanSetupStore` before is cleared.
   - Enter in the field submits.
+- Result (2026-11-26), Phase 3:
+  - **Backend**: `AccountDeletionService` (93 lines) and `AccountController` (62 lines) as described. `NotAllowed` answers `Forbid()`. A shared test helper `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionRequests.cs` holds the request, the plan seed, the row reads, a second sign-in and the signed-out login. T013 adds the interceptor with `services.ConfigureDbContext<ApplicationDbContext>(options => options.AddInterceptors(...))` inside `ConfigureTestServices`, which keeps the factory's connection string. In T014 the "no email" checks look only at entries written after the test sign-in, because the test sign-in request has the email in its address.
+  - **Frontend**: `deleteAccountDialog.tsx` traps Tab between the first and last enabled control (the field, Retry when shown, Delete account, Cancel), and moves focus to Retry after a technical failure, because the disabled buttons lost it while the request ran. `TextField` gained the optional `disabled` prop. The narrow layout needed no new rule for the dialog: the existing `input` rule (full width, 16 px) and `form button` rule (full width below 40em, 44 px) already apply; only `.account-email` was added to `styles.css`.
+  - **Existing tests changed** (allowed: "Account" added after "My plans"): `topNavigation.test.tsx` (the Registered User link list and the count after logging in: 3 → 4; test renamed "… My plans and Account …") and `keyboard.test.tsx` (the Tab order to Log out gains Account; test renamed). `setup.ts` resets the new store.
+  - **Checks**, each step on its own in the foreground: backend build 0 warnings, **829 unit** and **521 integration** tests (+23), format clean; frontend lint and format clean, **99 files** and **1450 tests** (+3 files, +38), build clean.
 
 **Checkpoint**: The independent test passes end to end: deleted, signed out, old login refused, email reusable, all-or-nothing proven. All tests green.
 

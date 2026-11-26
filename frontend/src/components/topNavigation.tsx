@@ -8,7 +8,7 @@ import { LogoutButton } from "./logoutButton"
 // and Log out (FR-016, FR-021). An Active Administrator also sees Categories between them
 // (feature 003, FR-017), then Users (feature 014, spec FR-016); a Suspended Administrator sees neither. A visitor and an Active Registered
 // User also see Create plan after Home (feature 004, spec FR-001, FR-002). An Active Registered User
-// also sees My plans after Create plan (feature 010, spec FR-014).
+// also sees My plans after Create plan (feature 010, spec FR-014), then Account (feature 016, spec FR-010).
 export function TopNavigation() {
   const status = useCurrentUserStore((state) => state.status)
   const user = useCurrentUserStore((state) => state.user)
@@ -32,9 +32,14 @@ export function TopNavigation() {
         </li>
       )}
       {canViewSavedPlans(status, user) && (
-        <li>
-          <NavLink to="/plans">My plans</NavLink>
-        </li>
+        <>
+          <li>
+            <NavLink to="/plans">My plans</NavLink>
+          </li>
+          <li>
+            <NavLink to="/account">Account</NavLink>
+          </li>
+        </>
       )}
       {showVisitorLinks && (
         <>

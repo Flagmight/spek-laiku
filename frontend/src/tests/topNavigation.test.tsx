@@ -36,7 +36,7 @@ describe("top navigation", () => {
     ).toEqual(["Home", "Create plan", "Log in", "Register"])
   })
 
-  it("shows Home, Create plan and My plans to a signed-in Active Registered User", async () => {
+  it("shows Home, Create plan, My plans and Account to a signed-in Active Registered User", async () => {
     const fetchMock = stubFetch(() => jsonResponse(200, signedInUser))
     renderApp("/")
 
@@ -47,10 +47,14 @@ describe("top navigation", () => {
       navigation()
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Home", "Create plan", "My plans"])
+    ).toEqual(["Home", "Create plan", "My plans", "Account"])
     expect(
       navigation().getByRole("link", { name: "My plans" }),
     ).toHaveAttribute("href", "/plans")
+    expect(navigation().getByRole("link", { name: "Account" })).toHaveAttribute(
+      "href",
+      "/account",
+    )
   })
 
   it("does not show Log in or Register while the signed-in state is loading", () => {
@@ -87,7 +91,7 @@ describe("top navigation", () => {
     await user.click(screen.getByRole("button", { name: "Log in" }))
 
     await vi.waitFor(() =>
-      expect(navigation().getAllByRole("link")).toHaveLength(3),
+      expect(navigation().getAllByRole("link")).toHaveLength(4),
     )
     expect(navigation().getByRole("link", { name: "Home" })).toBeInTheDocument()
     expect(

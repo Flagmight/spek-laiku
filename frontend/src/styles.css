@@ -781,6 +781,12 @@ fieldset.plan-activity h3 {
   margin-bottom: 0;
 }
 
+/* Account (feature 016). A long email wraps instead of widening the page at 320 px (spec FR-014); the dialog's
+   field and buttons are full width on phones through the input and form button rules above. */
+.account-email {
+  overflow-wrap: anywhere;
+}
+
 /* Plan check (feature 012). Each problem is a card that wraps its long text instead of widening the page, as the
    saved plan cards do on phones. The "✗ Problem" reasons sit in a block below the entry's line; the ✗ and the
    words carry the meaning, the border only repeats it. */

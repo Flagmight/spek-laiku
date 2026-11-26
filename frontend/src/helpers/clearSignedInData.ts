@@ -1,3 +1,4 @@
+import { useAccountDeletionStore } from "../stores/useAccountDeletionStore"
 import { useAccountStatusStore } from "../stores/useAccountStatusStore"
 import { useAdminAccountsStore } from "../stores/useAdminAccountsStore"
 import { useCurrentUserStore } from "../stores/useCurrentUserStore"
@@ -22,4 +23,6 @@ export function clearSignedInData(): void {
   // And the administrator's account list and any status change in progress (feature 014).
   useAdminAccountsStore.getState().reset()
   useAccountStatusStore.getState().reset()
+  // And the account deletion dialog with any password typed into it (feature 016, research section 14).
+  useAccountDeletionStore.getState().reset()
 }
