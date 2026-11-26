@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { describe, expect, it } from "vitest"
 import type { CurrentUser } from "../types/currentUser"
 import {
@@ -99,5 +100,81 @@ describe("RegisteredUserOnly on a saved plan", () => {
     )
 
     await waitFor(() => expect(currentLocation()).toBe("/account-suspended"))
+  })
+})
+
+// The Account page is for signed-in, Active Registered Users (feature 016 spec FR-011, User Story 2 scenarios 3 to
+// 5). No deletion request is sent in any of these cases: routeFetch fails the test on any request without a handler.
+describe("RegisteredUserOnly on the Account page", () => {
+  function render(user: CurrentUser | null) {
+    routeFetch({
+      "GET /api/auth/me": () =>
+        user ? jsonResponse(200, user) : jsonResponse(401),
+      "GET /api/plans": () => jsonResponse(200, []),
+    })
+    return renderAppWithLocation("/account")
+  }
+
+  it("shows the page to an Active Registered User", async () => {
+    render(signedInUser("Registered User", "Active"))
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Account" }),
+    ).toBeInTheDocument()
+  })
+
+  it("sends a Visitor to Log in and back here afterwards", async () => {
+    const { currentLocation } = render(null)
+
+    await waitFor(() =>
+      expect(currentLocation()).toBe("/login?returnTo=%2Faccount"),
+    )
+    expect(await screen.findByText("Log in to continue.")).toBeInTheDocument()
+  })
+
+  it("shows Access denied to an Active Administrator, without the page", async () => {
+    render(signedInUser("Administrator", "Active"))
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Access denied" }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Delete account" })).toBeNull()
+  })
+
+  it.each(["Registered User", "Administrator"])(
+    "sends a Suspended %s to the Account suspended page",
+    async (role) => {
+      const { currentLocation } = render(signedInUser(role, "Suspended"))
+
+      await waitFor(() => expect(currentLocation()).toBe("/account-suspended"))
+    },
+  )
+})
+
+describe("Account page after logging in", () => {
+  it("opens the Account page after a visitor logs in as an Active Registered User", async () => {
+    const registeredUser = signedInUser("Registered User", "Active")
+    let signedIn = false
+    routeFetch({
+      "GET /api/auth/me": () =>
+        signedIn ? jsonResponse(200, registeredUser) : jsonResponse(401),
+      "POST /api/auth/login": () => {
+        signedIn = true
+        return jsonResponse(200, registeredUser)
+      },
+      "GET /api/plans": () => jsonResponse(200, []),
+    })
+    const { currentLocation } = renderAppWithLocation("/account")
+    expect(await screen.findByText("Log in to continue.")).toBeInTheDocument()
+
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText("Email"), registeredUser.email)
+    await user.type(screen.getByLabelText("Password"), "Password123!")
+    await user.click(screen.getByRole("button", { name: "Log in" }))
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Account" }),
+    ).toBeInTheDocument()
+    expect(currentLocation()).toBe("/account")
   })
 })

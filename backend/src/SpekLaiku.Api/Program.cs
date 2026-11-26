@@ -154,6 +154,7 @@ public class Program
         builder.Services.AddScoped<LoginService>();
         builder.Services.AddScoped<ActivityCategoryService>();
         builder.Services.AddScoped<AdminAccountService>();
+        builder.Services.AddScoped<AccountDeletionService>();
 
         var app = builder.Build();
 

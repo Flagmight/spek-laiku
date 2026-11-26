@@ -13,6 +13,8 @@ interface TextFieldProps {
   error?: string
   // The id of a message elsewhere on the page that also describes this field.
   describedById?: string
+  // For example while the account deletion runs (feature 016 spec FR-007).
+  disabled?: boolean
   onChange: (value: string) => void
 }
 

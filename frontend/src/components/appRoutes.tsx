@@ -1,4 +1,5 @@
 import { Route, Routes } from "react-router-dom"
+import { AccountPage } from "../pages/AccountPage"
 import { AccountSuspendedPage } from "../pages/AccountSuspendedPage"
 import { ActivitySelectionPage } from "../pages/ActivitySelectionPage"
 import { ActivityCategoriesPage } from "../pages/ActivityCategoriesPage"
@@ -88,6 +89,16 @@ export function AppRoutes() {
             <SignedInOnly>
               <RegisteredUserOnly>
                 <PlanDetailsPage />
+              </RegisteredUserOnly>
+            </SignedInOnly>
+          }
+        />
+        <Route
+          path="account"
+          element={
+            <SignedInOnly>
+              <RegisteredUserOnly>
+                <AccountPage />
               </RegisteredUserOnly>
             </SignedInOnly>
           }

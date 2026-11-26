@@ -219,7 +219,7 @@ describe("keyboard use of the Log in page", () => {
 })
 
 describe("keyboard use of Log out", () => {
-  it("reaches Log out after Home, Create plan and My plans and logs out with Enter", async () => {
+  it("reaches Log out after Home, Create plan, My plans and Account and logs out with Enter", async () => {
     let signedIn = true
     vi.stubGlobal(
       "fetch",
@@ -255,6 +255,8 @@ describe("keyboard use of Log out", () => {
     ).toHaveFocus()
     await user.tab()
     expect(screen.getByRole("link", { name: "My plans" })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole("link", { name: "Account" })).toHaveFocus()
     await user.tab()
     expect(logOut).toHaveFocus()
     await user.keyboard("{Enter}")
@@ -1327,5 +1329,91 @@ describe("keyboard use of the User accounts page", () => {
     expect(requests.filter((request) => request.method === "PUT")).toHaveLength(
       1,
     )
+  })
+})
+
+// The Account page and its dialog by keyboard only (feature 016 spec FR-012, User Story 3).
+describe("keyboard use of the Account page", () => {
+  function stubAccount() {
+    let deleted = false
+    return routeFetch({
+      "GET /api/auth/me": () =>
+        deleted ? jsonResponse(401) : jsonResponse(200, routeSignedInUser()),
+      "GET /api/plans": () => jsonResponse(200, []),
+      "POST /api/account/delete": () => {
+        deleted = true
+        return jsonResponse(204)
+      },
+    })
+  }
+
+  it("reaches Delete account after the navigation and opens the dialog with Enter", async () => {
+    stubAccount()
+    const user = userEvent.setup()
+    renderApp("/account")
+    const open = await screen.findByRole("button", { name: "Delete account" })
+
+    const expected = [
+      screen.getByRole("link", { name: "Skip to main content" }),
+      screen.getByRole("link", { name: "Home" }),
+      screen.getByRole("link", { name: "Create plan" }),
+      screen.getByRole("link", { name: "My plans" }),
+      screen.getByRole("link", { name: "Account" }),
+      screen.getByRole("button", { name: "Log out" }),
+      open,
+    ]
+    for (const element of expected) {
+      await user.tab()
+      expect(element).toHaveFocus()
+    }
+    await user.keyboard("{Enter}")
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(screen.getByLabelText("Password")).toHaveFocus()
+  })
+
+  it("keeps Tab inside the dialog, closes it with Escape and returns focus", async () => {
+    const { requests } = stubAccount()
+    const user = userEvent.setup()
+    renderApp("/account")
+    const open = await screen.findByRole("button", { name: "Delete account" })
+    open.focus()
+    await user.keyboard("{Enter}")
+    const dialog = screen.getByRole("dialog")
+    const field = within(dialog).getByLabelText("Password")
+    const confirm = within(dialog).getByRole("button", {
+      name: "Delete account",
+    })
+    const cancel = within(dialog).getByRole("button", { name: "Cancel" })
+
+    expect(field).toHaveFocus()
+    await user.tab()
+    expect(confirm).toHaveFocus()
+    await user.tab()
+    expect(cancel).toHaveFocus()
+    await user.tab()
+    expect(field).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(cancel).toHaveFocus()
+    await user.keyboard("{Escape}")
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    expect(open).toHaveFocus()
+    expect(requests.some((request) => request.method === "POST")).toBe(false)
+  })
+
+  it("deletes the account with the password and Enter", async () => {
+    stubAccount()
+    const user = userEvent.setup()
+    renderApp("/account")
+    const open = await screen.findByRole("button", { name: "Delete account" })
+    open.focus()
+    await user.keyboard("{Enter}")
+
+    await user.keyboard("Password123!{Enter}")
+
+    expect(
+      await screen.findByText("✓ Success: Your account has been deleted."),
+    ).toBeInTheDocument()
   })
 })
