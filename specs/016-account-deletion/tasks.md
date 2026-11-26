@@ -319,14 +319,31 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     - **Migrations and packages**: nothing under `Migrations/`, no `package.json`, lock file or `.csproj` changed.
     - **Logging**: the only two logger calls (`AccountDeletionService`, lines 61 and 90) pass the account id and the plan count; no email or password. `AccountDeletionRequest.ToString()` masks the password.
     - **Exceptions**: no `catch` in the new backend code.
-- [ ] T031 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds a destructive operation with a password check on user accounts. Record:
+- [x] T031 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds a destructive operation with a password check on user accounts. Record:
   - the tool;
   - the important findings;
   - the changes made;
   - the findings not applied, each with a short reason.
   
   These go in the Pull Request description (constitution VII). Apply the accepted fixes, each with a test that fails before it, then run T032.
-- [ ] T032 Run all checks one step at a time in the foreground, and confirm they pass:
+  - Result (2026-11-26), tools: Claude Code `/code-review` (level high, `main...016-account-deletion`) and `/security-review`.
+    - **`/security-review`**: no vulnerabilities found (none at confidence 8/10 or more). It checked:
+      - authorization: the class-level `ActiveRegisteredUser` policy that reads the account on every request, the account taken only from the session (no account field in the request), and the conditional delete that rolls back when the account is no longer an Active Registered User;
+      - other sessions of a deleted account (403 everywhere, 401 from `/api/auth/me`, a re-registered email gets a new id), and the cookie removed in the same 204;
+      - the password check with the shared lock, never trimmed, an empty password refused before the account is read;
+      - CSRF: the `SameSite=Lax`, `Secure`, `HttpOnly` cookie, JSON only, and the password also required, as the other endpoints;
+      - mass assignment (one `Password` field) and injection (parameterised EF Core deletes, no raw SQL);
+      - logs and answers: the id and plan count only, the password masked in the request's `ToString()`, fixed messages, no account data returned;
+      - the browser: the password only in memory and in the POST body to the same origin, cleared on close, wrong password, lock, reset, deletion and logout; no `dangerouslySetInnerHTML` or `eval`.
+      
+      Not reported, because denial of service is out of scope: someone with a stolen session can lock the account for 15 minutes with wrong passwords, as on Log in. No changes were needed.
+    - **`/code-review`**: 5 findings (2 important, 3 nits); 4 applied, 1 not applied. Each new test below failed against the code before its fix and passes with it.
+      1. *Important*: nothing of the dialog was dropped when the user left the page with it open (Back, or a 403 that sends them elsewhere): the dialog stayed open with the typed password for the next visit, even for another user on the same browser. After a 403 for an account that was already gone (a lost 204, another tab), the session's plan in progress, kept schedule and edit also survived. Now a 403 resets the store, and when the refresh shows the account is gone, the session stores are cleared too, through a new `clearSessionStores()` split out of `clearSignedInData()` so the session stays marked as expired; `DeleteAccountSection` also resets the store when it unmounts. Tests: store "resets itself on 403, so the dialog and the password are gone" and "clears the session data on 403 when the account is already gone, keeping the session expired"; page "empties the dialog when the user leaves the page with it open". The earlier store test "refreshes the current user on 403 and offers no Retry" now expects the reset store instead of an error kept in it.
+      2. *Important*: while the deletion ran, the disabled field and buttons lost focus to the page, so Tab left the modal dialog and reached the navigation (Log out) behind it, and Escape no longer reached the dialog. The dialog now has `tabIndex={-1}` and takes focus while pending; the existing trap keeps Tab on it, and Escape is still ignored while pending. Test: "keeps focus inside the dialog while the deletion runs".
+      3. *Nit*: the browser's 10-second abort arriving just after the account row was deleted cancelled the commit, so the deletion was rolled back after the browser had already shown the error, and nothing was logged. The commit and the rollback now use `CancellationToken.None`. Test: the new `backend/tests/SpekLaiku.IntegrationTests/AccountDeletionCancellationTests.cs` aborts the request with an interceptor right after the account delete; before the fix the account was still there, now it is gone and the Information entry is written.
+      4. *Nit*: after a deletion, Back went to `/login?returnTo=%2Faccount`. The cause: a router navigation is a React transition while the signed-in state is not, so the guard always replaces the Account page with Log in before Home is shown; calling `navigate` earlier cannot change that (tried and reverted). Home is now opened with `replace: true`, which replaces that Log in entry, so Back returns to the page before Account. Test: "leaves no Log in entry in the history after a deletion: Back returns to the page before Account" (with `/register` before Account; it received `/login?returnTo=%2Faccount` without the fix). Logout from a protected page has the same history entry; that is feature 002's and unchanged.
+      5. *Nit, not applied*: Identity's `CheckPasswordSignInAsync` returns `Failed`, not `Success`, when the password is right but resetting the failed-attempt count fails, for example when an administrator changes the account at the same moment; the dialog then says "Password is incorrect.". Not applied: it needs that exact race, nothing is deleted, and the user's next request goes to the Account Suspended page anyway; handling it would mean re-implementing Identity's password and lock logic.
+- [x] T032 Run all checks one step at a time in the foreground, and confirm they pass:
   - from the repository root: `dotnet build SpekLaiku.slnx`, `dotnet test SpekLaiku.slnx` and `dotnet format SpekLaiku.slnx --verify-no-changes`;
   - from `frontend/`: `npm run lint`, `npm run format:check`, `npm test` and `npm run build`.
   
@@ -337,6 +354,17 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - `setup.ts`: the new store reset.
   
   No existing assertion may be removed or weakened. Record the results here.
+  - Result (2026-11-26), after the T031 fixes, each step run on its own in the foreground, all passing:
+    - **Backend**: build with 0 warnings and 0 errors; **829 unit** tests (T002: 824, +5) and **527 integration** tests (T002: 498, +29); `dotnet format --verify-no-changes` clean.
+    - **Frontend**: lint and `format:check` clean; **99 files** (T002: 95, +4) and **1480 tests** (T002: 1409, +71); build clean.
+    - **Changed existing assertions** (from `git diff main` over the existing test files), all allowed above:
+      - `topNavigation.test.tsx`: the Registered User link list expects "Account" after "My plans" with its link checked (test renamed "… My plans and Account …"), and the count after logging in is 4 instead of 3.
+      - `keyboard.test.tsx`: the Tab order to Log out gains the Account link (test renamed).
+      - `registeredUserOnly.test.tsx`, `accessibility.test.tsx`, `responsive.test.tsx`: cases added only.
+      - `setup.ts`: the new store is reset after each test.
+      - `useLogoutStore.test.tsx` and `logout.test.tsx`: unchanged (T007 added `clearSignedInData.test.ts` instead).
+      
+      No existing assertion was removed or weakened.
 - [ ] T033 Walk through `specs/016-account-deletion/quickstart.md` Part 2, scenarios 1 to 10, in the running app (README "Run the application"), with **new throwaway accounts** only. Record which passed and any that could not be done. Deleting an account is permanent, so ask the user before each deletion that is not of an account created for this walkthrough.
   - For spec SC-001 (under 1 minute), time from Home to the "✓ Success: Your account has been deleted." message and record it here. There is no automated timing test.
 - [ ] T034 Capture screenshots for the Pull Request (constitution V), at desktop width and at 320 px:

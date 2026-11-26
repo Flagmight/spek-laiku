@@ -82,11 +82,13 @@ public sealed class AccountDeletionService(
         if (deleted != 1)
         {
             // Suspended, promoted or deleted after the check above: nothing is deleted.
-            await transaction.RollbackAsync(cancellationToken);
+            await transaction.RollbackAsync(CancellationToken.None);
             return AccountDeletionResult.NotAllowed;
         }
 
-        await transaction.CommitAsync(cancellationToken);
+        // Not cancelled by the browser giving up: once the account row is deleted, the deletion is committed and
+        // logged, so the server's state and its log agree (code review in T031).
+        await transaction.CommitAsync(CancellationToken.None);
         logger.LogInformation("Account {UserId} deleted with {PlanCount} saved plans.", user.Id, planCount);
         return AccountDeletionResult.Deleted(planCount);
     }

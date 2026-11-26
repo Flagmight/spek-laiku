@@ -44,7 +44,15 @@ export function DeleteAccountDialog({
     }
   }, [focusRequest])
 
-  // Retry after a technical failure, because the buttons were disabled while the request ran and focus was lost.
+  // The dialog itself while the request runs: the field and buttons are disabled, and focus must stay inside so Tab
+  // and Escape still reach the dialog (feature 016 code review).
+  useEffect(() => {
+    if (pending) {
+      dialog.current?.focus()
+    }
+  }, [pending])
+
+  // Retry after a technical failure, because the buttons were disabled while the request ran.
   useEffect(() => {
     if (status === "serverError") {
       retryButton.current?.focus()
@@ -100,6 +108,7 @@ export function DeleteAccountDialog({
         ref={dialog}
         className="confirm-dialog"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby={questionId}
         onKeyDown={onKeyDown}

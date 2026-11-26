@@ -186,8 +186,8 @@ describe("useAccountDeletionStore: submit", () => {
     await expect(store().submit()).resolves.toBe("failed")
 
     expect(refresh).toHaveBeenCalledTimes(1)
-    expect(store().status).toBe("idle")
-    expect(store().error).toBe(deleteFailedMessage)
+    // The guards send the user on; nothing of the dialog is kept (code review, T031).
+    expect(store()).toMatchObject(initialAccountDeletionState)
   })
 
   it.each([
@@ -253,5 +253,37 @@ describe("useAccountDeletionStore: submit", () => {
 
     await expect(deleting).resolves.toBe("ignored")
     expect(store()).toMatchObject(initialAccountDeletionState)
+  })
+})
+
+// Code review (T031): nothing of the dialog may outlive a refused request.
+describe("useAccountDeletionStore: after a refusal", () => {
+  it("resets itself on 403, so the dialog and the password are gone", async () => {
+    vi.spyOn(useCurrentUserStore.getState(), "refresh").mockResolvedValue()
+    routeFetch({ [route]: () => jsonResponse(403) })
+    openWithPassword()
+
+    await expect(store().submit()).resolves.toBe("failed")
+
+    expect(store()).toMatchObject(initialAccountDeletionState)
+  })
+
+  it("clears the session data on 403 when the account is already gone, keeping the session expired", async () => {
+    routeFetch({ [route]: () => jsonResponse(403) })
+    useCurrentUserStore.getState().setSignedIn(signedInUser())
+    // /api/auth/me now answers 401: the signed-in user becomes an expired session, as refresh() does.
+    vi.spyOn(useCurrentUserStore.getState(), "refresh").mockImplementation(
+      async () => useCurrentUserStore.getState().markSessionEnded(),
+    )
+    usePlanSetupStore.getState().setLocationText("Kaunas")
+    openWithPassword()
+
+    await store().submit()
+
+    expect(useCurrentUserStore.getState()).toMatchObject({
+      status: "signedOut",
+      sessionExpired: true,
+    })
+    expect(usePlanSetupStore.getState()).toMatchObject(initialPlanSetupState)
   })
 })

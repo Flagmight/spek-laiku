@@ -8,10 +8,16 @@ import { usePlanEditStore } from "../stores/usePlanEditStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 
 // Everything that belongs to a session that ended on purpose: logout (feature 002) and account deletion
-// (feature 016, research section 11). A later feature that keeps session data adds its store here.
+// (feature 016, research section 11). A later feature that keeps session data adds its store to clearSessionStores.
 export function clearSignedInData(): void {
   // Signed out on purpose, so a protected page later says "Log in to continue.", not expired.
   useCurrentUserStore.getState().setSignedOut()
+  clearSessionStores()
+}
+
+// The session's stores without the signed-in state, for when the signed-in state is already right: an account that
+// was deleted before its answer arrived is already an expired session (feature 016 code review).
+export function clearSessionStores(): void {
   // The plan in progress belongs to the session that ended (feature 004, spec FR-017).
   usePlanSetupStore.getState().clear()
   // The activities go with it (feature 005, spec FR-019).

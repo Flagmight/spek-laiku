@@ -1,8 +1,17 @@
-import { screen, waitFor, within } from "@testing-library/react"
+import {
+  render as renderRouter,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter, useNavigate } from "react-router-dom"
 import { describe, expect, it } from "vitest"
+import { AppRoutes } from "../components/appRoutes"
+import { useCurrentUserStore } from "../stores/useCurrentUserStore"
 import { usePlanSetupStore } from "../stores/usePlanSetupStore"
 import type { CurrentUser } from "../types/currentUser"
+import { CurrentLocation } from "./currentLocation"
 import type { RecordedRequest } from "./renderApp"
 import {
   jsonResponse,
@@ -321,3 +330,78 @@ describe("AccountPage: session ended or account changed", () => {
     expect(currentLocation()).toBe("/login?returnTo=%2Faccount")
   })
 })
+
+// Code review (T031).
+describe("AccountPage: code review", () => {
+  it("empties the dialog when the user leaves the page with it open", async () => {
+    render()
+    const { events } = await openDialog()
+    await events.type(passwordField(), password)
+
+    const navigation = screen.getByRole("navigation", { name: "Main" })
+    await events.click(within(navigation).getByRole("link", { name: "Home" }))
+    await events.click(
+      await within(navigation).findByRole("link", { name: "Account" }),
+    )
+
+    await screen.findByRole("heading", { level: 1, name: "Account" })
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    await openDialog()
+    expect(passwordField()).toHaveValue("")
+  })
+
+  it("leaves no Log in entry in the history after a deletion: Back returns to the page before Account (a public page here)", async () => {
+    routeFetch({
+      "GET /api/auth/me": () =>
+        deleted ? jsonResponse(401) : jsonResponse(200, user()),
+      "GET /api/plans": () => jsonResponse(200, []),
+      [deleteRoute]: () => {
+        deleted = true
+        return jsonResponse(204)
+      },
+    })
+    let deleted = false
+    void useCurrentUserStore.getState().refresh()
+    renderRouter(
+      <MemoryRouter initialEntries={["/register", "/account"]} initialIndex={1}>
+        <AppRoutes />
+        <CurrentLocation />
+        <BackButton />
+      </MemoryRouter>,
+    )
+    const { events, dialog } = await openDialog()
+    await events.type(passwordField(), password)
+    await events.click(confirmButton(dialog))
+    await screen.findByText("✓ Success: Your account has been deleted.")
+
+    await events.click(screen.getByRole("button", { name: "Test back" }))
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location").textContent).toBe("/register"),
+    )
+  })
+
+  it("keeps focus inside the dialog while the deletion runs", async () => {
+    render({ [deleteRoute]: () => new Promise<Response>(() => {}) })
+    const { events, dialog } = await openDialog()
+    await events.type(passwordField(), password)
+
+    await events.keyboard("{Enter}")
+
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    await events.tab()
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    await events.keyboard("{Escape}")
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+  })
+})
+
+// Goes one step back in the router's history, as the browser's Back button does.
+function BackButton() {
+  const navigate = useNavigate()
+  return (
+    <button type="button" onClick={() => void navigate(-1)}>
+      Test back
+    </button>
+  )
+}

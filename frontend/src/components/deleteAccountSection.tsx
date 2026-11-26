@@ -1,4 +1,4 @@
-import { useId, useRef } from "react"
+import { useEffect, useId, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   accountDeletedMessage,
@@ -16,6 +16,10 @@ export function DeleteAccountSection({ email }: { email: string }) {
   const openButton = useRef<HTMLButtonElement>(null)
   const dialogOpen = useAccountDeletionStore((state) => state.dialogOpen)
 
+  // Leaving the page, for example with Back while the dialog is open, drops the dialog and the password typed into it
+  // (research section 14, feature 016 code review).
+  useEffect(() => () => useAccountDeletionStore.getState().reset(), [])
+
   function close() {
     useAccountDeletionStore.getState().close()
     if (!useAccountDeletionStore.getState().dialogOpen) {
@@ -25,7 +29,10 @@ export function DeleteAccountSection({ email }: { email: string }) {
 
   function deleted() {
     const state: NavigationState = { successMessage: accountDeletedMessage }
-    navigate("/", { state })
+    // Clearing the signed-in state has already made the guard replace this page with Log in, because a router
+    // navigation is a React transition and the signed-in state is not. Replacing that entry with Home means Back
+    // returns to the page before Account, not to Log in (feature 016 code review).
+    navigate("/", { replace: true, state })
   }
 
   return (

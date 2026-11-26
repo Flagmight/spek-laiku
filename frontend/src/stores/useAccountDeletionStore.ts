@@ -1,6 +1,9 @@
 import { create } from "zustand"
 import { deleteAccount } from "../api/accountApi"
-import { clearSignedInData } from "../helpers/clearSignedInData"
+import {
+  clearSessionStores,
+  clearSignedInData,
+} from "../helpers/clearSignedInData"
 import { formatErrorMessage } from "../helpers/formatErrorMessage"
 import { startTimeout } from "../helpers/timedRequest"
 import type { AccountDeletionAnswer } from "../types/accountDeletion"
@@ -75,9 +78,9 @@ export const useAccountDeletionStore = create<AccountDeletionState>()((
     return (get().focusRequest ?? 0) + 1
   }
 
-  function settle(
+  async function settle(
     answer: AccountDeletionAnswer | null,
-  ): AccountDeletionOutcome {
+  ): Promise<AccountDeletionOutcome> {
     const done = { controller: null, status: "idle" as const }
     switch (answer?.kind) {
       case "deleted":
@@ -108,10 +111,14 @@ export const useAccountDeletionStore = create<AccountDeletionState>()((
         useCurrentUserStore.getState().markSessionEnded()
         return "failed"
       case "forbidden":
-        // Suspended, or the account is already gone: the guards send the user on after the refresh. Repeating the
-        // request would be refused again, so no Retry (research section 13).
-        void useCurrentUserStore.getState().refresh()
-        set({ ...done, error: deleteFailedMessage })
+        // Suspended, or the account is already gone: the guards send the user on after the refresh, so the dialog and
+        // the password are dropped (research section 13). An account already gone (a lost 204 or another tab) is now an
+        // expired session, and the data of its session goes with it as after a deletion (feature 016 code review).
+        set(initialAccountDeletionState)
+        await useCurrentUserStore.getState().refresh()
+        if (useCurrentUserStore.getState().status === "signedOut") {
+          clearSessionStores()
+        }
         return "failed"
       default:
         // A 5xx, a network error or the timeout: Retry sends the same password again (spec FR-008).
