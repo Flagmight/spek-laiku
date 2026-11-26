@@ -1,12 +1,6 @@
 import { create } from "zustand"
 import { logout } from "../api/authApi"
-import { useAccountStatusStore } from "./useAccountStatusStore"
-import { useAdminAccountsStore } from "./useAdminAccountsStore"
-import { useCurrentUserStore } from "./useCurrentUserStore"
-import { useKeptScheduleStore } from "./useKeptScheduleStore"
-import { usePlanActivitiesStore } from "./usePlanActivitiesStore"
-import { usePlanEditStore } from "./usePlanEditStore"
-import { usePlanSetupStore } from "./usePlanSetupStore"
+import { clearSignedInData } from "../helpers/clearSignedInData"
 
 // After this long without an answer the request counts as a server error (FR-014).
 export const logoutTimeoutMs = 10_000
@@ -55,19 +49,8 @@ export const useLogoutStore = create<LogoutState>()((set, get) => ({
     }
 
     if (succeeded) {
-      // Signed out on purpose, so a protected page later says "Log in to continue.", not expired.
-      useCurrentUserStore.getState().setSignedOut()
-      // The plan in progress belongs to the session that ended (feature 004, spec FR-017).
-      usePlanSetupStore.getState().clear()
-      // The activities go with it (feature 005, spec FR-019).
-      usePlanActivitiesStore.getState().clear()
-      // And a schedule kept for saving after login (feature 010, spec FR-007).
-      useKeptScheduleStore.getState().clear()
-      // And an edit of a saved plan with the saved marker (feature 011, spec FR-013).
-      usePlanEditStore.getState().clearAll()
-      // And the administrator's account list and any status change in progress (feature 014).
-      useAdminAccountsStore.getState().reset()
-      useAccountStatusStore.getState().reset()
+      // The signed-in state and every store that belongs to the session that ended.
+      clearSignedInData()
     }
 
     set({ status: succeeded ? "idle" : "serverError", controller: null })
