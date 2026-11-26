@@ -282,7 +282,7 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
 
 **Purpose**: Documentation, full verification, review. No new behaviour.
 
-- [ ] T029 [P] Update the documentation:
+- [x] T029 [P] Update the documentation:
   - **`README.md`**:
     - **New "Account" section**, after "Saved plans". It says:
       - an Active Registered User selects **Account** to see their email and delete their account;
@@ -302,7 +302,8 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
     Change nothing else.
   - **`docs/architecture.md`**: the 016 row notes the password re-entry and that the administrator deletion of FR-042 is still open. Check for other statements that now contradict the implementation, and correct only what is wrong.
   - Record the result here.
-- [ ] T030 Review `git diff main...HEAD` and confirm:
+  - Result (2026-11-26): README has a new "Account" section after "Saved plans" with every point above; "Testing an Administrator or Suspended account" ends with a paragraph on deleting throwaway accounts and keeping the walkthrough accounts; "Run the application" says "Features 012, 014 and 016 add no migration."; "User accounts" keeps "Deleting accounts is not part of it." and points to the Account page. `docs/ux-design.md`: the screen list row is now "Account", the six Account states are in the state table (after Plan Details / Edit), the navigation table and the behaviour row say "Account". Two further rows that named the screens were also updated so the document agrees with itself: the screen-to-requirement table gains "Account | FR-005, FR-039", and the FR-039 row lists "My Plans, Account, Admin: User Accounts". The template example in section 7 ("Dashboard, Tasks, Profile") is the course's example text and is unchanged. `docs/architecture.md`: the 016 row is updated; nothing else contradicts the implementation.
+- [x] T030 Review `git diff main...HEAD` and confirm:
   - only the files in plan.md "Source Code", plus the README, docs and spec files, changed (and `textField.tsx` if T017 added `disabled`);
   - there is no debug code, commented-out code or temporary file;
   - `AccountDeletionService` and `AccountController` are under 200 lines, and `AccountPage.tsx`, `deleteAccountSection.tsx`, `deleteAccountDialog.tsx` and `useAccountDeletionStore.ts` are each under about 200 lines;
@@ -311,6 +312,13 @@ Each phase ends at a reviewable checkpoint. Stop after each phase for a diff rev
   - the new backend code catches no exception, so a technical failure reaches `ApiExceptionHandler` and is logged there (spec FR-015).
   
   Record the result here.
+  - Result (2026-11-26): 45 files changed against `main` before the T029 docs (48 with them).
+    - **Files**: every production file is in plan.md "Source Code", plus `textField.tsx` (the `disabled` prop) and the `AccountDeletionRequest` password mask recorded in Phase 2. The test files are under the `tests/` folders it names, plus the shared helper `AccountDeletionRequests.cs`, `AccountDeletionRequestTests.cs`, `clearSignedInData.test.ts` and the reset in `setup.ts`, each recorded in its phase. The rest are the README, the two docs and this feature's spec files.
+    - **Leftovers**: no `console.`, `debugger`, `Console.Write`, `TODO`, `FIXME`, `.only(` or commented-out code in the added lines, and no temporary file.
+    - **Sizes**: `AccountDeletionService` 93 and `AccountController` 62 lines; `AccountPage.tsx` 20, `deleteAccountSection.tsx` 54, `deleteAccountDialog.tsx` 156 and `useAccountDeletionStore.ts` 182.
+    - **Migrations and packages**: nothing under `Migrations/`, no `package.json`, lock file or `.csproj` changed.
+    - **Logging**: the only two logger calls (`AccountDeletionService`, lines 61 and 90) pass the account id and the plan count; no email or password. `AccountDeletionRequest.ToString()` masks the password.
+    - **Exceptions**: no `catch` in the new backend code.
 - [ ] T031 Run a separate AI-assisted review of the branch: `/code-review`, and `/security-review`, because this feature adds a destructive operation with a password check on user accounts. Record:
   - the tool;
   - the important findings;

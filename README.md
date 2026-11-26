@@ -76,7 +76,7 @@ npm run build
    dotnet ef database update --project .\backend\src\SpekLaiku.Api
    ```
 
-   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Features 004 to 009 add no migration. Feature 010 adds `AddSavedPlans`, which creates the `SavedPlans` and `GeneratedSchedules` tables. Feature 011 adds `AddSavedPlanCreatedAt`, which adds the `CreatedAtUtc` column to `SavedPlans` and fills it from each plan's saved time. Features 012 and 014 add no migration.
+   Run it again after pulling a feature that adds a migration. Feature 003 adds `AddActivityCategories`, which creates the `ActivityCategories` table and inserts the five starter categories. Features 004 to 009 add no migration. Feature 010 adds `AddSavedPlans`, which creates the `SavedPlans` and `GeneratedSchedules` tables. Feature 011 adds `AddSavedPlanCreatedAt`, which adds the `CreatedAtUtc` column to `SavedPlans` and fills it from each plan's saved time. Features 012, 014 and 016 add no migration.
 
 3. Trust the ASP.NET Core development certificate once per machine. The sign-in cookie is `Secure`, so the API runs over https:
 
@@ -242,6 +242,8 @@ UPDATE "AspNetUsers" SET "Role" = 'Registered User', "AccountStatus" = 0 WHERE "
 
 The application reads the role and status from the database on each page load, but the page opened after login is chosen when logging in, so log out and log in again to check it.
 
+Throwaway test accounts can be deleted on the Account page (see "Account" below). Deleting cannot be undone, so keep the accounts you reuse for walkthroughs. Administrator accounts cannot be deleted there.
+
 ## Activity categories
 
 - **Page** (`/admin/categories`, "Categories" in the navigation): lists every category in alphabetical order. "Create category" and each category's "Edit" open a form next to the list (below it on a phone) with the name, type (Indoor or Outdoor), default duration, the weather limits of an Outdoor category (maximum wind, maximum rain, minimum and maximum temperature), "Requires daylight" and the map place tags (`key=value` pairs such as `leisure=slipway`, used by a later feature to find places on OpenStreetMap). Categories cannot be deleted.
@@ -260,7 +262,7 @@ To try it, make an account an Administrator with the SQL in "Testing an Administ
 - **Log**: each change writes one Information entry, for example `Account <id> suspended by administrator <id>.`, with the two account ids and no email.
 - **Who can open it**: only a signed-in Active Administrator, with the same rules as Activity categories (Log in, "Access denied", Account Suspended). The API refuses everyone else with `401` or `403` and no account data.
 
-Feature 014 adds no migration. Deleting accounts is not part of it. The manual checks for a release are in `specs/014-admin-accounts/quickstart.md`.
+Feature 014 adds no migration. Deleting accounts is not part of it. A user deletes their own account on the Account page (feature 016, see "Account" below). The manual checks for a release are in `specs/014-admin-accounts/quickstart.md`.
 
 ## Plan setup
 
@@ -335,6 +337,16 @@ This feature needs no migration. The manual checks for a release are in `specs/0
 - **Private**: only the plan's owner can list, open, edit, rename, duplicate or delete it. A Visitor is sent to Log in, an Administrator sees "Access denied" and a Suspended user opens the Account Suspended page; the API refuses them with `401` or `403` and reads the account on every request. Another user's plan answers `403` with no plan data, and a plan that does not exist shows "This plan no longer exists.". A plan keeps the activity names it was saved with, even if a category is renamed later.
 
 Feature 010 adds the migration `AddSavedPlans` and feature 011 the migration `AddSavedPlanCreatedAt` (see "Run the application"). Feature 012 adds no migration. The manual checks for a release are in `specs/010-save-view-plans/quickstart.md`, `specs/011-plan-management/quickstart.md` and `specs/012-plan-problems/quickstart.md`.
+
+## Account
+
+- **Page** (`/account`, "Account" in the navigation, after "My plans"): an Active Registered User sees their email and the **Delete account** section.
+- **Delete account** asks "Delete your account <email>? All your saved plans will be deleted. This cannot be undone." with a **Password** field, **Delete account** and **Cancel** (or Escape). The account is deleted only when the password is the account's current one; it is never trimmed. Deleting is permanent: the account and all its saved plans are removed together, or nothing is removed if something fails. The user is signed out and Home opens with "✓ Success: Your account has been deleted.". Another browser still signed in to the account is treated as an expired session, the old email and password no longer log in, and the email can be registered again at once.
+- **Wrong passwords** show "Error: Password is incorrect." and count towards the same lock as Log in: 5 in a row, in the dialog or on Log in, lock the account for 15 minutes. While it is locked the dialog shows "Error: Too many incorrect passwords. Try again in 15 minutes." and the user stays signed in.
+- **Who can delete**: only a signed-in Active Registered User, and only their own account; the request names no account. A visitor is sent to Log in, an Administrator sees "Access denied" and a Suspended user opens the Account Suspended page. The API (`POST /api/account/delete`) refuses them with `401` or `403` before the password is checked.
+- **Log**: each deletion writes one Information entry, for example `Account <id> deleted with 2 saved plans.`, with the account id and no email. A lock caused in the dialog writes the same kind of Warning as a lock on Log in.
+
+Feature 016 adds no migration. An administrator deleting another user's account is not part of it. The manual checks for a release are in `specs/016-account-deletion/quickstart.md`.
 
 ## Deployment notes
 

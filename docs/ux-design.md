@@ -39,7 +39,7 @@ must be explicitly justified.
 | My Plans | Lists saved plans with open, duplicate and delete actions (feature 010 lists and opens; feature 011 adds duplicate and delete). | Registered User (own plans only) |
 | Plan Details / Edit | Views and edits one saved plan (feature 010 shows it as saved; feature 011 adds edit, rename, duplicate and delete; feature 012 adds the plan check and **Recalculate**). | Plan owner |
 | Shared Plan and Voting | Opens a plan via link or invitation, view-only or vote (optional extension). | Registered User (invited) |
-| Profile | Edit profile and preferences, delete account. | Registered User |
+| Account | Shows the email and Delete account (feature 016); profile details and preferences may be added later. | Registered User |
 | Admin: Service Status | Shows Open-Meteo and Overpass availability and error logs. | Administrator |
 | Admin: Activity Categories | Create and edit categories, their default weather limits and their OSM place mapping. | Administrator |
 | Admin: User Accounts | Lists accounts, with suspend, reactivate and delete (feature 014 adds the list, the email search, suspend and reactivate for Registered User accounts; delete comes after the MVP). | Administrator |
@@ -416,6 +416,12 @@ area.
 |  | Server error (actions) | "Error: Plan could not be deleted. Try again." / "Error: Plan could not be duplicated. Try again." with Retry (feature 011). |
 | Plan Details / Edit | Rename | "✓ Success: Plan renamed."; "Renaming your plan…" while saving; "Error: Plan could not be renamed. Try again." with Retry (feature 011). |
 |  | Confirmation | **Edit plan** with an unsaved plan in the tab asks "Editing this plan replaces the plan you have not saved. Continue?" with **Continue** and **Cancel** (feature 011). |
+| Account | Confirmation | **Delete account** asks "Delete your account <email>? All your saved plans will be deleted. This cannot be undone." with a **Password** field, **Delete account** and **Cancel** (feature 016). |
+|  | Pending | "Deleting your account…" with the field and buttons disabled (feature 016). |
+|  | Success | Home with "✓ Success: Your account has been deleted." and the visitor navigation (feature 016). |
+|  | Validation | "Error: Enter your password." / "Error: Password is incorrect." next to the field (feature 016). |
+|  | Locked | "Error: Too many incorrect passwords. Try again in 15 minutes." The user stays signed in (feature 016). |
+|  | Server error | "Error: Account could not be deleted. Try again." with Retry (feature 016). |
 | Admin: Activity Categories | Loading | "Loading activity categories…" |
 |  | Empty | "No categories yet. Create the first category." |
 |  | Server error | "Error: Activity categories could not be loaded." with Retry. |
@@ -456,7 +462,7 @@ Navigation follows the wireframes: a top bar on desktop
 | Home                   | ✓       | ✓               | –             | ✓              |
 | Create plan            | ✓       | ✓               | –             | –              |
 | My plans               | –       | ✓               | –             | –              |
-| Profile *(Could Have)* | –       | ✓               | –             | –              |
+| Account                | –       | ✓               | –             | –              |
 | Service status         | –       | –               | ✓             | –              |
 | Categories             | –       | –               | ✓             | –              |
 | Users                  | –       | –               | ✓             | –              |
@@ -477,7 +483,7 @@ Navigation follows the wireframes: a top bar on desktop
 
 | Situation | Result |
 |----|----|
-| Visitor opens My plans, Profile or an admin page | Redirected to Log in with "Log in to continue." After login, the user goes to the page they asked for. |
+| Visitor opens My plans, Account or an admin page | Redirected to Log in with "Log in to continue." After login, the user goes to the page they asked for. |
 | Logged-in user opens Log in or Register | Redirected to Home. |
 | After login | Registered User goes to Home. Administrator goes to Service status. Suspended account goes to Account Suspended. |
 | After log out | Goes to Home, with a Visitor menu. Plan data in the session is cleared. |
@@ -663,6 +669,7 @@ Work 1 as new requirements before implementation.
 | My Plans | FR-020, FR-021, FR-023, FR-024, FR-025 |
 | Admin: Activity Categories | FR-027, FR-028, FR-044 |
 | Admin: Service Status | FR-030, FR-043 |
+| Account | FR-005, FR-039 |
 | Admin: User Accounts | FR-029, FR-039, FR-042 |
 | Account Suspended | FR-041 |
 
@@ -693,7 +700,7 @@ Independent Work 1 before implementation.
 | FR-036 | Flag an activity as unscheduled, with the reason | Places and Forecast (no place found, feature 007), Schedule Overview (unscheduled list, feature 008) |
 | FR-037 | Change duration and weather limits inside a plan | Activity Selection |
 | FR-038 | Keep a visitor's plan when they log in or register | Schedule Overview |
-| FR-039 | Confirm before deleting a plan or account, or suspending an account | My Plans, Admin: User Accounts |
+| FR-039 | Confirm before deleting a plan or account, or suspending an account | My Plans, Account, Admin: User Accounts |
 | FR-040 | Redirect after login by role and to the requested page | Log in |
 | FR-041 | Block suspended users and explain why | Account Suspended |
 | FR-042 | Administrator reactivates and deletes accounts | Admin: User Accounts |
