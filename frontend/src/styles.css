@@ -782,9 +782,15 @@ fieldset.plan-activity h3 {
 }
 
 /* Account (feature 016). A long email wraps instead of widening the page at 320 px (spec FR-014); the dialog's
-   field and buttons are full width on phones through the input and form button rules above. */
+   field and buttons are full width on phones through the input and form button rules above, and the button that
+   opens it through the rule below; wider screens size it to its text. */
 .account-email {
   overflow-wrap: anywhere;
+}
+
+.delete-account > button {
+  display: block;
+  width: 100%;
 }
 
 /* Plan check (feature 012). Each problem is a card that wraps its long text instead of widening the page, as the
@@ -838,6 +844,10 @@ fieldset.plan-activity h3 {
 /* Wider screens: buttons are sized to their text. */
 @media (min-width: 40em) {
   form button {
+    width: auto;
+  }
+
+  .delete-account > button {
     width: auto;
   }
 

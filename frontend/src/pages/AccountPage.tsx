@@ -11,8 +11,8 @@ export function AccountPage() {
   return (
     <>
       <h1>Account</h1>
-      <p>
-        Email: <span className="account-email">{email}</span>
+      <p className="account-email">
+        Email: <span>{email}</span>
       </p>
       <DeleteAccountSection email={email} />
     </>

@@ -1597,3 +1597,121 @@ describe("User accounts accessibility", () => {
     ])
   })
 })
+
+// The Account page and its dialog (feature 016 spec FR-012, FR-013, User Story 3).
+describe("Account page accessibility", () => {
+  const question =
+    "Delete your account user@example.com? All your saved plans will be deleted. This cannot be undone."
+
+  function stubAccount(answer: () => Response | Promise<Response>) {
+    let deleted = false
+    return routeFetch({
+      "GET /api/auth/me": () =>
+        deleted ? jsonResponse(401) : jsonResponse(200, signedInUser()),
+      "GET /api/plans": () => jsonResponse(200, []),
+      "POST /api/account/delete": async () => {
+        const response = await answer()
+        deleted = response.status === 204
+        return response
+      },
+    })
+  }
+
+  async function openDialog() {
+    const user = userEvent.setup()
+    await user.click(
+      await screen.findByRole("button", { name: "Delete account" }),
+    )
+    return { user, dialog: screen.getByRole("dialog", { name: question }) }
+  }
+
+  it("has one h1, the tab title and the skip link first", async () => {
+    stubAccount(() => jsonResponse(204))
+    document.title = ""
+    const user = userEvent.setup()
+    renderApp("/account")
+    await screen.findByRole("heading", { level: 1, name: "Account" })
+
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1)
+    expect(document.title).toBe("Account - Spėk laiku")
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Delete account" }),
+    ).toBeInTheDocument()
+    await user.tab()
+    expect(
+      screen.getByRole("link", { name: "Skip to main content" }),
+    ).toHaveFocus()
+  })
+
+  it("names the dialog after its question and labels the field", async () => {
+    stubAccount(() => jsonResponse(204))
+    renderApp("/account")
+
+    const { dialog } = await openDialog()
+
+    expect(dialog).toHaveAttribute("aria-modal", "true")
+    expect(within(dialog).getByLabelText("Password")).toHaveAttribute(
+      "id",
+      "delete-account-password",
+    )
+  })
+
+  it("links the field error to the field", async () => {
+    stubAccount(() =>
+      jsonResponse(400, { errors: { password: ["Password is incorrect."] } }),
+    )
+    renderApp("/account")
+    const { user, dialog } = await openDialog()
+    await user.type(within(dialog).getByLabelText("Password"), "wrong")
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Delete account" }),
+    )
+
+    const error = await within(dialog).findByText(
+      "Error: Password is incorrect.",
+    )
+    const field = within(dialog).getByLabelText("Password")
+    expect(field).toHaveAttribute("aria-invalid", "true")
+    expect(field.getAttribute("aria-describedby")?.split(" ")).toContain(
+      error.id,
+    )
+  })
+
+  it("announces the pending text in a status region and errors in an alert region", async () => {
+    let answer: (response: Response) => void = () => {}
+    stubAccount(() => new Promise<Response>((resolve) => (answer = resolve)))
+    renderApp("/account")
+    const { user, dialog } = await openDialog()
+    await user.type(within(dialog).getByLabelText("Password"), "Password123!")
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Delete account" }),
+    )
+
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "Deleting your account…",
+    )
+    answer(jsonResponse(500, {}))
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "Error: Account could not be deleted. Try again.",
+    )
+  })
+
+  it("announces the success message in the layout's status region after deletion", async () => {
+    stubAccount(() => jsonResponse(204))
+    renderApp("/account")
+    const { user, dialog } = await openDialog()
+    await user.type(within(dialog).getByLabelText("Password"), "Password123!")
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Delete account" }),
+    )
+
+    const message = await screen.findByText(
+      "✓ Success: Your account has been deleted.",
+    )
+    expect(message.closest("[role='status']")).not.toBeNull()
+    expect(screen.getByRole("main")).not.toContainElement(message)
+  })
+})

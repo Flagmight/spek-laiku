@@ -29,7 +29,7 @@ export function DeleteAccountSection({ email }: { email: string }) {
   }
 
   return (
-    <section aria-labelledby={headingId}>
+    <section className="delete-account" aria-labelledby={headingId}>
       <h2 id={headingId}>Delete account</h2>
       <p>
         Deleting your account also deletes all your saved plans. This cannot be

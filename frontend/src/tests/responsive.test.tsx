@@ -1321,3 +1321,59 @@ describe("User accounts at 320 px", () => {
     expectTouchTarget(search)
   })
 })
+
+// The Account page and its dialog at 320 px (feature 016 spec FR-014). jsdom applies no media query, so these are
+// the narrow rules.
+describe("Account page at 320 px", () => {
+  const longEmail = `${"long-name.".repeat(5)}user@example.com`
+
+  function stubAccount() {
+    routeFetch({
+      "GET /api/auth/me": () =>
+        jsonResponse(200, {
+          ...signedInUser(),
+          email: longEmail,
+        }),
+      "GET /api/plans": () => jsonResponse(200, []),
+    })
+  }
+
+  it("wraps a long email instead of widening the page", async () => {
+    stubAccount()
+    renderApp("/account")
+
+    const email = await screen.findByText(longEmail)
+
+    expect(longEmail.length).toBeGreaterThanOrEqual(60)
+    expect(getComputedStyle(email.closest("p")!).overflowWrap).toBe("anywhere")
+  })
+
+  it("makes Delete account full width and at least 44 × 44 px", async () => {
+    stubAccount()
+    renderApp("/account")
+
+    const open = await screen.findByRole("button", { name: "Delete account" })
+
+    expect(getComputedStyle(open).width).toBe("100%")
+    expectTouchTarget(open)
+  })
+
+  it("makes the dialog's field and buttons full width, with 16 px text and 44 × 44 px buttons", async () => {
+    stubAccount()
+    const user = userEvent.setup()
+    renderApp("/account")
+    await user.click(
+      await screen.findByRole("button", { name: "Delete account" }),
+    )
+    const dialog = screen.getByRole("dialog")
+
+    const field = getComputedStyle(within(dialog).getByLabelText("Password"))
+    expect(field.width).toBe("100%")
+    expect(px(field.fontSize)).toBeGreaterThanOrEqual(minimumInputText)
+    for (const button of within(dialog).getAllByRole("button")) {
+      expect(getComputedStyle(button).width).toBe("100%")
+      expectTouchTarget(button)
+    }
+    expect(getComputedStyle(dialog).overflowWrap).toBe("anywhere")
+  })
+})
